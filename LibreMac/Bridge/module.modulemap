@@ -1,0 +1,4 @@
+module CppBridge {
+    header "CppBridge.h"
+    export *
+}

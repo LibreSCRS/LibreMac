@@ -1,0 +1,25 @@
+# Build outputs
+build/
+DerivedData/
+
+# XcodeGen — project.yml is the source of truth; .xcodeproj is generated
+LibreMac.xcodeproj
+
+# Swift Package Manager
+.build/
+Package.resolved
+*.xcodeproj/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Local config
+*.local.cmake
+*.local.xcconfig
+
+# Generated artefacts
+LibreMac/Resources/Localizable.xcstrings.generated

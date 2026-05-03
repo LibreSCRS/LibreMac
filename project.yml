@@ -1,0 +1,148 @@
+name: LibreMac
+options:
+  bundleIdPrefix: org.librescrs
+  deploymentTarget:
+    macOS: "15.0"
+  developmentLanguage: en
+  groupSortPosition: bottom
+  generateEmptyDirectories: true
+  xcodeVersion: "16.0"
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    CLANG_WARN_DOCUMENTATION_COMMENTS: YES
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_HARDENED_RUNTIME: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    PRODUCT_NAME: "$(TARGET_NAME)"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    OTHER_CODE_SIGN_FLAGS: "--timestamp=none"
+packages:
+  LibreMacShared:
+    path: LibreMacShared
+targets:
+  LibreMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: LibreMac
+        excludes:
+          - "Bridge/module.modulemap"
+    dependencies:
+      - package: LibreMacShared
+        product: LibreMacShared
+    info:
+      path: LibreMac/Info.plist
+      properties:
+        CFBundleDisplayName: LibreMac
+        CFBundleShortVersionString: 0.1.0
+        CFBundleVersion: 1
+        LSUIElement: true
+        NSHumanReadableCopyright: "Copyright (c) 2026 hirashix0. LGPL-2.1-or-later."
+        NSPrincipalClass: NSApplication
+    entitlements:
+      path: LibreMac/LibreMac.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.smartcard: true
+        com.apple.security.network.client: true
+        com.apple.security.files.user-selected.read-write: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.librescrs.LibreMac
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+        CODE_SIGN_ENTITLEMENTS: LibreMac/LibreMac.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/LibreMac/Bridge
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/BridgeNative/include
+          - $(SRCROOT)/LibreMac/Bridge
+        OTHER_LDFLAGS:
+          - -L$(BUILT_PRODUCTS_DIR)
+          - -lBridgeNative
+          - -lLibreSCRS_Plugin
+          - -lLibreSCRS_SmartCard
+          - -lLibreSCRS_Auth
+          - -lCardPlugin_Impl
+          - -lSmartCard_Impl
+          - -lcrypto
+          - -lc++
+          - -framework
+          - PCSC
+    preBuildScripts:
+      - name: "Build BridgeNative (CMake)"
+        script: |
+          set -e
+          "$SRCROOT/Scripts/build-cmake-side.sh" "$CONFIGURATION" "$BUILT_PRODUCTS_DIR"
+        outputFiles:
+          - "$(BUILT_PRODUCTS_DIR)/libBridgeNative.a"
+        basedOnDependencyAnalysis: false
+      - name: "Regenerate Localizable.xcstrings from .ts"
+        script: |
+          set -e
+          LC="/Users/nhirsl/Development/NetSeT/git/LibreSCRS/LibreCelik"
+          if [ ! -f "$LC/resources/i18n/LibreCelik_en.ts" ]; then
+              echo "warning: LibreCelik .ts files not found at $LC; using committed Localizable.xcstrings as-is" >&2
+              exit 0
+          fi
+          mkdir -p "$SRCROOT/LibreMac/Resources"
+          swift run --package-path "$SRCROOT/Tools/ts2xcstrings" ts2xcstrings \
+              --output "$SRCROOT/LibreMac/Resources/Localizable.xcstrings" \
+              "$LC/resources/i18n/LibreCelik_en.ts" \
+              "$LC/resources/i18n/LibreCelik_sr_RS.ts"
+        outputFiles:
+          - "$(SRCROOT)/LibreMac/Resources/Localizable.xcstrings"
+        basedOnDependencyAnalysis: false
+    postBuildScripts:
+      - name: "Ad-hoc sign LibreMac.app"
+        script: |
+          if [ "$CODE_SIGN_IDENTITY" = "-" ]; then
+            "$SRCROOT/Scripts/adhoc-sign.sh" "$TARGET_BUILD_DIR/$WRAPPER_NAME"
+          fi
+        outputFiles:
+          - "$(DERIVED_FILE_DIR)/adhoc-sign.stamp"
+  LibreMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: LibreMacTests
+    dependencies:
+      - target: LibreMac
+      - package: LibreMacShared
+        product: LibreMacShared
+    settings:
+      base:
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/LibreMac.app/Contents/MacOS/LibreMac
+        PRODUCT_BUNDLE_IDENTIFIER: org.librescrs.LibreMac.tests
+        GENERATE_INFOPLIST_FILE: YES
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+        # Tests do `@testable import LibreMac`, which transitively requires
+        # the CppBridge clang module declared in LibreMac/Bridge/module.modulemap.
+        # Mirror the host target's include / search paths so the test compile
+        # can resolve the same module.
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/LibreMac/Bridge
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/BridgeNative/include
+          - $(SRCROOT)/LibreMac/Bridge
+schemes:
+  LibreMac:
+    build:
+      targets:
+        LibreMac: all
+        LibreMacTests: [test]
+    test:
+      gatherCoverageData: true
+      targets: [LibreMacTests]
+    run:
+      executable: LibreMac
+    archive:
+      config: Release
