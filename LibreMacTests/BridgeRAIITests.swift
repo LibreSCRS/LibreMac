@@ -9,11 +9,12 @@ import LibreMacShared
 @Suite("BridgeRAII")
 struct BridgeRAIITests {
     /// `loadBundledPlugins()` must succeed even when no plugins ship with the
-    /// test bundle (count == 0). The registry singleton is constructed once
-    /// and never re-constructed.
+    /// test bundle (count == 0). Each test constructs its own `BridgeRegistry`
+    /// so test isolation is guaranteed (no shared state across tests).
     @Test("Registry boots and reports plugin count >= 0")
     func registryBoots() {
-        let count = BridgeRegistry.shared.loadBundledPlugins()
+        let registry = BridgeRegistry()
+        let count = registry.loadBundledPlugins()
         #expect(count >= 0)
     }
 
@@ -23,10 +24,11 @@ struct BridgeRAIITests {
     /// branch in `BridgeRegistry.loadPlugins`.
     @Test("Registry survives an invalid plugin directory")
     func registrySurvivesBadDir() {
+        let registry = BridgeRegistry()
         let tmp = NSTemporaryDirectory()
             .appending("librescrs-bridge-tests-\(UUID().uuidString)")
         // Directory does not exist → expect 0 plugins, no crash.
-        let count = BridgeRegistry.shared.loadPlugins(fromDirectory: tmp)
+        let count = registry.loadPlugins(fromDirectory: tmp)
         #expect(count >= 0)
     }
 }

@@ -8,8 +8,8 @@ import Testing
 struct LocalizedTextTests {
     @Test("Fallback resolves with placeholder substitution")
     func fallbackSubstitution() {
-        let text = LocalizedText(i18nKey: "lm.unknown.key.for.test",
-                                 englishFallback: "Hello {name}, you have {count} messages.",
+        let text = LocalizedText(key: "lm.unknown.key.for.test",
+                                 defaultText: "Hello {name}, you have {count} messages.",
                                  placeholders: ["name": "Ana", "count": "3"])
         let resolved = text.resolve()
         #expect(resolved == "Hello Ana, you have 3 messages.")
@@ -17,9 +17,9 @@ struct LocalizedTextTests {
 
     @Test("Strict equality")
     func strictEquality() {
-        let a = LocalizedText(i18nKey: "k", englishFallback: "Foo",
+        let a = LocalizedText(key: "k", defaultText: "Foo",
                               placeholders: ["x": "1"])
-        let b = LocalizedText(i18nKey: "k", englishFallback: "Bar",
+        let b = LocalizedText(key: "k", defaultText: "Bar",
                               placeholders: ["x": "1"])
         #expect(a != b)
     }

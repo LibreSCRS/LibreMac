@@ -7,6 +7,11 @@ import os
 
 @main
 struct LibreMacApp: App {
+    /// App-scope BridgeRegistry — the LibreMac composition root. Constructor-
+    /// injected into every consumer; never accessed via a global. A future
+    /// CTK appex (P4) will construct its own `BridgeRegistry` rooted at the
+    /// appex bundle's PlugIns directory.
+    private let registry: BridgeRegistry
     @State private var monitor: CardMonitor
     @State private var signing: SigningCoordinator
 
@@ -18,8 +23,10 @@ struct LibreMacApp: App {
     // transient state; their lifetime matches the scene's.
     init() {
         Logger.app.info("LibreMac launched")
-        BridgeRegistry.shared.loadBundledPlugins()
-        let m = CardMonitor()
+        let r = BridgeRegistry()
+        r.loadBundledPlugins()
+        self.registry = r
+        let m = CardMonitor(registry: r)
         self._monitor = State(initialValue: m)
         self._signing = State(initialValue: SigningCoordinator(cardMonitor: m))
     }

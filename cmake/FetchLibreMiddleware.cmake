@@ -7,7 +7,22 @@
 
 include(FetchContent)
 
-set(LIBREMAC_LM_LOCAL_DIR "/Users/nhirsl/Development/NetSeT/git/LibreSCRS/LibreMiddleware"
+# Default to a sibling-checkout layout: <multi-repo root>/LibreMiddleware
+# next to <multi-repo root>/LibreMac. This matches the project's
+# documented multi-repo layout (LibreSCRS/LibreMiddleware,
+# LibreSCRS/LibreCelik, LibreSCRS/LibreMac side-by-side).
+#
+# Override with one of, in priority order:
+#   -DLIBREMAC_LM_LOCAL_DIR=/path/to/LibreMiddleware  (CMake cache override)
+#   $LIBRESCRS_ROOT environment variable (multi-repo root)
+# When neither resolves to an existing checkout, the FetchContent block
+# below falls back to a Git fetch of LIBREMAC_LM_GIT_TAG.
+if(DEFINED ENV{LIBRESCRS_ROOT} AND NOT DEFINED LIBREMAC_LM_LOCAL_DIR)
+    set(_lm_default "$ENV{LIBRESCRS_ROOT}/LibreMiddleware")
+else()
+    set(_lm_default "${CMAKE_CURRENT_LIST_DIR}/../../LibreMiddleware")
+endif()
+set(LIBREMAC_LM_LOCAL_DIR "${_lm_default}"
     CACHE PATH "Local LibreMiddleware checkout (overrides Git fetch)")
 set(LIBREMAC_LM_GIT_REPOSITORY "https://github.com/LibreSCRS/LibreMiddleware.git"
     CACHE STRING "")

@@ -7,30 +7,52 @@
 // `lm_registry_destroy`, and likewise for sessions. Per Stroustrup *The C++
 // Programming Language* §13 (RAII as the canonical resource-management
 // idiom), the same pattern translates one-for-one to Swift's `deinit`.
+//
+// LocalizedText limitation:
+// This bridge currently fabricates its own `LocalizedText` (key +
+// defaultText + placeholders) at the Swift seam — see the
+// `error.reader.unavailable` / `error.reader.nocard` / etc. literals
+// scattered through `BridgeSession.init` and the `verifyPin` / `sign`
+// throw sites. The corresponding LM `Auth::LocalizedText` payload
+// emitted by `CardSession::open` / `verifyPIN` / `sign` is collapsed
+// into a flat `errMsg: char*` by the C ABI and re-wrapped here with a
+// hand-written key. Consequence: the user-visible localised string is
+// whatever LibreMac fabricates, NOT what LM resolved — Linux and macOS
+// see different message text for the same underlying card error.
+//
+// Tracked in the project BACKLOG: extend the C ABI to surface a
+// `lm_localized_text_t` triple (key + default_text + placeholder
+// kv-pairs, all caller-owned, mirroring LM's
+// `LibreSCRS::LocalizedText` field names) and propagate it 1:1 into
+// Swift's `LocalizedText`. That would ship LM's canonical i18n keys
+// end-to-end and retire the bespoke `error.*` catalogue. The current
+// catalogue entries in `Localizable.xcstrings` cover the user-visible-
+// locale case for the time being.
 
 import Foundation
 import os
 import LibreMacShared
 import CppBridge
 
-/// Process-wide CardPluginService. Constructed lazily on the first
-/// `loadBundledPlugins(...)` call; subsequent loads are no-ops because the
-/// LM 4.0 ABI v6 makes the plugin set immutable post-construction.
+/// CardPluginService composition root. **Constructor-injected** — pass the
+/// instance down through `LibreMacApp.init()` to consumers (`BridgeSession`,
+/// `CardMonitor`, `SigningCoordinator`). There is no `static let shared`
+/// and no Meyers singleton: per `feedback_singleton_patterns.md` the
+/// LM-facing seam follows pure constructor DI, never `instance()`/Meyers.
 ///
-/// Composition root: constructs once, never freed mid-lifecycle. The
-/// `deinit` is a defensive cleanup that fires only at process termination,
-/// when the OS would reclaim the memory anyway — kept so a future
-/// non-singleton re-org (one bridge per scene, say) does not silently
-/// regress to a leak.
+/// Lifecycle: typically constructed once at app launch and held by the
+/// SwiftUI scene root. `deinit` calls `lm_registry_destroy` so the C++
+/// CardPluginService and its `dlopen`'d plugin set are torn down cleanly
+/// when the registry's last Swift owner drops it. Multiple registries
+/// rooted at different plugin directories (e.g. system + user-installed,
+/// or the future CTK appex with its own scope) are supported.
 public final class BridgeRegistry: @unchecked Sendable {
-    public static let shared = BridgeRegistry()
-
     /// Serialise registry construction across concurrent first-loaders.
     private let lock = NSLock()
     /// Non-nil after a successful `loadBundledPlugins(dir:)`.
     private var handle: lm_registry_t?
 
-    private init() {}
+    public init() {}
 
     deinit {
         if let h = handle {
@@ -88,18 +110,40 @@ public final class BridgeRegistry: @unchecked Sendable {
 /// `BridgeSession` is a class (not a struct) because the underlying handle has
 /// reference-semantics ownership — copying the Swift value must not duplicate
 /// the C++ session.
+///
+/// **Threading model.** `BridgeSession` is **not `Sendable`**: the underlying
+/// LM `CardSession` serialises APDU traffic over a single PC/SC channel and
+/// the bridge does not internally synchronise concurrent calls on the same
+/// handle. Strict-concurrency callers (the project sets
+/// `SWIFT_STRICT_CONCURRENCY = complete`) are therefore expected to keep
+/// every `BridgeSession` confined to a single isolation domain — in
+/// LibreMac's case `@MainActor`, since `CardMonitor` (the sole owner) is
+/// MainActor-isolated and `SigningCoordinator` (the sole consumer) borrows
+/// the session via `cardMonitor.activeSession` on MainActor.
+///
+/// Concretely:
+/// - Do **not** add `@unchecked Sendable` without first introducing an
+///   internal serialisation barrier (`NSLock` around every public method)
+///   AND auditing the LM-side handle for re-entrancy on PIN / sign / read.
+/// - `deinit` runs on whichever thread releases the final reference; ARC
+///   guarantees it runs exactly once, so `lm_session_close(handle)` is
+///   safe even though the deinit is non-isolated. Same-handle double-free
+///   is prevented by Swift's reference-counting invariant.
+/// - If a future caller needs cross-actor access, wrap the session in an
+///   `actor BridgeSessionActor` rather than relaxing the Sendable stance
+///   here.
 public final class BridgeSession {
     private let handle: lm_session_t
 
-    public init(reader: String) throws(LibreMacError) {
-        guard let registry = BridgeRegistry.shared.rawHandle else {
-            throw .bridgeUnavailable(diagnostic: "registry not loaded — call BridgeRegistry.shared.loadBundledPlugins() first")
+    public init(registry: BridgeRegistry, reader: String) throws(LibreMacError) {
+        guard let registryHandle = registry.rawHandle else {
+            throw .bridgeUnavailable(diagnostic: "registry not loaded — call loadBundledPlugins() on the injected BridgeRegistry first")
         }
 
         var status: lm_open_status_t = LM_OPEN_PROTOCOL_ERROR
         var errMsg: UnsafeMutablePointer<CChar>?
         let opened: lm_session_t? = reader.withCString { cReader in
-            lm_session_open(registry, cReader, &status, &errMsg)
+            lm_session_open(registryHandle, cReader, &status, &errMsg)
         }
 
         guard let h = opened else {
@@ -107,17 +151,17 @@ public final class BridgeSession {
             if let p = errMsg { lm_string_free(p) }
             switch status {
             case LM_OPEN_READER_UNAVAILABLE:
-                throw .readerUnavailable(.init(i18nKey: "error.reader.unavailable",
-                                               englishFallback: message))
+                throw .readerUnavailable(.init(key: "error.reader.unavailable",
+                                               defaultText: message))
             case LM_OPEN_NO_CARD:
-                throw .noCardPresent(.init(i18nKey: "error.reader.nocard",
-                                           englishFallback: message))
+                throw .noCardPresent(.init(key: "error.reader.nocard",
+                                           defaultText: message))
             case LM_OPEN_NO_MATCHING_PLUGIN:
-                throw .unsupportedCard(.init(i18nKey: "error.card.unsupported",
-                                             englishFallback: message))
+                throw .unsupportedCard(.init(key: "error.card.unsupported",
+                                             defaultText: message))
             default:
-                throw .communicationError(.init(i18nKey: "error.reader.protocol",
-                                                englishFallback: message),
+                throw .communicationError(.init(key: "error.reader.protocol",
+                                                defaultText: message),
                                           diagnostic: nil)
             }
         }
@@ -141,8 +185,8 @@ public final class BridgeSession {
         }
         guard status == LM_READ_OK else {
             let message = errMsg.flatMap { String(cString: $0) } ?? "unknown"
-            throw .communicationError(.init(i18nKey: "error.read.certs",
-                                            englishFallback: message),
+            throw .communicationError(.init(key: "error.read.certs",
+                                            defaultText: message),
                                       diagnostic: nil)
         }
         guard let arr = arr else { return [] }
@@ -176,13 +220,13 @@ public final class BridgeSession {
         case LM_PIN_BLOCKED:
             throw .pinBlocked
         case LM_PIN_UNSUPPORTED:
-            throw .communicationError(.init(i18nKey: "error.pin.unsupported",
-                                            englishFallback: "PIN verification not supported"),
+            throw .communicationError(.init(key: "error.pin.unsupported",
+                                            defaultText: "PIN verification not supported"),
                                       diagnostic: nil)
         default:
             let message = errMsg.flatMap { String(cString: $0) } ?? "device error"
-            throw .communicationError(.init(i18nKey: "error.pin.device",
-                                            englishFallback: message),
+            throw .communicationError(.init(key: "error.pin.device",
+                                            defaultText: message),
                                       diagnostic: nil)
         }
     }
@@ -206,14 +250,14 @@ public final class BridgeSession {
             let message = errMsg.flatMap { String(cString: $0) } ?? "sign failed"
             switch status {
             case LM_SIGN_PIN_REQUIRED:
-                throw .authenticationFailed(.init(i18nKey: "error.sign.pin_required",
-                                                  englishFallback: "PIN required"),
+                throw .authenticationFailed(.init(key: "error.sign.pin_required",
+                                                  defaultText: "PIN required"),
                                             retriesLeft: nil)
             case LM_SIGN_CANCELLED:
                 throw .userCancelled
             default:
-                throw .signingEngineError(.init(i18nKey: "error.sign.engine",
-                                                englishFallback: message),
+                throw .signingEngineError(.init(key: "error.sign.engine",
+                                                defaultText: message),
                                           diagnostic: nil)
             }
         }

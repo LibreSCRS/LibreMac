@@ -21,7 +21,8 @@ struct SigningCoordinatorTests {
     /// defend its own invariant.
     @Test("beginPinEntry without active session keeps stage idle")
     func beginPinEntryWithoutSessionStaysIdle() {
-        let monitor = CardMonitor()  // no real reader; activeSession is nil
+        let registry = BridgeRegistry()
+        let monitor = CardMonitor(registry: registry)  // no real reader; activeSession is nil
         let coord = SigningCoordinator(cardMonitor: monitor)
         coord.beginPinEntry()
         #expect(coord.stage == .idle)

@@ -99,32 +99,28 @@ lm_session_t lm_session_open(lm_registry_t r,
         return nullptr;
     }
 
-    // OpenSessionResult derives from std::variant<CardSession, OpenError>.
-    // Per Stroustrup, *A Tour of C++* 3e §13.5, the consumer pattern is
-    // std::get_if (or std::visit) — never pseudo-field access.
+    // CardSession::open returns std::expected<CardSession, OpenError>.
     auto opened = LibreSCRS::SmartCard::CardSession::open(std::string{reader_name});
-    auto* sessionAlt = std::get_if<LibreSCRS::SmartCard::CardSession>(&opened);
-    if (sessionAlt == nullptr) {
-        const auto& err = std::get<LibreSCRS::SmartCard::OpenError>(opened);
+    if (!opened) {
+        const auto& err = opened.error();
         if (out_status != nullptr) {
             *out_status = mapOpenKind(err.kind);
         }
         if (out_error_message != nullptr) {
-            // 4.0 hardening: prefer diagnosticDetail (developer-facing,
-            // actionable) when present; fall back to the user-facing
-            // englishFallback. The bridge does not sanitise here — the
-            // LM contract documents that diagnosticDetail never carries
-            // secret material.
+            // Prefer diagnosticDetail (developer-facing, actionable) when
+            // present; fall back to the user-facing defaultText. The bridge
+            // does not sanitise here — the LM contract documents that
+            // diagnosticDetail never carries secret material.
             const auto& msg = err.diagnosticDetail.has_value()
                                   ? *err.diagnosticDetail
-                                  : err.userMessage.englishFallback;
+                                  : err.userMessage.defaultText;
             *out_error_message = duplicateAsCString(msg);
         }
         return nullptr;
     }
 
     // Two-phase candidate match: ATR first, then AID probe on live session.
-    auto& session = *sessionAlt;
+    auto& session = *opened;
     auto candidates = r->registry.findAllCandidates(session.atr(), session);
     if (candidates.empty()) {
         if (out_status != nullptr) {
@@ -202,9 +198,9 @@ lm_pin_status_t lm_session_verify_pin(lm_session_t s,
         return LM_PIN_DEVICE_ERROR;
     }
     try {
-        // R-01 spirit: build the Secure::String inside the bridge so the
-        // cleansing boundary follows the PIN material from here all the way
-        // into the plugin's verifyPIN override.
+        // Build the Secure::String inside the bridge so the cleansing boundary
+        // follows the PIN material from here all the way into the plugin's
+        // verifyPIN override.
         LibreSCRS::Secure::String pin(std::string_view{pin_bytes, pin_len});
         auto r = h->plugin->verifyPIN(h->session, pin);
         if (out_retries_left != nullptr) {

@@ -88,7 +88,17 @@ targets:
       - name: "Regenerate Localizable.xcstrings from .ts"
         script: |
           set -e
-          LC="/Users/nhirsl/Development/NetSeT/git/LibreSCRS/LibreCelik"
+          # Resolve LibreCelik checkout in priority order:
+          #   $LIBRESCRS_LC_DIR (explicit override)
+          #   $LIBRESCRS_ROOT/LibreCelik (multi-repo root)
+          #   sibling layout: <SRCROOT>/../LibreCelik
+          if [ -n "$LIBRESCRS_LC_DIR" ]; then
+              LC="$LIBRESCRS_LC_DIR"
+          elif [ -n "$LIBRESCRS_ROOT" ]; then
+              LC="$LIBRESCRS_ROOT/LibreCelik"
+          else
+              LC="$SRCROOT/../LibreCelik"
+          fi
           if [ ! -f "$LC/resources/i18n/LibreCelik_en.ts" ]; then
               echo "warning: LibreCelik .ts files not found at $LC; using committed Localizable.xcstrings as-is" >&2
               exit 0

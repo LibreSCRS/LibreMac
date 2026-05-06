@@ -38,6 +38,7 @@ public final class CardMonitor {
     public private(set) var activeReader: String?
     public private(set) var certificates: [Data] = []
 
+    private let registry: BridgeRegistry
     private let monitor = ReaderMonitor()
     private var session: BridgeSession?
 
@@ -52,7 +53,8 @@ public final class CardMonitor {
     }
     private let taskHolder = TaskHolder()
 
-    public init() {
+    public init(registry: BridgeRegistry) {
+        self.registry = registry
         // Capture the Sendable AsyncStream into a local before the Task
         // closure to avoid pulling `self` (MainActor-isolated) into the
         // detached executor's iteration.
@@ -102,7 +104,7 @@ public final class CardMonitor {
     private func openSessionAndReadCerts(reader: String) async {
         status = .readingCertificates
         do throws(LibreMacError) {
-            let s = try BridgeSession(reader: reader)
+            let s = try BridgeSession(registry: registry, reader: reader)
             let certs = try s.readCertificates()
             session = s
             certificates = certs

@@ -59,8 +59,20 @@ if [ -n "$STAGE_DIR" ]; then
     # Bundled OpenSSL 3.5.5 static archive (LM ships its own to pin the
     # crypto version). Resolve through the FetchContent source dir.
     LM_SRC=$(find "$BUILD/_deps" -maxdepth 3 -type d -name 'libremiddleware-src' 2>/dev/null | head -n1)
-    if [ -z "$LM_SRC" ] && [ -d "/Users/nhirsl/Development/NetSeT/git/LibreSCRS/LibreMiddleware" ]; then
-        LM_SRC="/Users/nhirsl/Development/NetSeT/git/LibreSCRS/LibreMiddleware"
+    # Fallback to a sibling-checkout layout when LM was provided via
+    # LIBREMAC_LM_LOCAL_DIR rather than fetched (FetchContent stages no
+    # `_deps/libremiddleware-src/` symlink in that case). Override priority:
+    #   $LIBREMAC_LM_LOCAL_DIR  (explicit, matches the CMake cache var)
+    #   $LIBRESCRS_ROOT/LibreMiddleware  (multi-repo root)
+    #   <SRCROOT>/../LibreMiddleware  (sibling-checkout default)
+    if [ -z "$LM_SRC" ]; then
+        if [ -n "$LIBREMAC_LM_LOCAL_DIR" ] && [ -d "$LIBREMAC_LM_LOCAL_DIR" ]; then
+            LM_SRC="$LIBREMAC_LM_LOCAL_DIR"
+        elif [ -n "$LIBRESCRS_ROOT" ] && [ -d "$LIBRESCRS_ROOT/LibreMiddleware" ]; then
+            LM_SRC="$LIBRESCRS_ROOT/LibreMiddleware"
+        elif [ -n "$SRCROOT" ] && [ -d "$SRCROOT/../LibreMiddleware" ]; then
+            LM_SRC="$SRCROOT/../LibreMiddleware"
+        fi
     fi
     if [ -n "$LM_SRC" ] && [ -f "$LM_SRC/thirdparty/openssl-3.5.5/macosx/lib/libcrypto.a" ]; then
         cp "$LM_SRC/thirdparty/openssl-3.5.5/macosx/lib/libcrypto.a" "$STAGE_DIR/"

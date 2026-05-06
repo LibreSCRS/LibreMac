@@ -1,6 +1,168 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "error.card.unsupported" : {
+      "comment" : "error.card.unsupported",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This card is not supported"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова картица није подржана"
+          }
+        }
+      }
+    },
+    "error.pin.device" : {
+      "comment" : "error.pin.device",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN verification device error"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Грешка уређаја при провери ПИН-а"
+          }
+        }
+      }
+    },
+    "error.pin.unsupported" : {
+      "comment" : "error.pin.unsupported",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN verification is not supported on this card"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Провера ПИН-а није подржана на овој картици"
+          }
+        }
+      }
+    },
+    "error.read.certs" : {
+      "comment" : "error.read.certs",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to read certificates from the card"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Учитавање сертификата са картице није успело"
+          }
+        }
+      }
+    },
+    "error.reader.nocard" : {
+      "comment" : "error.reader.nocard",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No card present in the reader"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица није уметнута у читач"
+          }
+        }
+      }
+    },
+    "error.reader.protocol" : {
+      "comment" : "error.reader.protocol",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reader protocol error"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Грешка протокола читача"
+          }
+        }
+      }
+    },
+    "error.reader.unavailable" : {
+      "comment" : "error.reader.unavailable",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smart card reader is unavailable"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Читач паметних картица није доступан"
+          }
+        }
+      }
+    },
+    "error.sign.engine" : {
+      "comment" : "error.sign.engine",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing engine error"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Грешка у механизму за потписивање"
+          }
+        }
+      }
+    },
+    "error.sign.pin_required" : {
+      "comment" : "error.sign.pin_required",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN is required to sign"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За потписивање је потребан ПИН"
+          }
+        }
+      }
+    },
     "lc-about-app-name" : {
       "comment" : "lc-about-app-name",
       "localizations" : {
