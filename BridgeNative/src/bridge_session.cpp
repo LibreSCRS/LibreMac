@@ -26,6 +26,7 @@
 #include <cstring>
 #include <memory>
 #include <new>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -68,7 +69,7 @@ lm_open_status_t mapOpenKind(LibreSCRS::SmartCard::OpenError::Kind k) noexcept
     return LM_OPEN_READER_UNAVAILABLE;
 }
 
-LibreSCRS::Plugin::SignMechanism mapSignMechanism(lm_sign_mechanism_t m) noexcept
+std::optional<LibreSCRS::Plugin::SignMechanism> mapSignMechanism(lm_sign_mechanism_t m) noexcept
 {
     using SM = LibreSCRS::Plugin::SignMechanism;
     switch (m) {
@@ -77,7 +78,9 @@ LibreSCRS::Plugin::SignMechanism mapSignMechanism(lm_sign_mechanism_t m) noexcep
         case LM_MECH_ECDSA_SHA384: return SM::ECDSA_SHA384;
         case LM_MECH_ECDSA_SHA512: return SM::ECDSA_SHA512;
     }
-    return SM::RSA_PKCS;
+    // Fail closed: an unknown mechanism code must not be silently coerced into
+    // an arbitrary mechanism (e.g. signing ECDSA-form data with RSA_PKCS).
+    return std::nullopt;
 }
 
 } // namespace
@@ -236,8 +239,14 @@ lm_sign_status_t lm_session_sign(lm_session_t s,
         return LM_SIGN_DEVICE_ERROR;
     }
     try {
+        auto mappedMechanism = mapSignMechanism(mechanism);
+        if (!mappedMechanism) {
+            // Unmapped mechanism code: refuse rather than substitute a
+            // wrong-form mechanism. Surfaced to the host as "not implemented".
+            return LM_SIGN_NOT_IMPLEMENTED;
+        }
         std::span<const std::uint8_t> dataSpan{data, data_len};
-        auto sig = h->plugin->sign(h->session, key_reference, dataSpan, mapSignMechanism(mechanism));
+        auto sig = h->plugin->sign(h->session, key_reference, dataSpan, *mappedMechanism);
         using SO = LibreSCRS::Plugin::SignResultOutcome;
         switch (sig.outcome) {
             case SO::Ok: {

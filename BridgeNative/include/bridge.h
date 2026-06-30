@@ -31,7 +31,7 @@ typedef struct lm_session_s*  lm_session_t;
 lm_registry_t lm_registry_create(const char* plugins_dir);
 
 /// Destroy the registry. Plugin shared objects unmap when the last shared_ptr
-/// referencing them drops (per LM 4.0 ABI v6 ownership semantics).
+/// referencing them drops (per LM 4.0 ABI v8 ownership semantics).
 void lm_registry_destroy(lm_registry_t r);
 
 /// Number of plugins successfully loaded by the registry. Returns -1 if @p r

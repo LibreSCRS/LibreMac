@@ -16,7 +16,7 @@ target_link_libraries(BridgeNative PUBLIC
     LibreSCRS::SmartCard
     LibreSCRS::Auth
     LibreSCRS::Secure
-    # CardPlugin_Impl is the LibreMiddleware ABI v6 key-function archive
+    # CardPlugin_Impl is the LibreMiddleware ABI v8 key-function archive
     # (Itanium C++ ABI §5.1) that anchors the CardPlugin vtable + typeinfo
     # into a single TU. Without explicit linkage the bridge sees an
     # undefined ~CardPlugin() at link time even though LibreSCRS::Plugin
