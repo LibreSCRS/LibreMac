@@ -21,7 +21,7 @@ extern "C" {
 // ---- Lifecycle --------------------------------------------------------
 
 typedef struct lm_registry_s* lm_registry_t;
-typedef struct lm_session_s*  lm_session_t;
+typedef struct lm_session_s* lm_session_t;
 
 /// Construct a CardPluginRegistry rooted at @p plugins_dir. The directory is
 /// scanned for plugin shared objects (LibreMiddleware A5 manifest-driven
@@ -56,9 +56,7 @@ typedef enum {
 /// Open a session against @p reader_name. On failure populates @p out_status
 /// with the OpenError::Kind translation, @p out_error_message with a
 /// caller-owned UTF-8 string (free with lm_string_free), and returns null.
-lm_session_t lm_session_open(lm_registry_t r,
-                             const char* reader_name,
-                             lm_open_status_t* out_status,
+lm_session_t lm_session_open(lm_registry_t r, const char* reader_name, lm_open_status_t* out_status,
                              char** out_error_message);
 
 /// Close the session. Pre-conditions: @p s must be the value returned by a
@@ -67,9 +65,10 @@ void lm_session_close(lm_session_t s);
 
 // ---- Card data --------------------------------------------------------
 
-typedef struct {
-    uint8_t* data;     // caller-owned; free with lm_buffer_free
-    size_t   length;
+typedef struct
+{
+    uint8_t* data; // caller-owned; free with lm_buffer_free
+    size_t length;
 } lm_buffer_t;
 
 typedef enum {
@@ -84,9 +83,7 @@ typedef enum {
 /// with a caller-owned array of lm_buffer_t (free each .data via
 /// lm_buffer_free, then free the array via lm_buffer_array_free) and
 /// @p out_count with its length.
-lm_read_status_t lm_session_read_certificates(lm_session_t s,
-                                              lm_buffer_t** out_certs,
-                                              size_t* out_count,
+lm_read_status_t lm_session_read_certificates(lm_session_t s, lm_buffer_t** out_certs, size_t* out_count,
                                               char** out_error_message);
 
 // ---- PIN + Sign -------------------------------------------------------
@@ -104,10 +101,7 @@ typedef enum {
 /// `LibreSCRS::Secure::String` for the duration of the call so the cleansing
 /// boundary spans the entire C++ path; the caller is still responsible for
 /// not retaining @p pin_bytes after this returns.
-lm_pin_status_t lm_session_verify_pin(lm_session_t s,
-                                      const char* pin_bytes,
-                                      size_t pin_len,
-                                      int32_t* out_retries_left,
+lm_pin_status_t lm_session_verify_pin(lm_session_t s, const char* pin_bytes, size_t pin_len, int32_t* out_retries_left,
                                       char** out_error_message);
 
 typedef enum {
@@ -134,11 +128,8 @@ typedef enum {
 /// derived key material), the caller is responsible for cleansing the buffer
 /// post-call. Mirrors the LibreMiddleware @c CardPlugin::sign contract — see
 /// the @c data parameter doxygen there. @since 4.0.
-lm_sign_status_t lm_session_sign(lm_session_t s,
-                                 uint16_t key_reference,
-                                 lm_sign_mechanism_t mechanism,
-                                 const uint8_t* data, size_t data_len,
-                                 lm_buffer_t* out_signature,
+lm_sign_status_t lm_session_sign(lm_session_t s, uint16_t key_reference, lm_sign_mechanism_t mechanism,
+                                 const uint8_t* data, size_t data_len, lm_buffer_t* out_signature,
                                  char** out_error_message);
 
 // ---- Memory hygiene ---------------------------------------------------

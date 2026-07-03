@@ -15,12 +15,11 @@
 #include <filesystem>
 #include <utility>
 
-struct lm_registry_s {
+struct lm_registry_s
+{
     LibreSCRS::Plugin::CardPluginService registry;
 
-    explicit lm_registry_s(std::filesystem::path dir)
-        : registry(std::move(dir))
-    {}
+    explicit lm_registry_s(std::filesystem::path dir) : registry(std::move(dir)) {}
 };
 
 #endif // LIBREMAC_BRIDGE_REGISTRY_HANDLE_H

@@ -37,12 +37,12 @@
 
 namespace {
 
-struct SessionHandle {
+struct SessionHandle
+{
     LibreSCRS::SmartCard::CardSession session;
     std::shared_ptr<LibreSCRS::Plugin::CardPlugin> plugin;
 
-    SessionHandle(LibreSCRS::SmartCard::CardSession s,
-                  std::shared_ptr<LibreSCRS::Plugin::CardPlugin> p) noexcept
+    SessionHandle(LibreSCRS::SmartCard::CardSession s, std::shared_ptr<LibreSCRS::Plugin::CardPlugin> p) noexcept
         : session(std::move(s)), plugin(std::move(p))
     {}
 };
@@ -62,9 +62,12 @@ lm_open_status_t mapOpenKind(LibreSCRS::SmartCard::OpenError::Kind k) noexcept
 {
     using K = LibreSCRS::SmartCard::OpenError::Kind;
     switch (k) {
-        case K::ReaderUnavailable: return LM_OPEN_READER_UNAVAILABLE;
-        case K::NoCardPresent:     return LM_OPEN_NO_CARD;
-        case K::ProtocolError:     return LM_OPEN_PROTOCOL_ERROR;
+    case K::ReaderUnavailable:
+        return LM_OPEN_READER_UNAVAILABLE;
+    case K::NoCardPresent:
+        return LM_OPEN_NO_CARD;
+    case K::ProtocolError:
+        return LM_OPEN_PROTOCOL_ERROR;
     }
     return LM_OPEN_READER_UNAVAILABLE;
 }
@@ -73,10 +76,14 @@ std::optional<LibreSCRS::Plugin::SignMechanism> mapSignMechanism(lm_sign_mechani
 {
     using SM = LibreSCRS::Plugin::SignMechanism;
     switch (m) {
-        case LM_MECH_RSA_PKCS:     return SM::RSA_PKCS;
-        case LM_MECH_ECDSA_SHA256: return SM::ECDSA_SHA256;
-        case LM_MECH_ECDSA_SHA384: return SM::ECDSA_SHA384;
-        case LM_MECH_ECDSA_SHA512: return SM::ECDSA_SHA512;
+    case LM_MECH_RSA_PKCS:
+        return SM::RSA_PKCS;
+    case LM_MECH_ECDSA_SHA256:
+        return SM::ECDSA_SHA256;
+    case LM_MECH_ECDSA_SHA384:
+        return SM::ECDSA_SHA384;
+    case LM_MECH_ECDSA_SHA512:
+        return SM::ECDSA_SHA512;
     }
     // Fail closed: an unknown mechanism code must not be silently coerced into
     // an arbitrary mechanism (e.g. signing ECDSA-form data with RSA_PKCS).
@@ -87,9 +94,7 @@ std::optional<LibreSCRS::Plugin::SignMechanism> mapSignMechanism(lm_sign_mechani
 
 extern "C" {
 
-lm_session_t lm_session_open(lm_registry_t r,
-                             const char* reader_name,
-                             lm_open_status_t* out_status,
+lm_session_t lm_session_open(lm_registry_t r, const char* reader_name, lm_open_status_t* out_status,
                              char** out_error_message)
 {
     if (r == nullptr || reader_name == nullptr) {
@@ -114,9 +119,7 @@ lm_session_t lm_session_open(lm_registry_t r,
             // present; fall back to the user-facing defaultText. The bridge
             // does not sanitise here — the LM contract documents that
             // diagnosticDetail never carries secret material.
-            const auto& msg = err.diagnosticDetail.has_value()
-                                  ? *err.diagnosticDetail
-                                  : err.userMessage.defaultText;
+            const auto& msg = err.diagnosticDetail.has_value() ? *err.diagnosticDetail : err.userMessage.defaultText;
             *out_error_message = duplicateAsCString(msg);
         }
         return nullptr;
@@ -138,8 +141,8 @@ lm_session_t lm_session_open(lm_registry_t r,
     if (out_status != nullptr) {
         *out_status = LM_OPEN_OK;
     }
-    return reinterpret_cast<lm_session_t>(
-        new (std::nothrow) SessionHandle(std::move(session), std::move(candidates.front())));
+    return reinterpret_cast<lm_session_t>(new (std::nothrow)
+                                              SessionHandle(std::move(session), std::move(candidates.front())));
 }
 
 void lm_session_close(lm_session_t s)
@@ -147,9 +150,7 @@ void lm_session_close(lm_session_t s)
     delete reinterpret_cast<SessionHandle*>(s);
 }
 
-lm_read_status_t lm_session_read_certificates(lm_session_t s,
-                                              lm_buffer_t** out_certs,
-                                              size_t* out_count,
+lm_read_status_t lm_session_read_certificates(lm_session_t s, lm_buffer_t** out_certs, size_t* out_count,
                                               char** out_error_message)
 {
     auto* h = reinterpret_cast<SessionHandle*>(s);
@@ -190,10 +191,7 @@ lm_read_status_t lm_session_read_certificates(lm_session_t s,
     }
 }
 
-lm_pin_status_t lm_session_verify_pin(lm_session_t s,
-                                      const char* pin_bytes,
-                                      size_t pin_len,
-                                      int32_t* out_retries_left,
+lm_pin_status_t lm_session_verify_pin(lm_session_t s, const char* pin_bytes, size_t pin_len, int32_t* out_retries_left,
                                       char** out_error_message)
 {
     auto* h = reinterpret_cast<SessionHandle*>(s);
@@ -211,11 +209,16 @@ lm_pin_status_t lm_session_verify_pin(lm_session_t s,
         }
         using O = LibreSCRS::Plugin::PINResultOutcome;
         switch (r.outcome) {
-            case O::Ok:          return LM_PIN_OK;
-            case O::InvalidPin:  return LM_PIN_INCORRECT;
-            case O::Blocked:     return LM_PIN_BLOCKED;
-            case O::Unsupported: return LM_PIN_UNSUPPORTED;
-            default:             return LM_PIN_DEVICE_ERROR;
+        case O::Ok:
+            return LM_PIN_OK;
+        case O::InvalidPin:
+            return LM_PIN_INCORRECT;
+        case O::Blocked:
+            return LM_PIN_BLOCKED;
+        case O::Unsupported:
+            return LM_PIN_UNSUPPORTED;
+        default:
+            return LM_PIN_DEVICE_ERROR;
         }
     } catch (const std::exception& e) {
         if (out_error_message != nullptr) {
@@ -227,11 +230,8 @@ lm_pin_status_t lm_session_verify_pin(lm_session_t s,
     }
 }
 
-lm_sign_status_t lm_session_sign(lm_session_t s,
-                                 uint16_t key_reference,
-                                 lm_sign_mechanism_t mechanism,
-                                 const uint8_t* data, size_t data_len,
-                                 lm_buffer_t* out_signature,
+lm_sign_status_t lm_session_sign(lm_session_t s, uint16_t key_reference, lm_sign_mechanism_t mechanism,
+                                 const uint8_t* data, size_t data_len, lm_buffer_t* out_signature,
                                  char** out_error_message)
 {
     auto* h = reinterpret_cast<SessionHandle*>(s);
@@ -249,18 +249,21 @@ lm_sign_status_t lm_session_sign(lm_session_t s,
         auto sig = h->plugin->sign(h->session, key_reference, dataSpan, *mappedMechanism);
         using SO = LibreSCRS::Plugin::SignResultOutcome;
         switch (sig.outcome) {
-            case SO::Ok: {
-                out_signature->length = sig.signature.size();
-                out_signature->data = static_cast<std::uint8_t*>(std::malloc(sig.signature.size()));
-                if (out_signature->data == nullptr) {
-                    return LM_SIGN_DEVICE_ERROR;
-                }
-                std::memcpy(out_signature->data, sig.signature.data(), sig.signature.size());
-                return LM_SIGN_OK;
+        case SO::Ok: {
+            out_signature->length = sig.signature.size();
+            out_signature->data = static_cast<std::uint8_t*>(std::malloc(sig.signature.size()));
+            if (out_signature->data == nullptr) {
+                return LM_SIGN_DEVICE_ERROR;
             }
-            case SO::NotImplemented: return LM_SIGN_NOT_IMPLEMENTED;
-            case SO::Cancelled:      return LM_SIGN_CANCELLED;
-            default:                 return LM_SIGN_DEVICE_ERROR;
+            std::memcpy(out_signature->data, sig.signature.data(), sig.signature.size());
+            return LM_SIGN_OK;
+        }
+        case SO::NotImplemented:
+            return LM_SIGN_NOT_IMPLEMENTED;
+        case SO::Cancelled:
+            return LM_SIGN_CANCELLED;
+        default:
+            return LM_SIGN_DEVICE_ERROR;
         }
     } catch (const std::exception& e) {
         if (out_error_message != nullptr) {
