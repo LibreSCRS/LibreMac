@@ -28,3 +28,13 @@ set_target_properties(BridgeNative PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     OSX_ARCHITECTURES "${CMAKE_OSX_ARCHITECTURES}"
 )
+
+# Warnings-as-errors on the bridge's own C++ only. Scoped to this target so the
+# LibreMiddleware FetchContent subproject keeps its own (non-Werror) warning
+# policy — a consumer must not force -Werror onto a third-party subproject.
+target_compile_options(BridgeNative PRIVATE
+    $<$<COMPILE_LANGUAGE:CXX>:-Wall>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wextra>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>
+    $<$<COMPILE_LANGUAGE:CXX>:-Werror>
+)

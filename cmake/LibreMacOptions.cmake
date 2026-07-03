@@ -24,10 +24,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     add_link_options(-fexperimental-library)
 endif()
 
-# Diagnostics: warnings as errors on the bridge code.
-add_compile_options(
-    $<$<COMPILE_LANGUAGE:CXX>:-Wall>
-    $<$<COMPILE_LANGUAGE:CXX>:-Wextra>
-    $<$<COMPILE_LANGUAGE:CXX>:-Wpedantic>
-    $<$<COMPILE_LANGUAGE:CXX>:-Werror>
-)
+# Diagnostics: warnings-as-errors apply to LibreMac's own bridge code only
+# (scoped in BridgeNative/CMakeLists.txt). They are intentionally NOT global
+# directory options here — the LibreMiddleware FetchContent subproject
+# (included right after this file) carries its own warning policy, and forcing
+# -Werror onto it breaks its build under a stricter toolchain (e.g.
+# -Wunused-result on a [[nodiscard]] APDU transmit in the eMRTD reader).

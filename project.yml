@@ -71,12 +71,12 @@ targets:
           - -lLibreSCRS_Plugin
           - -lLibreSCRS_SmartCard
           - -lLibreSCRS_Auth
-          - -lCardPlugin_Impl
-          - -lSmartCard_Impl
           - -lcrypto
           - -lc++
           - -framework
           - PCSC
+        LD_RUNPATH_SEARCH_PATHS:
+          - "@executable_path/../Frameworks"
     preBuildScripts:
       - name: "Build BridgeNative (CMake)"
         script: |
@@ -112,6 +112,32 @@ targets:
           - "$(SRCROOT)/LibreMac/Resources/Localizable.xcstrings"
         basedOnDependencyAnalysis: false
     postBuildScripts:
+      - name: "Embed LibreMiddleware runtime (dylibs + plugins)"
+        script: |
+          set -e
+          APP="$TARGET_BUILD_DIR/$WRAPPER_NAME"
+          FRAMEWORKS="$APP/Contents/Frameworks"
+          PLUGINS="$APP/Contents/PlugIns/librescrs"
+          mkdir -p "$FRAMEWORKS" "$PLUGINS"
+          # The LibreSCRS_* SHARED libraries and the card plugins were staged
+          # into BUILT_PRODUCTS_DIR by build-cmake-side.sh (from the build tree
+          # — no external install prefix). Install names are @rpath-relative
+          # and the host adds @executable_path/../Frameworks to its runpath.
+          for dylib in "$BUILT_PRODUCTS_DIR"/libLibreSCRS_*.dylib; do
+              [ -e "$dylib" ] && cp -a "$dylib" "$FRAMEWORKS/"
+          done
+          for plug in "$BUILT_PRODUCTS_DIR"/lib*-plugin.dylib; do
+              [ -e "$plug" ] && cp -a "$plug" "$PLUGINS/"
+          done
+          # Ad-hoc sign the embedded Mach-O (real files only; symlinks resolve
+          # to them) so the host's hardened-runtime CodeSign step sees signed
+          # nested code. Build-tree dylibs are not signed on copy the way an
+          # Xcode "Copy Files / Code Sign On Copy" phase would sign them.
+          find "$FRAMEWORKS" "$PLUGINS" -type f -name '*.dylib' -print0 \
+              | while IFS= read -r -d '' f; do
+                  codesign --force --sign - --timestamp=none -o runtime "$f"
+              done
+        basedOnDependencyAnalysis: false
       - name: "Ad-hoc sign LibreMac.app"
         script: |
           if [ "$CODE_SIGN_IDENTITY" = "-" ]; then

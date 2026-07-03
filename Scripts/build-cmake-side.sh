@@ -30,7 +30,11 @@ fi
 
 # shellcheck disable=SC2086  # GENERATOR_FLAG is intentionally word-split
 cmake -S "$ROOT" -B "$BUILD" $GENERATOR_FLAG -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE"
-cmake --build "$BUILD" --target BridgeNative
+# Build everything (not just BridgeNative): the app links the SHARED
+# LibreSCRS_* dylibs and loads the card plugins at runtime, and both are
+# produced by the LibreMiddleware FetchContent subproject. Building only
+# BridgeNative would leave the plugin targets unbuilt.
+cmake --build "$BUILD" --parallel 4
 
 ARCHIVE="$BUILD/BridgeNative/libBridgeNative.a"
 
@@ -66,11 +70,11 @@ if [ -n "$STAGE_DIR" ]; then
     #   $LIBRESCRS_ROOT/LibreMiddleware  (multi-repo root)
     #   <SRCROOT>/../LibreMiddleware  (sibling-checkout default)
     if [ -z "$LM_SRC" ]; then
-        if [ -n "$LIBREMAC_LM_LOCAL_DIR" ] && [ -d "$LIBREMAC_LM_LOCAL_DIR" ]; then
+        if [ -n "${LIBREMAC_LM_LOCAL_DIR:-}" ] && [ -d "${LIBREMAC_LM_LOCAL_DIR:-}" ]; then
             LM_SRC="$LIBREMAC_LM_LOCAL_DIR"
-        elif [ -n "$LIBRESCRS_ROOT" ] && [ -d "$LIBRESCRS_ROOT/LibreMiddleware" ]; then
+        elif [ -n "${LIBRESCRS_ROOT:-}" ] && [ -d "${LIBRESCRS_ROOT:-}/LibreMiddleware" ]; then
             LM_SRC="$LIBRESCRS_ROOT/LibreMiddleware"
-        elif [ -n "$SRCROOT" ] && [ -d "$SRCROOT/../LibreMiddleware" ]; then
+        elif [ -n "${SRCROOT:-}" ] && [ -d "${SRCROOT:-}/../LibreMiddleware" ]; then
             LM_SRC="$SRCROOT/../LibreMiddleware"
         fi
     fi
@@ -78,6 +82,36 @@ if [ -n "$STAGE_DIR" ]; then
         cp "$LM_SRC/thirdparty/openssl-3.5.5/macosx/lib/libcrypto.a" "$STAGE_DIR/"
     else
         echo "warning: bundled libcrypto.a not found under $LM_SRC; relying on system OpenSSL" >&2
+    fi
+
+    # Public LibreSCRS_* SHARED libraries + the card plugins. From
+    # LibreMiddleware 4.3 the only supported production config is SHARED
+    # (STATIC forbids the card plugins), so the app links these dylibs and
+    # dlopen's the plugins at runtime instead of statically linking the old
+    # libLibreSCRS_*.a archives. Both are produced in *this* build tree (LM is
+    # built as a FetchContent subproject above), so staging is self-contained
+    # and reproducible in CI — no external install prefix required:
+    #   public dylibs -> $BUILD/_deps/libremiddleware-build/lib/LibreSCRS/
+    #   card plugins  -> $BUILD/plugins/  (LIBREMIDDLEWARE_PLUGIN_OUTPUT_DIR
+    #                    resolves to ${CMAKE_BINARY_DIR}/plugins)
+    # Their install names are @rpath-relative; the post-build "Embed
+    # LibreMiddleware runtime" phase copies the dylibs into Contents/Frameworks
+    # and the plugins into Contents/PlugIns.
+    LM_LIBDIR="$BUILD/_deps/libremiddleware-build/lib/LibreSCRS"
+    if [ -d "$LM_LIBDIR" ]; then
+        for dylib in "$LM_LIBDIR"/libLibreSCRS_*.dylib; do
+            [ -e "$dylib" ] && cp -a "$dylib" "$STAGE_DIR/"
+        done
+    else
+        echo "warning: LM public dylibs not found at $LM_LIBDIR; the SHARED LibreSCRS_* libraries will not resolve at link time." >&2
+    fi
+    LM_PLUGINDIR="$BUILD/plugins"
+    if [ -d "$LM_PLUGINDIR" ]; then
+        for plug in "$LM_PLUGINDIR"/*.dylib; do
+            [ -e "$plug" ] && cp -a "$plug" "$STAGE_DIR/"
+        done
+    else
+        echo "warning: LM card plugins not found at $LM_PLUGINDIR; the app will have no card plugins at runtime." >&2
     fi
 fi
 

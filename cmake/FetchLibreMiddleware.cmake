@@ -26,7 +26,7 @@ set(LIBREMAC_LM_LOCAL_DIR "${_lm_default}"
     CACHE PATH "Local LibreMiddleware checkout (overrides Git fetch)")
 set(LIBREMAC_LM_GIT_REPOSITORY "https://github.com/LibreSCRS/LibreMiddleware.git"
     CACHE STRING "")
-set(LIBREMAC_LM_GIT_TAG "feature/api-boundary-hardening"
+set(LIBREMAC_LM_GIT_TAG "4.2.0"
     CACHE STRING "Branch / tag to fetch when LIBREMAC_LM_LOCAL_DIR is empty")
 
 if(EXISTS "${LIBREMAC_LM_LOCAL_DIR}/CMakeLists.txt")
@@ -43,13 +43,18 @@ else()
     )
 endif()
 
-# LM toggles signing on by default. The bridge does not need it; flip the
-# default off so the LibreMac configure stage does not pull the libresign
-# dependency tree on a fresh build. FORCE is intentionally NOT used: a user
-# who passes -DBUILD_SIGNING=ON explicitly retains that override (e.g. for
-# end-to-end signing-flow tests against a real LM tree).
+# LM's Trust subsystem (TrustStoreService eager trusted-list fetch/verify)
+# PRIVATE-links LibreSign, so a BUILD_SIGNING=OFF tree cannot link any
+# consumer that pulls Trust — and the bridge links LibreSCRS::SmartCard,
+# which pulls Trust transitively. Signing must therefore be ON. The native
+# backend is JVM-free and carries the TL helpers Trust needs (it is also the
+# CI-canonical backend). FORCE is intentionally NOT used: a caller may still
+# override the backend explicitly (e.g. -DSIGNING_BACKEND=both for DSS).
 if(NOT DEFINED BUILD_SIGNING)
-    set(BUILD_SIGNING OFF CACHE BOOL "Build LM digital signing support")
+    set(BUILD_SIGNING ON CACHE BOOL "Build LM digital signing support")
+endif()
+if(NOT DEFINED SIGNING_BACKEND)
+    set(SIGNING_BACKEND native CACHE STRING "LM signing backend (native|dss|both)")
 endif()
 if(NOT DEFINED BUILD_TESTING)
     set(BUILD_TESTING OFF CACHE BOOL "Build LM test suite")

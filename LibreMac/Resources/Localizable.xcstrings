@@ -3,7 +3,6 @@
   "strings" : {
     "error.card.unsupported" : {
       "comment" : "error.card.unsupported",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -21,7 +20,6 @@
     },
     "error.pin.device" : {
       "comment" : "error.pin.device",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -39,7 +37,6 @@
     },
     "error.pin.unsupported" : {
       "comment" : "error.pin.unsupported",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -57,7 +54,6 @@
     },
     "error.read.certs" : {
       "comment" : "error.read.certs",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -75,7 +71,6 @@
     },
     "error.reader.nocard" : {
       "comment" : "error.reader.nocard",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -93,7 +88,6 @@
     },
     "error.reader.protocol" : {
       "comment" : "error.reader.protocol",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -111,7 +105,6 @@
     },
     "error.reader.unavailable" : {
       "comment" : "error.reader.unavailable",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -129,7 +122,6 @@
     },
     "error.sign.engine" : {
       "comment" : "error.sign.engine",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -147,7 +139,6 @@
     },
     "error.sign.pin_required" : {
       "comment" : "error.sign.pin_required",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -282,6 +273,23 @@
         }
       }
     },
+    "lc-about-full-notices" : {
+      "comment" : "lc-about-full-notices",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full third-party notices"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сва обавештења о лиценцама трећих страна"
+          }
+        }
+      }
+    },
     "lc-about-license-apache" : {
       "comment" : "lc-about-license-apache",
       "localizations" : {
@@ -316,6 +324,23 @@
         }
       }
     },
+    "lc-about-license-curl" : {
+      "comment" : "lc-about-license-curl",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "curl license (MIT\/X derivate)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "curl лиценца (MIT\/X дериват)"
+          }
+        }
+      }
+    },
     "lc-about-license-gpl" : {
       "comment" : "lc-about-license-gpl",
       "localizations" : {
@@ -329,6 +354,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GNU General Public License v3.0 or later"
+          }
+        }
+      }
+    },
+    "lc-about-license-json" : {
+      "comment" : "lc-about-license-json",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MIT — vendored"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MIT — уграђена"
           }
         }
       }
@@ -350,6 +392,40 @@
         }
       }
     },
+    "lc-about-license-libxml2" : {
+      "comment" : "lc-about-license-libxml2",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MIT License"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MIT лиценца"
+          }
+        }
+      }
+    },
+    "lc-about-license-miniz" : {
+      "comment" : "lc-about-license-miniz",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MIT — vendored"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MIT — уграђена"
+          }
+        }
+      }
+    },
     "lc-about-license-ofl" : {
       "comment" : "lc-about-license-ofl",
       "localizations" : {
@@ -367,6 +443,40 @@
         }
       }
     },
+    "lc-about-license-opensc" : {
+      "comment" : "lc-about-license-opensc",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LGPL-2.1-or-later — statically linked, modified fork"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LGPL-2.1-or-later — статички повезан, измењени форк"
+          }
+        }
+      }
+    },
+    "lc-about-license-qt" : {
+      "comment" : "lc-about-license-qt",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GNU Lesser General Public License v3.0 — dynamically linked"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GNU Lesser General Public License v3.0 — динамички повезан"
+          }
+        }
+      }
+    },
     "lc-about-license-static" : {
       "comment" : "lc-about-license-static",
       "localizations" : {
@@ -380,6 +490,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "статички повезан"
+          }
+        }
+      }
+    },
+    "lc-about-license-zlib" : {
+      "comment" : "lc-about-license-zlib",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zlib license — transitive dependency"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zlib лиценца — транзитивна зависност"
           }
         }
       }
@@ -414,6 +541,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Веб-сајт"
+          }
+        }
+      }
+    },
+    "lc-about-source-offer" : {
+      "comment" : "lc-about-source-offer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The complete corresponding source code for LibreCelik, LibreMiddleware and the bundled LGPL\/GPL third-party libraries (Qt, GnuTLS, GLib, libidn2 and others) is publicly available at <a href=\"https:\/\/github.com\/LibreSCRS\/LibreMiddleware\">github.com\/LibreSCRS\/LibreMiddleware<\/a> and <a href=\"https:\/\/github.com\/LibreSCRS\/LibreCelik\">github.com\/LibreSCRS\/LibreCelik<\/a>, or on request. This offer is valid for as long as we distribute this software."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потпуни одговарајући изворни код за LibreCelik, LibreMiddleware и уграђене LGPL\/GPL библиотеке трећих страна (Qt, GnuTLS, GLib, libidn2 и друге) је јавно доступан на <a href=\"https:\/\/github.com\/LibreSCRS\/LibreMiddleware\">github.com\/LibreSCRS\/LibreMiddleware<\/a> и <a href=\"https:\/\/github.com\/LibreSCRS\/LibreCelik\">github.com\/LibreSCRS\/LibreCelik<\/a>, или на захтев. Ова понуда важи све док дистрибуирамо овај софтвер."
           }
         }
       }
@@ -481,7 +625,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "О програму Слободни Челик"
+            "value" : "О Слободном Челику"
           }
         }
       }
@@ -499,6 +643,261 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Верзија %1"
+          }
+        }
+      }
+    },
+    "lc-btn-abort" : {
+      "comment" : "lc-btn-abort",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abort"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прекини"
+          }
+        }
+      }
+    },
+    "lc-btn-apply" : {
+      "comment" : "lc-btn-apply",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Примени"
+          }
+        }
+      }
+    },
+    "lc-btn-cancel" : {
+      "comment" : "lc-btn-cancel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Откажи"
+          }
+        }
+      }
+    },
+    "lc-btn-close" : {
+      "comment" : "lc-btn-close",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Затвори"
+          }
+        }
+      }
+    },
+    "lc-btn-discard" : {
+      "comment" : "lc-btn-discard",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одбаци"
+          }
+        }
+      }
+    },
+    "lc-btn-help" : {
+      "comment" : "lc-btn-help",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Help"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Помоћ"
+          }
+        }
+      }
+    },
+    "lc-btn-ignore" : {
+      "comment" : "lc-btn-ignore",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ignore"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Игнориши"
+          }
+        }
+      }
+    },
+    "lc-btn-no" : {
+      "comment" : "lc-btn-no",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не"
+          }
+        }
+      }
+    },
+    "lc-btn-ok" : {
+      "comment" : "lc-btn-ok",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У реду"
+          }
+        }
+      }
+    },
+    "lc-btn-reset" : {
+      "comment" : "lc-btn-reset",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поништи"
+          }
+        }
+      }
+    },
+    "lc-btn-restore-defaults" : {
+      "comment" : "lc-btn-restore-defaults",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Defaults"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Врати подразумевано"
+          }
+        }
+      }
+    },
+    "lc-btn-retry" : {
+      "comment" : "lc-btn-retry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покушај поново"
+          }
+        }
+      }
+    },
+    "lc-btn-save" : {
+      "comment" : "lc-btn-save",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сачувај"
+          }
+        }
+      }
+    },
+    "lc-btn-yes" : {
+      "comment" : "lc-btn-yes",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Да"
+          }
+        }
+      }
+    },
+    "lc-cert-algorithm-unknown" : {
+      "comment" : "lc-cert-algorithm-unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Непознато"
           }
         }
       }
@@ -550,6 +949,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Алгоритам"
+          }
+        }
+      }
+    },
+    "lc-cert-field-curve" : {
+      "comment" : "lc-cert-field-curve",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Curve"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Крива"
           }
         }
       }
@@ -741,6 +1157,227 @@
         }
       }
     },
+    "lc-cert-gn-directory" : {
+      "comment" : "lc-cert-gn-directory",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Directory"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Именик"
+          }
+        }
+      }
+    },
+    "lc-cert-gn-dns" : {
+      "comment" : "lc-cert-gn-dns",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DNS"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DNS"
+          }
+        }
+      }
+    },
+    "lc-cert-gn-edi" : {
+      "comment" : "lc-cert-gn-edi",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDI Party Name"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EDI назив стране"
+          }
+        }
+      }
+    },
+    "lc-cert-gn-ip" : {
+      "comment" : "lc-cert-gn-ip",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP"
+          }
+        }
+      }
+    },
+    "lc-cert-gn-other" : {
+      "comment" : "lc-cert-gn-other",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other Name"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Други назив"
+          }
+        }
+      }
+    },
+    "lc-cert-gn-registered-id" : {
+      "comment" : "lc-cert-gn-registered-id",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registered ID"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Регистровани ID"
+          }
+        }
+      }
+    },
+    "lc-cert-gn-rfc822" : {
+      "comment" : "lc-cert-gn-rfc822",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Е-пошта"
+          }
+        }
+      }
+    },
+    "lc-cert-gn-uri" : {
+      "comment" : "lc-cert-gn-uri",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URI"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URI"
+          }
+        }
+      }
+    },
+    "lc-cert-gn-x400" : {
+      "comment" : "lc-cert-gn-x400",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "X.400 Address"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "X.400 адреса"
+          }
+        }
+      }
+    },
+    "lc-cert-ku-crl-sign" : {
+      "comment" : "lc-cert-ku-crl-sign",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CRL Sign"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање CRL-а"
+          }
+        }
+      }
+    },
+    "lc-cert-ku-decipher-only" : {
+      "comment" : "lc-cert-ku-decipher-only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decipher Only"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Само дешифровање"
+          }
+        }
+      }
+    },
+    "lc-cert-ku-encipher-only" : {
+      "comment" : "lc-cert-ku-encipher-only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encipher Only"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Само шифровање"
+          }
+        }
+      }
+    },
+    "lc-cert-ku-key-cert-sign" : {
+      "comment" : "lc-cert-ku-key-cert-sign",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificate Sign"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање сертификата"
+          }
+        }
+      }
+    },
     "lc-cert-no-available" : {
       "comment" : "lc-cert-no-available",
       "localizations" : {
@@ -754,6 +1391,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Нема доступних сертификата."
+          }
+        }
+      }
+    },
+    "lc-cert-parse-error" : {
+      "comment" : "lc-cert-parse-error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unparseable certificate"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сертификат није могуће растумачити"
           }
         }
       }
@@ -906,7 +1560,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Није могуће добити сертификат издавача"
+            "value" : "Није могуће добити сертификат издаваоца"
           }
         }
       }
@@ -1047,6 +1701,23 @@
         }
       }
     },
+    "lc-cert-verify-trust-unknown" : {
+      "comment" : "lc-cert-verify-trust-unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trust unknown"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поверење непознато"
+          }
+        }
+      }
+    },
     "lc-cert-verify-unspecified-error" : {
       "comment" : "lc-cert-verify-unspecified-error",
       "localizations" : {
@@ -1060,6 +1731,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Неодређена грешка"
+          }
+        }
+      }
+    },
+    "lc-cert-verify-untrusted-root" : {
+      "comment" : "lc-cert-verify-untrusted-root",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untrusted root certificate"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неповерљив коренски сертификат"
           }
         }
       }
@@ -2373,6 +3061,23 @@
         }
       }
     },
+    "lc-emrtd-auth-method" : {
+      "comment" : "lc-emrtd-auth-method",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication Method"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Метода аутентификације"
+          }
+        }
+      }
+    },
     "lc-emrtd-auth-mrz-desc" : {
       "comment" : "lc-emrtd-auth-mrz-desc",
       "localizations" : {
@@ -2624,6 +3329,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Информације о старатељству"
+          }
+        }
+      }
+    },
+    "lc-emrtd-data-groups" : {
+      "comment" : "lc-emrtd-data-groups",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data Groups"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Групе података"
           }
         }
       }
@@ -3053,6 +3775,23 @@
         }
       }
     },
+    "lc-emrtd-presence" : {
+      "comment" : "lc-emrtd-presence",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аутентификација"
+          }
+        }
+      }
+    },
     "lc-emrtd-profession" : {
       "comment" : "lc-emrtd-profession",
       "localizations" : {
@@ -3236,6 +3975,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Безбедносни статус"
+          }
+        }
+      }
+    },
+    "lc-emrtd-sex" : {
+      "comment" : "lc-emrtd-sex",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sex"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пол"
           }
         }
       }
@@ -6278,7 +7034,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "О програму Слободни Челик"
+            "value" : "О Слободном Челику"
           }
         }
       }
@@ -6334,6 +7090,74 @@
         }
       }
     },
+    "lc-menu-hide" : {
+      "comment" : "lc-menu-hide",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide LibreCelik"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сакриј Слободни Челик"
+          }
+        }
+      }
+    },
+    "lc-menu-hide-others" : {
+      "comment" : "lc-menu-hide-others",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide Others"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сакриј остале"
+          }
+        }
+      }
+    },
+    "lc-menu-quit" : {
+      "comment" : "lc-menu-quit",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit LibreCelik"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Затвори Слободни Челик"
+          }
+        }
+      }
+    },
+    "lc-menu-services" : {
+      "comment" : "lc-menu-services",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Services"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Услуге"
+          }
+        }
+      }
+    },
     "lc-menu-settings" : {
       "comment" : "lc-menu-settings",
       "localizations" : {
@@ -6351,6 +7175,23 @@
         }
       }
     },
+    "lc-menu-show-all" : {
+      "comment" : "lc-menu-show-all",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show All"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прикажи све"
+          }
+        }
+      }
+    },
     "lc-personal-data-title" : {
       "comment" : "lc-personal-data-title",
       "localizations" : {
@@ -6364,6 +7205,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Лични подаци"
+          }
+        }
+      }
+    },
+    "lc-pin-label-auth" : {
+      "comment" : "lc-pin-label-auth",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аутентификација"
+          }
+        }
+      }
+    },
+    "lc-pin-label-qscd" : {
+      "comment" : "lc-pin-label-qscd",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing (QSCD)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање (QSCD)"
+          }
+        }
+      }
+    },
+    "lc-pin-label-sign" : {
+      "comment" : "lc-pin-label-sign",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање"
           }
         }
       }
@@ -6840,6 +7732,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Картица у читачу није подржана."
+          }
+        }
+      }
+    },
+    "lc-reader-unsupported-card-with-atr" : {
+      "comment" : "lc-reader-unsupported-card-with-atr",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card type %1 is not supported (no driver match)."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица типа %1 није подржана (нема одговарајућег драјвера)."
           }
         }
       }
@@ -8250,7 +9159,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Издавач:"
+            "value" : "Издавалац:"
           }
         }
       }
