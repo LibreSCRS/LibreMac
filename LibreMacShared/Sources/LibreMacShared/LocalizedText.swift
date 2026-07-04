@@ -3,7 +3,7 @@
 
 import Foundation
 
-/// Swift wrapper around `LibreSCRS::Auth::LocalizedText`.
+/// Swift wrapper around `LibreSCRS::LocalizedText`.
 ///
 /// Mirrors the C++ struct's three-field shape: i18n key, English fallback,
 /// and `{name}` placeholder substitutions. Equality is strict structural

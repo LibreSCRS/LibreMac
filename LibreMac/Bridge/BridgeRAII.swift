@@ -13,7 +13,7 @@
 // defaultText + placeholders) at the Swift seam — see the
 // `error.reader.unavailable` / `error.reader.nocard` / etc. literals
 // scattered through `BridgeSession.init` and the `verifyPin` / `sign`
-// throw sites. The corresponding LM `Auth::LocalizedText` payload
+// throw sites. The corresponding LM `LocalizedText` payload
 // emitted by `CardSession::open` / `verifyPIN` / `sign` is collapsed
 // into a flat `errMsg: char*` by the C ABI and re-wrapped here with a
 // hand-written key. Consequence: the user-visible localised string is
