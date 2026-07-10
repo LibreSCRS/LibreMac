@@ -60,15 +60,15 @@ public final class BridgeRegistry: @unchecked Sendable {
         }
     }
 
-    /// Construct the C++ registry from the bundle's PlugIns/middleware-plugins
-    /// directory. Idempotent: returns the previously-loaded plugin count if
-    /// already loaded.
+    /// Construct the C++ registry from the bundle's PlugIns/librescrs
+    /// directory (the embed step stages the card plugins there). Idempotent:
+    /// returns the previously-loaded plugin count if already loaded.
     @discardableResult
     public func loadBundledPlugins() -> Int {
         guard let pluginsUrl = Bundle.main.builtInPlugInsURL?
-            .appendingPathComponent("middleware-plugins")
+            .appendingPathComponent("librescrs")
         else {
-            Logger.bridge.error("No PlugIns/middleware-plugins directory in bundle")
+            Logger.bridge.error("No PlugIns/librescrs directory in bundle")
             return 0
         }
         return loadPlugins(fromDirectory: pluginsUrl.path)
