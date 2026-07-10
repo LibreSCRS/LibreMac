@@ -57,7 +57,11 @@ jobs:
         # autoconf/automake/libtool/pkg-config are required by the vendored
         # OpenSC autoconf bootstrap that LibreMiddleware builds for the
         # librescrs-opensc fallback module (same as LibreCelik's macOS job).
-        run: brew install xcodegen ninja autoconf automake libtool pkg-config
+        # jsonschema: LM's opensc-plugin manifest2header.py hard-fails without
+        # it (same install line as LM's own release.yml macOS job).
+        run: |
+          brew install xcodegen ninja autoconf automake libtool pkg-config
+          python3 -m pip install --break-system-packages --user jsonschema
 
       - uses: actions/checkout@v4
         with:
