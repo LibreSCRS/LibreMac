@@ -1,0 +1,643 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// SPDX-FileCopyrightText: 2026 hirashix0
+
+import Foundation
+
+/// Typed (de)serialization over the `CBORValue` wire seam
+/// (`CanonicalCBOR.swift`), mirroring the LibreDarwin agent's
+/// `LibreSCRS::Darwin::wire` message layer (`Messages.h` / `Messages.cpp`)
+/// and the reconciled CDDL contract (`agent/wire/librescrs-agent.cddl`).
+///
+/// The client is a socket CLIENT, the mirror image of the agent's SERVER
+/// role: it BUILDS outbound requests (`AgentRequest.encode(req:)`, exactly
+/// the wire-specified keys, no extras) and PARSES inbound replies/events
+/// (`AgentMessages.decodeReply` / `.decodeEvent`), tolerating unknown map
+/// keys on those inbound shapes (append-only evolution) while failing
+/// closed on an unrecognized `t` discriminator (`.unknownMessage`).
+///
+/// Reply-arm discrimination: unlike requests (tagged by `t`) and events
+/// (also tagged by `t`), every reply shares the literal `t: "Reply"` — the
+/// CDDL disambiguates `reply-ok`'s nine arms structurally, "discriminated
+/// by their own keys" (`librescrs-agent.cddl:91-93`). `decodeReply` mirrors
+/// that: `err` first (exclusive with every success arm), then the
+/// remaining arms by their distinguishing key(s), in the CDDL's declared
+/// order.
+
+// MARK: - Errors
+
+/// Message-layer decode failure. Distinct from `CBORError` (the byte-level
+/// decode failure it wraps via `.notCanonicalCBOR`), mirroring the
+/// LibreDarwin agent's `WireError` split for the client's inbound
+/// (reply/event) parsing path.
+public enum MessageError: Error, Sendable, Equatable {
+    /// The frame body was not canonical CBOR (wraps the `CBORError`).
+    case notCanonicalCBOR(CBORError)
+    /// The top-level decoded item was not a CBOR map.
+    case notAMap
+    /// The `t` discriminator was not a known reply/event tag.
+    case unknownMessage
+    /// A required field was absent.
+    case missingField(String)
+    /// A field was present but had the wrong CBOR type (or an enum-valued
+    /// field's raw value was out of range).
+    case wrongType(String)
+    /// A `Reply` map matched none of the known reply-arm key signatures.
+    case unrecognizedShape
+}
+
+// MARK: - Error info (reply `err` arm)
+
+/// The `err` arm of a reply: either the async numeric `ErrorCode` or a
+/// named synchronous-method `SyncError` — never both. Mirrors
+/// `LibreSCRS::Darwin::wire::ErrInfo` and CDDL `err-info`
+/// (`librescrs-agent.cddl:97`).
+public struct ErrInfo: Sendable, Equatable {
+    public enum Code: Sendable, Equatable {
+        case code(ErrorCode)
+        case name(SyncError)
+    }
+
+    public let code: Code
+    public let msgKey: String?
+    public let msgFallback: String?
+
+    public init(code: Code, msgKey: String? = nil, msgFallback: String? = nil) {
+        self.code = code
+        self.msgKey = msgKey
+        self.msgFallback = msgFallback
+    }
+}
+
+// MARK: - Op-result payloads (OpResultReady / SignRecovery)
+
+/// The typed payload of an `OpResultReady` event, dispatched by the
+/// `result.kind` wire tag. Mirrors `LibreSCRS::Darwin::wire::OpResult` and
+/// CDDL `op-result` (`librescrs-agent.cddl:153`).
+public enum OpResult: Sendable, Equatable {
+    case identity(IdentityResult)
+    case photo(PhotoResult)
+    case certificates([CertificateInfo])
+    case sign(SignResult)
+}
+
+// MARK: - Requests (client -> agent)
+
+/// One client -> agent request body. The `Pkcs11.*` family is out of scope
+/// here — reserved for a future extension. Matches the agent's request-body
+/// wire contract.
+public enum AgentRequest: Sendable, Equatable {
+    case hello(proto: UInt64, client: String?)
+    case getState
+    case readIdentity(card: String)
+    case getPhoto(card: String)
+    case readCertificates(card: String)
+    case sign(card: String, cert: String, inFd: UInt64, opts: SignOptions)
+    case getCertDer(reader: String, cert: String)
+    case getConfig
+    case setConfig(key: String, value: CBORValue)
+    case resetConfig(key: String)
+    case cancelOp(op: UInt64)
+    case getSignResult(op: UInt64)
+}
+
+extension AgentRequest {
+
+    /// The canonical encoded frame body for this request, addressed by
+    /// `req` (the caller-assigned id echoed back on the matching reply).
+    /// Emits exactly the wire-specified keys for this request's shape — no
+    /// extras — mirroring the agent's request-body encoder.
+    public func encode(req: UInt64) -> Data {
+        var pairs: [(String, CBORValue)]
+        switch self {
+        case .hello(let proto, let client):
+            pairs = [("t", .text("Hello")), ("proto", .int(Int64(proto)))]
+            if let client {
+                pairs.append(("client", .text(client)))
+            }
+        case .getState:
+            pairs = [("t", .text("GetState"))]
+        case .readIdentity(let card):
+            pairs = [("t", .text("ReadIdentity")), ("card", .text(card))]
+        case .getPhoto(let card):
+            pairs = [("t", .text("GetPhoto")), ("card", .text(card))]
+        case .readCertificates(let card):
+            pairs = [("t", .text("ReadCertificates")), ("card", .text(card))]
+        case .sign(let card, let cert, let inFd, let opts):
+            pairs = [
+                ("t", .text("Sign")),
+                ("card", .text(card)),
+                ("cert", .text(cert)),
+                ("in", .int(Int64(inFd))),
+                ("opts", encodeSignOptions(opts)),
+            ]
+        case .getCertDer(let reader, let cert):
+            pairs = [("t", .text("GetCertDer")), ("reader", .text(reader)), ("cert", .text(cert))]
+        case .getConfig:
+            pairs = [("t", .text("GetConfig"))]
+        case .setConfig(let key, let value):
+            pairs = [("t", .text("SetConfig")), ("key", .text(key)), ("value", value)]
+        case .resetConfig(let key):
+            pairs = [("t", .text("ResetConfig")), ("key", .text(key))]
+        case .cancelOp(let op):
+            pairs = [("t", .text("CancelOp")), ("op", .int(Int64(op)))]
+        case .getSignResult(let op):
+            pairs = [("t", .text("GetSignResult")), ("op", .int(Int64(op)))]
+        }
+        pairs.append(("req", .int(Int64(req))))
+        return cborMap(pairs).encode()
+    }
+}
+
+private func encodeSignOptions(_ o: SignOptions) -> CBORValue {
+    var pairs: [(String, CBORValue)] = [
+        ("format", .text(o.format)),
+        ("level", .text(o.level)),
+        ("packaging", .text(o.packaging)),
+    ]
+    if let allowExpired = o.allowExpired {
+        pairs.append(("allowExpired", .bool(allowExpired)))
+    }
+    if let displayName = o.displayName {
+        pairs.append(("displayName", .text(displayName)))
+    }
+    if let reason = o.reason {
+        pairs.append(("reason", .text(reason)))
+    }
+    if let location = o.location {
+        pairs.append(("location", .text(location)))
+    }
+    return cborMap(pairs)
+}
+
+private func cborMap(_ pairs: [(String, CBORValue)]) -> CBORValue {
+    .map(pairs.map { (Data($0.0.utf8), $0.1) })
+}
+
+// MARK: - Replies (agent -> client)
+
+/// One agent -> client reply arm. `PublicKeyReply` / `RawSignatureReply`
+/// (the `Pkcs11.*` surface) are out of scope. Mirrors the reply builders in
+/// `LibreSCRS::Darwin::wire` and CDDL `reply-ok`
+/// (`librescrs-agent.cddl:106-118`) plus the `err` arm
+/// (`librescrs-agent.cddl:93,97`).
+public enum AgentReply: Sendable, Equatable {
+    case helloAck(agentVer: String, features: [String])
+    case opStarted(op: UInt64)
+    case state(readers: [ReaderState], cards: [CardState])
+    case certList(certs: [CertificateInfo])
+    case certDer(der: Data)
+    case config(entries: [String: CBORValue])
+    case ack
+    case signRecovery(SignResult)
+    case err(ErrInfo)
+}
+
+/// A decoded reply, correlated to its request by `req`. Mirrors the
+/// `{t:"Reply", req, ...}` envelope (`librescrs-agent.cddl:93`).
+public struct AgentReplyEnvelope: Sendable, Equatable {
+    public let req: UInt64
+    public let reply: AgentReply
+
+    public init(req: UInt64, reply: AgentReply) {
+        self.req = req
+        self.reply = reply
+    }
+}
+
+// MARK: - Events (agent -> client, unsolicited)
+
+/// One unsolicited agent -> client event. Mirrors the event builders in
+/// `LibreSCRS::Darwin::wire` and CDDL `event`
+/// (`librescrs-agent.cddl:131-133`).
+public enum AgentEvent: Sendable, Equatable {
+    case readerAdded(ReaderState)
+    case readerRemoved(handle: String)
+    case cardAdded(CardState)
+    case cardRemoved(handle: String)
+    case propertyChanged(handle: String, iface: String, props: [String: CBORValue])
+    case configChanged(key: String)
+    case opProgress(op: UInt64, phase: OperationPhase, progress: Double?, indeterminate: Bool?, watchdogSecs: UInt64?)
+    /// Fires BEFORE `opFinished` for the same `op` (the operation event
+    /// ordering contract) — the distinct result-carrying event.
+    case opResultReady(op: UInt64, result: OpResult)
+    case opFinished(op: UInt64, status: OperationStatus, code: ErrorCode, msgKey: String, msgFallback: String)
+    case agentQuiesced(reason: QuiesceReason)
+}
+
+// MARK: - Decode entry points
+
+/// Namespace for the client's inbound (reply/event) parsers. Caseless by
+/// design — there is no client-side state here, only pure decode
+/// functions (mirrors `AgentTypes.swift`'s value-type style).
+public enum AgentMessages {
+
+    /// Decodes one `Reply` frame body. Unknown map keys are tolerated and
+    /// ignored (append-only evolution); a `t` other than `"Reply"`, or
+    /// a reply map matching none of the known arm signatures, fails
+    /// closed.
+    public static func decodeReply(_ body: Data) throws(MessageError) -> AgentReplyEnvelope {
+        let decoded = try decodeCanonical(body)
+        let m = try requireTopLevelMap(decoded)
+        let tag = try requireText(m, "t")
+        guard tag == "Reply" else { throw .unknownMessage }
+        let req = try requireUInt64(m, "req")
+
+        if let errRaw = mapGet(m, "err") {
+            return AgentReplyEnvelope(req: req, reply: .err(try parseErrInfo(errRaw)))
+        }
+        if let kindRaw = mapGet(m, "kind"), case .text("HelloAck") = kindRaw {
+            let agentVer = try requireText(m, "agentVer")
+            let features = try requireTextArray(m, "features")
+            return AgentReplyEnvelope(req: req, reply: .helloAck(agentVer: agentVer, features: features))
+        }
+        if mapGet(m, "readers") != nil || mapGet(m, "cards") != nil {
+            let readersArr = try requireArray(m, "readers")
+            let cardsArr = try requireArray(m, "cards")
+            var readers: [ReaderState] = []
+            for item in readersArr {
+                readers.append(try parseReaderState(item))
+            }
+            var cards: [CardState] = []
+            for item in cardsArr {
+                cards.append(try parseCardState(item))
+            }
+            return AgentReplyEnvelope(req: req, reply: .state(readers: readers, cards: cards))
+        }
+        if let certsRaw = mapGet(m, "certs") {
+            guard case .array(let certsArr) = certsRaw else { throw .wrongType("certs") }
+            var certs: [CertificateInfo] = []
+            for item in certsArr {
+                certs.append(try parseCertInfo(item))
+            }
+            return AgentReplyEnvelope(req: req, reply: .certList(certs: certs))
+        }
+        if let derRaw = mapGet(m, "der") {
+            guard case .bytes(let der) = derRaw else { throw .wrongType("der") }
+            return AgentReplyEnvelope(req: req, reply: .certDer(der: der))
+        }
+        if let entriesRaw = mapGet(m, "entries") {
+            let entriesMap = try requireMap(entriesRaw, field: "entries")
+            var entries: [String: CBORValue] = [:]
+            for (k, v) in entriesMap {
+                entries[String(decoding: k, as: UTF8.self)] = v
+            }
+            return AgentReplyEnvelope(req: req, reply: .config(entries: entries))
+        }
+        if let okRaw = mapGet(m, "ok") {
+            guard case .bool(true) = okRaw else { throw .wrongType("ok") }
+            return AgentReplyEnvelope(req: req, reply: .ack)
+        }
+        if let resultRaw = mapGet(m, "result") {
+            return AgentReplyEnvelope(req: req, reply: .signRecovery(try parseSignResult(resultRaw)))
+        }
+        if mapGet(m, "op") != nil {
+            return AgentReplyEnvelope(req: req, reply: .opStarted(op: try requireUInt64(m, "op")))
+        }
+        throw .unrecognizedShape
+    }
+
+    /// Decodes one event frame body. Unknown map keys are tolerated and
+    /// ignored (append-only evolution); an unrecognized `t` fails closed with
+    /// `.unknownMessage`.
+    public static func decodeEvent(_ body: Data) throws(MessageError) -> AgentEvent {
+        let decoded = try decodeCanonical(body)
+        let m = try requireTopLevelMap(decoded)
+        let tag = try requireText(m, "t")
+
+        switch tag {
+        case "ReaderAdded":
+            guard let readerRaw = mapGet(m, "reader") else { throw .missingField("reader") }
+            return .readerAdded(try parseReaderState(readerRaw))
+        case "ReaderRemoved":
+            return .readerRemoved(handle: try requireText(m, "handle"))
+        case "CardAdded":
+            guard let cardRaw = mapGet(m, "card") else { throw .missingField("card") }
+            return .cardAdded(try parseCardState(cardRaw))
+        case "CardRemoved":
+            return .cardRemoved(handle: try requireText(m, "handle"))
+        case "PropertyChanged":
+            let handle = try requireText(m, "handle")
+            let iface = try requireText(m, "iface")
+            guard let propsRaw = mapGet(m, "props") else { throw .missingField("props") }
+            let propsMap = try requireMap(propsRaw, field: "props")
+            var props: [String: CBORValue] = [:]
+            for (k, v) in propsMap {
+                props[String(decoding: k, as: UTF8.self)] = v
+            }
+            return .propertyChanged(handle: handle, iface: iface, props: props)
+        case "ConfigChanged":
+            return .configChanged(key: try requireText(m, "key"))
+        case "OpProgress":
+            let op = try requireUInt64(m, "op")
+            let phaseRaw = try requireUInt64(m, "phase")
+            guard let phase = OperationPhase(rawValue: UInt32(truncatingIfNeeded: phaseRaw)) else {
+                throw .wrongType("phase")
+            }
+            let progress = try optionalDouble(m, "progress")
+            let indeterminate = try optionalBool(m, "indeterminate")
+            let watchdogSecs = try optionalUInt64(m, "watchdogSecs")
+            return .opProgress(
+                op: op, phase: phase, progress: progress, indeterminate: indeterminate, watchdogSecs: watchdogSecs)
+        case "OpResultReady":
+            let op = try requireUInt64(m, "op")
+            guard let resultRaw = mapGet(m, "result") else { throw .missingField("result") }
+            return .opResultReady(op: op, result: try parseOpResult(resultRaw))
+        case "OpFinished":
+            let op = try requireUInt64(m, "op")
+            let statusRaw = try requireUInt64(m, "status")
+            guard let status = OperationStatus(rawValue: UInt32(truncatingIfNeeded: statusRaw)) else {
+                throw .wrongType("status")
+            }
+            let codeRaw = try requireUInt64(m, "code")
+            guard let code = ErrorCode(rawValue: UInt32(truncatingIfNeeded: codeRaw)) else {
+                throw .wrongType("code")
+            }
+            let msgKey = try requireText(m, "msgKey")
+            let msgFallback = try requireText(m, "msgFallback")
+            return .opFinished(op: op, status: status, code: code, msgKey: msgKey, msgFallback: msgFallback)
+        case "AgentQuiesced":
+            let reasonRaw = try requireUInt64(m, "reason")
+            guard let reason = QuiesceReason(rawValue: UInt32(truncatingIfNeeded: reasonRaw)) else {
+                throw .wrongType("reason")
+            }
+            return .agentQuiesced(reason: reason)
+        default:
+            throw .unknownMessage
+        }
+    }
+}
+
+// MARK: - Shared parse helpers (sub-structures)
+
+private func parseErrInfo(_ v: CBORValue) throws(MessageError) -> ErrInfo {
+    let m = try requireMap(v, field: "err")
+    let code: ErrInfo.Code
+    if let codeRaw = mapGet(m, "code") {
+        guard let raw = numericUInt64(codeRaw), let ec = ErrorCode(rawValue: UInt32(truncatingIfNeeded: raw)) else {
+            throw .wrongType("err.code")
+        }
+        code = .code(ec)
+    } else if let nameRaw = mapGet(m, "name") {
+        guard case .text(let s) = nameRaw, let se = SyncError(rawValue: s) else {
+            throw .wrongType("err.name")
+        }
+        code = .name(se)
+    } else {
+        throw .missingField("err.code|err.name")
+    }
+    let msgKey = try optionalText(m, "msgKey")
+    let msgFallback = try optionalText(m, "msgFallback")
+    return ErrInfo(code: code, msgKey: msgKey, msgFallback: msgFallback)
+}
+
+private func parseReaderState(_ v: CBORValue) throws(MessageError) -> ReaderState {
+    let m = try requireMap(v, field: "reader")
+    return ReaderState(
+        handle: try requireText(m, "handle"),
+        name: try requireText(m, "name"),
+        hasCard: try requireBool(m, "hasCard"),
+        card: try optionalText(m, "card"))
+}
+
+private func parseCardState(_ v: CBORValue) throws(MessageError) -> CardState {
+    let m = try requireMap(v, field: "card")
+    let capsRaw = try requireUInt64(m, "caps")
+    let preAuthRaw = try requireUInt64(m, "preAuth")
+    guard let preAuth = PreReadAuth(rawValue: UInt32(truncatingIfNeeded: preAuthRaw)) else {
+        throw .wrongType("preAuth")
+    }
+    return CardState(
+        handle: try requireText(m, "handle"),
+        reader: try requireText(m, "reader"),
+        caps: Capabilities(rawValue: UInt32(truncatingIfNeeded: capsRaw)),
+        preAuth: preAuth)
+}
+
+private func parseCertField(_ v: CBORValue) throws(MessageError) -> CertField {
+    guard case .array(let a) = v, a.count == 3 else { throw .wrongType("cert-field") }
+    guard case .text(let labelKey) = a[0], case .text(let labelFallback) = a[1], case .text(let value) = a[2] else {
+        throw .wrongType("cert-field")
+    }
+    return CertField(labelKey: labelKey, labelFallback: labelFallback, value: value)
+}
+
+private func parseCertFieldGroups(_ v: CBORValue) throws(MessageError) -> [String: [String: CertField]] {
+    let outer = try requireMap(v, field: "fields")
+    var result: [String: [String: CertField]] = [:]
+    for (groupKeyData, groupValue) in outer {
+        let groupKey = String(decoding: groupKeyData, as: UTF8.self)
+        let inner = try requireMap(groupValue, field: groupKey)
+        var innerResult: [String: CertField] = [:]
+        for (fieldKeyData, fieldValue) in inner {
+            innerResult[String(decoding: fieldKeyData, as: UTF8.self)] = try parseCertField(fieldValue)
+        }
+        result[groupKey] = innerResult
+    }
+    return result
+}
+
+private func parseIdentityFieldCell(_ v: CBORValue) throws(MessageError) -> IdentityField {
+    guard case .array(let a) = v, a.count == 4 else { throw .wrongType("id-field") }
+    guard case .text(let labelKey) = a[0], case .text(let labelFallback) = a[1], case .text(let type) = a[2] else {
+        throw .wrongType("id-field")
+    }
+    let value: IdentityFieldValue
+    switch a[3] {
+    case .text(let s):
+        value = .text(s)
+    case .bytes(let b):
+        value = .binary(b)
+    default:
+        throw .wrongType("id-field.value")
+    }
+    return IdentityField(labelKey: labelKey, labelFallback: labelFallback, type: type, value: value)
+}
+
+private func parseIdentityFieldGroups(_ v: CBORValue) throws(MessageError) -> [String: [String: IdentityField]] {
+    let outer = try requireMap(v, field: "fields")
+    var result: [String: [String: IdentityField]] = [:]
+    for (groupKeyData, groupValue) in outer {
+        let groupKey = String(decoding: groupKeyData, as: UTF8.self)
+        let inner = try requireMap(groupValue, field: groupKey)
+        var innerResult: [String: IdentityField] = [:]
+        for (fieldKeyData, fieldValue) in inner {
+            innerResult[String(decoding: fieldKeyData, as: UTF8.self)] = try parseIdentityFieldCell(fieldValue)
+        }
+        result[groupKey] = innerResult
+    }
+    return result
+}
+
+private func parseCertInfo(_ v: CBORValue) throws(MessageError) -> CertificateInfo {
+    let m = try requireMap(v, field: "cert-info")
+    guard let fieldsRaw = mapGet(m, "fields") else { throw .missingField("fields") }
+    let ekusArr = try requireArray(m, "ekus")
+    var ekus: [String] = []
+    for item in ekusArr {
+        guard case .text(let s) = item else { throw .wrongType("ekus") }
+        ekus.append(s)
+    }
+    let chainArr = try requireArray(m, "chainSubjectCns")
+    var chainSubjectCns: [String] = []
+    for item in chainArr {
+        guard case .text(let s) = item else { throw .wrongType("chainSubjectCns") }
+        chainSubjectCns.append(s)
+    }
+    return CertificateInfo(
+        certId: try requireText(m, "certId"),
+        signingCapable: try requireBool(m, "signingCapable"),
+        fields: try parseCertFieldGroups(fieldsRaw),
+        keyUsageBits: UInt32(truncatingIfNeeded: try requireUInt64(m, "keyUsageBits")),
+        ekus: ekus,
+        chainSubjectCns: chainSubjectCns,
+        trustStatus: UInt32(truncatingIfNeeded: try requireUInt64(m, "trustStatus")))
+}
+
+private func parseSignMeta(_ v: CBORValue) throws(MessageError) -> SignMeta {
+    let m = try requireMap(v, field: "meta")
+    return SignMeta(
+        format: try requireText(m, "format"),
+        level: try requireText(m, "level"),
+        tsaUsed: try requireBool(m, "tsaUsed"),
+        chainComplete: try requireBool(m, "chainComplete"))
+}
+
+/// Parses a `sign-result` shape (`{kind:"Sign", artifact, meta}`) — used
+/// both for the `SignRecovery` reply's `result` field (always this exact
+/// shape) and for the `Sign` arm of a generic `op-result`.
+private func parseSignResult(_ v: CBORValue) throws(MessageError) -> SignResult {
+    let m = try requireMap(v, field: "result")
+    let kind = try requireText(m, "kind")
+    guard kind == "Sign" else { throw .wrongType("kind") }
+    guard let metaRaw = mapGet(m, "meta") else { throw .missingField("meta") }
+    return SignResult(artifact: try requireUInt64(m, "artifact"), meta: try parseSignMeta(metaRaw))
+}
+
+/// Parses a generic `op-result` (`OpResultReady.result`), dispatched on
+/// `kind`. Known past decode bug (do not repeat): `Certificates` carries
+/// its cert list nested under `result.certs`, not top-level.
+private func parseOpResult(_ v: CBORValue) throws(MessageError) -> OpResult {
+    let m = try requireMap(v, field: "result")
+    let kind = try requireText(m, "kind")
+    switch kind {
+    case "Identity":
+        guard let fieldsRaw = mapGet(m, "fields") else { throw .missingField("fields") }
+        return .identity(IdentityResult(fields: try parseIdentityFieldGroups(fieldsRaw)))
+    case "Photo":
+        let photosArr = try requireArray(m, "photos")
+        var photos: [PhotoItem] = []
+        for item in photosArr {
+            let pm = try requireMap(item, field: "photo")
+            photos.append(PhotoItem(key: try requireText(pm, "key"), fd: try requireUInt64(pm, "fd")))
+        }
+        return .photo(PhotoResult(photos: photos))
+    case "Certificates":
+        let certsArr = try requireArray(m, "certs")
+        var certs: [CertificateInfo] = []
+        for item in certsArr {
+            certs.append(try parseCertInfo(item))
+        }
+        return .certificates(certs)
+    case "Sign":
+        return .sign(try parseSignResult(v))
+    default:
+        throw .wrongType("kind")
+    }
+}
+
+// MARK: - CBORValue accessor primitives
+
+private func decodeCanonical(_ body: Data) throws(MessageError) -> CBORValue {
+    do {
+        return try CBORValue.decode(body)
+    } catch {
+        throw .notCanonicalCBOR(error)
+    }
+}
+
+private func requireTopLevelMap(_ v: CBORValue) throws(MessageError) -> [(Data, CBORValue)] {
+    guard case .map(let m) = v else { throw .notAMap }
+    return m
+}
+
+private func requireMap(_ v: CBORValue, field: String) throws(MessageError) -> [(Data, CBORValue)] {
+    guard case .map(let m) = v else { throw .wrongType(field) }
+    return m
+}
+
+private func mapGet(_ m: [(Data, CBORValue)], _ key: String) -> CBORValue? {
+    let keyData = Data(key.utf8)
+    for (k, v) in m where k == keyData {
+        return v
+    }
+    return nil
+}
+
+private func numericUInt64(_ v: CBORValue) -> UInt64? {
+    switch v {
+    case .int(let i) where i >= 0:
+        return UInt64(i)
+    case .uint(let u):
+        return u
+    default:
+        return nil
+    }
+}
+
+private func requireText(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> String {
+    guard let raw = mapGet(m, key) else { throw .missingField(key) }
+    guard case .text(let s) = raw else { throw .wrongType(key) }
+    return s
+}
+
+private func requireTextArray(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> [String] {
+    let arr = try requireArray(m, key)
+    var result: [String] = []
+    for item in arr {
+        guard case .text(let s) = item else { throw .wrongType(key) }
+        result.append(s)
+    }
+    return result
+}
+
+private func requireUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt64 {
+    guard let raw = mapGet(m, key) else { throw .missingField(key) }
+    guard let u = numericUInt64(raw) else { throw .wrongType(key) }
+    return u
+}
+
+private func requireBool(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> Bool {
+    guard let raw = mapGet(m, key) else { throw .missingField(key) }
+    guard case .bool(let b) = raw else { throw .wrongType(key) }
+    return b
+}
+
+private func requireArray(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> [CBORValue] {
+    guard let raw = mapGet(m, key) else { throw .missingField(key) }
+    guard case .array(let a) = raw else { throw .wrongType(key) }
+    return a
+}
+
+private func optionalText(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> String? {
+    guard let raw = mapGet(m, key) else { return nil }
+    guard case .text(let s) = raw else { throw .wrongType(key) }
+    return s
+}
+
+private func optionalBool(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> Bool? {
+    guard let raw = mapGet(m, key) else { return nil }
+    guard case .bool(let b) = raw else { throw .wrongType(key) }
+    return b
+}
+
+private func optionalDouble(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> Double? {
+    guard let raw = mapGet(m, key) else { return nil }
+    guard case .double(let d) = raw else { throw .wrongType(key) }
+    return d
+}
+
+private func optionalUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt64? {
+    guard let raw = mapGet(m, key) else { return nil }
+    guard let u = numericUInt64(raw) else { throw .wrongType(key) }
+    return u
+}
