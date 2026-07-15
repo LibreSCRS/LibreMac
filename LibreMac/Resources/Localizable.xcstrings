@@ -9640,6 +9640,23 @@
         }
       }
     },
+    "libremac_error_engine_unavailable" : {
+      "comment" : "libremac_error_engine_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing engine could not be loaded. Check that LibreSCRS is installed correctly."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Механизам за потписивање није могао да се учита. Проверите да ли је LibreSCRS исправно инсталиран."
+          }
+        }
+      }
+    },
     "libremac_error_key_ambiguous" : {
       "comment" : "libremac_error_key_ambiguous",
       "localizations" : {

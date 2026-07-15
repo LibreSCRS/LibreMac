@@ -75,6 +75,9 @@ public enum ErrorCopy {
         case .rateLimited:
             return text("libremac_error_rate_limited",
                         "Too many signing requests. Try again shortly.")
+        case .engineUnavailable:
+            return text("libremac_error_engine_unavailable",
+                        "The signing engine could not be loaded. Check that LibreSCRS is installed correctly.")
         }
     }
 

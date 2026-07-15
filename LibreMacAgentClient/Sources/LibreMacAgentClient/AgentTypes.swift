@@ -14,7 +14,7 @@ import Foundation
 /// Stable agent-side error taxonomy, carried as the numeric `code` arm of a
 /// reply's `err` field and as `OpFinished.code`. Mirrors
 /// `LibreSCRS::Agent::ErrorCode` (LibreAgent) and the CDDL `error-code`
-/// socket (`librescrs-agent.cddl:43-47`). 18 values, append-only — never
+/// socket (`librescrs-agent.cddl:43-48`). 19 values, append-only — never
 /// renumber.
 public enum ErrorCode: UInt32, Sendable, Equatable, CaseIterable {
     case none = 0
@@ -35,6 +35,7 @@ public enum ErrorCode: UInt32, Sendable, Equatable, CaseIterable {
     case tsaUnreachable = 15
     case signingEngineError = 16
     case rateLimited = 17
+    case engineUnavailable = 18
 }
 
 /// Named synchronous-method errors (D-Bus `Error.*` names), carried as the
