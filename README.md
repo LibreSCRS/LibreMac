@@ -26,23 +26,20 @@ PIN consent uses the protected authentication path
 ## Status
 
 Work in progress. A de-risk spike passed on real hardware: the macOS agent
-holds a warm PACE/SM session under active `ctkd` and signs. The macOS agent
-backend is on the roadmap. The repo's current direct-LibreMiddleware bridge is
-superseded by the model above.
+holds a warm PACE/SM session under active `ctkd` and signs. The host is now a
+pure agent client — it links no card stack and speaks to the agent over the
+App-Group socket. The agent itself is built and shipped separately.
 
 ## Building
 
-Requires:
+The host is pure Swift with no C/C++ build step. Requires:
 - macOS 15.0+ (Sequoia or later)
 - Xcode 16+
-- CMake 3.24+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
-- Python 3.11+ (for LibreMiddleware codegen)
 
 Quick start:
 
 ```bash
-./Scripts/build-cmake-side.sh
 ./Scripts/generate-project.sh    # runs xcodegen
 open LibreMac.xcodeproj
 ```

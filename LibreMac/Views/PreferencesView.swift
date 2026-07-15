@@ -7,7 +7,7 @@ struct PreferencesView: View {
     var body: some View {
         Form {
             Section("General") {
-                Text("Settings UI is implemented in P3+. This is a placeholder.")
+                Text("Settings are not configurable yet. This is a placeholder.")
                     .foregroundStyle(.secondary)
             }
         }

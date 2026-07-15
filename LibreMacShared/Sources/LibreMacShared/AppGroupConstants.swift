@@ -3,7 +3,7 @@
 
 import Foundation
 
-/// Constants shared between the host app and (in P4) the CTK appex. Centralised
+/// Constants shared between the host app and the CTK appex. Centralised
 /// so a typo in either process surfaces at compile time, not runtime.
 public enum AppGroupConstants {
     public static let appGroupId = "group.org.librescrs.LibreMac"
@@ -15,7 +15,13 @@ public enum AppGroupConstants {
         public static let logLevel = "org.librescrs.LibreMac.logLevel"
     }
 
-    public enum XPCService {
-        public static let machServiceName = "org.librescrs.LibreMac.helper"
+    /// Launchd/`SMAppService` identities for the per-user agent and its
+    /// secure-entry prompter — the two LaunchAgents the host registers on
+    /// launch. The plist basenames are the argument to
+    /// `SMAppService.agent(plistName:)`; the bundles that carry them are
+    /// produced by the packaging task.
+    public enum AgentService {
+        public static let launchdPlistName = "org.librescrs.agent.plist"
+        public static let prompterPlistName = "org.librescrs.prompter.plist"
     }
 }

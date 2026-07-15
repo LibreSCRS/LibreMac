@@ -1,92 +1,213 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // SPDX-FileCopyrightText: 2026 hirashix0
 //
-// `@Observable` view model that orchestrates the PIN-entry → BridgeSession.sign
-// sequence. P2 exit criterion: with an inserted rs-eid card, "Sign demo
-// payload" → enter PIN → "Signed N bytes" appears within 1–2 s.
-//
-// Design notes:
-// - The coordinator owns no `BridgeSession` directly. The session lives on
-//   the shared `CardMonitor`; the coordinator queries `cardMonitor.activeSession`
-//   on demand. This keeps the lifetime invariant simple — when the card is
-//   removed, the menu reverts to the no-card UI and the coordinator's
-//   `signing` stage is naturally invalidated.
-// - SHA-256 of the payload is computed client-side via CryptoKit so the UI
-//   can echo a recognisable digest without re-hashing in the verify path.
-// - Stroustrup, *A Tour of C++* §17 — prefer the highest-level abstraction
-//   that does not sacrifice correctness; CryptoKit is the Apple-native
-//   idiom on macOS 15.
+// `@Observable` view model that orchestrates a sign over the local agent. The
+// PIN never reaches this process (protected authentication path): the
+// coordinator only ever observes the operation's phases and renders a
+// "confirm in the card dialog" affordance while it sits in awaiting-consent /
+// authenticating. On success it copies the signed artifact — handed back as an
+// fd over SCM_RIGHTS — to the user-chosen destination.
 
-import CppBridge
-import CryptoKit
+import Darwin
 import Foundation
+import LibreMacAgentClient
 import LibreMacShared
 import Observation
 import os
 
+/// The slice of `AgentClient` the coordinator needs. Behind a protocol seam so
+/// the stage-gating is unit-testable with an in-memory fake (the concrete
+/// `AgentClient` is an actor whose socket cannot be spun up in a host unit
+/// test). `AgentClient` conforms below.
+public protocol AgentSigningClient: Sendable {
+    func sign(
+        card: String, certId: String, input: FileHandle, options: SignOptions
+    ) async throws -> AgentOperation
+}
+
+extension AgentClient: AgentSigningClient {}
+
 @Observable
 @MainActor
 public final class SigningCoordinator {
+
+    /// Stages aligned to `OperationPhase` — there is no PIN stage.
     public enum Stage: Equatable {
         case idle
-        case awaitingPin
-        case signing
-        case done(signature: Data, payloadSha256: Data)
-        case failed(LibreMacError)
+        /// Opening the input and starting the operation.
+        case preparing
+        /// Waiting for the user to approve in the secure card dialog.
+        case awaitingConsent
+        /// The card / TSA is doing the cryptographic work.
+        case working
+        /// Signed; payload is where the artifact was written.
+        case done(destination: URL)
+        /// Failed; payload is the resolved, user-facing message.
+        case failed(message: String)
     }
 
     public private(set) var stage: Stage = .idle
-    public private(set) var payload: Data = Data(
-        "LibreMac demo signing payload — \(Date().ISO8601Format())".utf8)
 
-    private let cardMonitor: CardMonitor
+    private let client: AgentSigningClient
 
-    public init(cardMonitor: CardMonitor) {
-        self.cardMonitor = cardMonitor
+    public init(client: AgentSigningClient) {
+        self.client = client
     }
 
-    public func beginPinEntry() {
-        guard cardMonitor.activeSession != nil else { return }
-        stage = .awaitingPin
+    /// Default per-sign options. A generic file sign defaults to a detached
+    /// CAdES baseline signature; the TSA is owned by agent configuration, not a
+    /// per-sign option (see `SignOptions`).
+    public static let defaultOptions = SignOptions(
+        format: "CAdES", level: "B-B", packaging: "detached")
+
+    /// Returns the coordinator to `idle` so the UI can start another sign.
+    public func reset() {
+        if case .done = stage { stage = .idle }
+        if case .failed = stage { stage = .idle }
     }
 
-    public func cancelPinEntry() {
-        if case .awaitingPin = stage { stage = .idle }
-    }
+    /// Signs `inputURL` with `certId` on `card`, writing the signed artifact to
+    /// `destinationURL`. A no-op if a sign is already in flight.
+    public func sign(
+        card: String,
+        certId: String,
+        inputURL: URL,
+        destinationURL: URL,
+        options: SignOptions = SigningCoordinator.defaultOptions
+    ) async {
+        switch stage {
+        case .preparing, .awaitingConsent, .working:
+            return
+        case .idle, .done, .failed:
+            break
+        }
 
-    public func pinVerified() async {
-        guard let session = cardMonitor.activeSession else {
-            stage = .failed(.bridgeUnavailable(diagnostic: "no active session"))
+        stage = .preparing
+
+        let input: FileHandle
+        do {
+            input = try FileHandle(forReadingFrom: inputURL)
+        } catch {
+            stage = .failed(message: Self.localized(
+                "libremac_sign_input_unreadable",
+                "The selected file could not be opened for signing."))
             return
         }
-        stage = .signing
+        defer { try? input.close() }
+
+        let operation: AgentOperation
         do {
-            let sigData = try session.sign(
-                keyReference: defaultKeyReference,
-                mechanism: LM_MECH_RSA_PKCS,
-                data: payload
-            )
-            stage = .done(signature: sigData, payloadSha256: Self.sha256(payload))
-            Logger.signing.info(
-                "Signed \(self.payload.count, privacy: .public) bytes; sig \(sigData.count, privacy: .public) bytes"
-            )
+            operation = try await client.sign(
+                card: card, certId: certId, input: input, options: options)
         } catch {
-            stage = .failed(error)
-            Logger.signing.error(
-                "Signing failed: \(error.localizedDescription, privacy: .public)")
+            stage = .failed(message: Self.message(for: error))
+            return
+        }
+
+        // Drive phases live so the consent affordance appears the moment the
+        // agent asks the user to approve. All UI mutation stays on MainActor.
+        // Inherits MainActor isolation (created in a MainActor method):
+        // `applyPhase` is a same-actor synchronous mutation.
+        let phaseTask = Task { [weak self] in
+            for await (phase, _) in operation.phases {
+                self?.applyPhase(phase)
+            }
+        }
+
+        let (status, code, _, msgFallback) = await operation.finished()
+        phaseTask.cancel()
+
+        guard status == .ok else {
+            stage = .failed(message: ErrorCopy.message(for: code, msgFallback: msgFallback))
+            return
+        }
+        guard let signResult = operation.signResult,
+              let artifact = operation.claimResultFileHandle(fdIndex: signResult.artifact)
+        else {
+            stage = .failed(message: Self.localized(
+                "libremac_sign_no_artifact",
+                "The signature completed but no signed file was returned."))
+            return
+        }
+        defer { try? artifact.close() }
+
+        do {
+            try Self.copyArtifact(from: artifact, to: destinationURL)
+        } catch {
+            stage = .failed(message: Self.localized(
+                "libremac_sign_write_failed",
+                "The signed file could not be written to the chosen location."))
+            return
+        }
+
+        stage = .done(destination: destinationURL)
+        Logger.signing.info(
+            "Signed \(inputURL.lastPathComponent, privacy: .public) -> \(destinationURL.lastPathComponent, privacy: .public)")
+    }
+
+    // MARK: - Phase → stage mapping
+
+    private func applyPhase(_ phase: OperationPhase) {
+        // Never resurrect a terminal (or reset) stage — `finished()` owns the
+        // terminal transition and cancels the phase task, but a buffered phase
+        // may still be in flight.
+        switch stage {
+        case .done, .failed, .idle:
+            return
+        case .preparing, .awaitingConsent, .working:
+            break
+        }
+        switch phase {
+        case .created, .connecting, .reading:
+            stage = .preparing
+        case .awaitingConsent, .authenticating:
+            stage = .awaitingConsent
+        case .signing, .timestamping:
+            stage = .working
+        case .done:
+            break
         }
     }
 
-    /// rs-eid authentication key reference (NIST SP 800-78 / Serbian eID
-    /// rs-eid applet's authentication key slot). Hardcoded for now; P3
-    /// replaces this with a value enumerated through the bridge's
-    /// `discoverKeyReferences` entry point so any plugin family can be
-    /// signed with.
-    private static let rsEidAuthenticationKeyReference: UInt16 = 0x0010
-    private var defaultKeyReference: UInt16 { Self.rsEidAuthenticationKeyReference }
+    // MARK: - Artifact copy
 
-    /// SHA-256 helper. CryptoKit is the Apple-native idiom on macOS 15.
-    private static func sha256(_ data: Data) -> Data {
-        Data(SHA256.hash(data: data))
+    /// Copies the signed artifact fd to `url`, rewinding first — the agent may
+    /// hand the fd back positioned at EOF — with a bounded read loop rather
+    /// than slurping the whole file at once.
+    private static func copyArtifact(from handle: FileHandle, to url: URL) throws {
+        _ = lseek(handle.fileDescriptor, 0, SEEK_SET)
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        let output = try FileHandle(forWritingTo: url)
+        defer { try? output.close() }
+        let chunkSize = 64 * 1024
+        while let chunk = try handle.read(upToCount: chunkSize), !chunk.isEmpty {
+            try output.write(contentsOf: chunk)
+        }
+    }
+
+    // MARK: - Error copy
+
+    private static func message(for error: Error) -> String {
+        guard let clientError = error as? AgentClientError else {
+            return error.localizedDescription
+        }
+        switch clientError {
+        case .serverError(let info):
+            switch info.code {
+            case .code(let code):
+                return ErrorCopy.message(for: code, msgFallback: info.msgFallback ?? "")
+            case .name:
+                return ErrorCopy.message(
+                    for: .communicationError, msgFallback: info.msgFallback ?? "")
+            }
+        case .timeout:
+            return ErrorCopy.message(for: .watchdogTimeout, msgFallback: "")
+        case .notConnected, .connectionLost, .communicationError, .unexpectedReply:
+            return ErrorCopy.message(for: .communicationError, msgFallback: "")
+        }
+    }
+
+    private static func localized(_ key: String, _ fallback: String) -> String {
+        LocalizedText(key: key, defaultText: fallback).resolve()
     }
 }

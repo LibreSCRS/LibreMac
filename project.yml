@@ -28,17 +28,19 @@ settings:
 packages:
   LibreMacShared:
     path: LibreMacShared
+  LibreMacAgentClient:
+    path: LibreMacAgentClient
 targets:
   LibreMac:
     type: application
     platform: macOS
     sources:
       - path: LibreMac
-        excludes:
-          - "Bridge/module.modulemap"
     dependencies:
       - package: LibreMacShared
         product: LibreMacShared
+      - package: LibreMacAgentClient
+        product: LibreMacAgentClient
     info:
       path: LibreMac/Info.plist
       properties:
@@ -52,8 +54,8 @@ targets:
       path: LibreMac/LibreMac.entitlements
       properties:
         com.apple.security.app-sandbox: true
-        com.apple.security.smartcard: true
-        com.apple.security.network.client: true
+        com.apple.security.application-groups:
+          - group.org.librescrs.LibreMac
         com.apple.security.files.user-selected.read-write: true
     settings:
       base:
@@ -61,30 +63,7 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "15.0"
         CODE_SIGN_ENTITLEMENTS: LibreMac/LibreMac.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        SWIFT_INCLUDE_PATHS: $(SRCROOT)/LibreMac/Bridge
-        HEADER_SEARCH_PATHS:
-          - $(SRCROOT)/BridgeNative/include
-          - $(SRCROOT)/LibreMac/Bridge
-        OTHER_LDFLAGS:
-          - -L$(BUILT_PRODUCTS_DIR)
-          - -lBridgeNative
-          - -lLibreSCRS_Plugin
-          - -lLibreSCRS_SmartCard
-          - -lLibreSCRS_Auth
-          - -lcrypto
-          - -lc++
-          - -framework
-          - PCSC
-        LD_RUNPATH_SEARCH_PATHS:
-          - "@executable_path/../Frameworks"
     preBuildScripts:
-      - name: "Build BridgeNative (CMake)"
-        script: |
-          set -e
-          "$SRCROOT/Scripts/build-cmake-side.sh" "$CONFIGURATION" "$BUILT_PRODUCTS_DIR"
-        outputFiles:
-          - "$(BUILT_PRODUCTS_DIR)/libBridgeNative.a"
-        basedOnDependencyAnalysis: false
       - name: "Regenerate Localizable.xcstrings from .ts"
         script: |
           set -e
@@ -111,40 +90,6 @@ targets:
         outputFiles:
           - "$(SRCROOT)/LibreMac/Resources/Localizable.xcstrings"
         basedOnDependencyAnalysis: false
-    postBuildScripts:
-      - name: "Embed LibreMiddleware runtime (dylibs + plugins)"
-        script: |
-          set -e
-          APP="$TARGET_BUILD_DIR/$WRAPPER_NAME"
-          FRAMEWORKS="$APP/Contents/Frameworks"
-          PLUGINS="$APP/Contents/PlugIns/librescrs"
-          mkdir -p "$FRAMEWORKS" "$PLUGINS"
-          # The LibreSCRS_* SHARED libraries and the card plugins were staged
-          # into BUILT_PRODUCTS_DIR by build-cmake-side.sh (from the build tree
-          # — no external install prefix). Install names are @rpath-relative
-          # and the host adds @executable_path/../Frameworks to its runpath.
-          for dylib in "$BUILT_PRODUCTS_DIR"/libLibreSCRS_*.dylib; do
-              [ -e "$dylib" ] && cp -a "$dylib" "$FRAMEWORKS/"
-          done
-          for plug in "$BUILT_PRODUCTS_DIR"/lib*-plugin.dylib; do
-              [ -e "$plug" ] && cp -a "$plug" "$PLUGINS/"
-          done
-          # Ad-hoc sign the embedded Mach-O (real files only; symlinks resolve
-          # to them) so the host's hardened-runtime CodeSign step sees signed
-          # nested code. Build-tree dylibs are not signed on copy the way an
-          # Xcode "Copy Files / Code Sign On Copy" phase would sign them.
-          find "$FRAMEWORKS" "$PLUGINS" -type f -name '*.dylib' -print0 \
-              | while IFS= read -r -d '' f; do
-                  codesign --force --sign - --timestamp=none -o runtime "$f"
-              done
-        basedOnDependencyAnalysis: false
-      - name: "Ad-hoc sign LibreMac.app"
-        script: |
-          if [ "$CODE_SIGN_IDENTITY" = "-" ]; then
-            "$SRCROOT/Scripts/adhoc-sign.sh" "$TARGET_BUILD_DIR/$WRAPPER_NAME"
-          fi
-        outputFiles:
-          - "$(DERIVED_FILE_DIR)/adhoc-sign.stamp"
   LibreMacTests:
     type: bundle.unit-test
     platform: macOS
@@ -154,6 +99,8 @@ targets:
       - target: LibreMac
       - package: LibreMacShared
         product: LibreMacShared
+      - package: LibreMacAgentClient
+        product: LibreMacAgentClient
     settings:
       base:
         BUNDLE_LOADER: $(TEST_HOST)
@@ -161,14 +108,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.librescrs.LibreMac.tests
         GENERATE_INFOPLIST_FILE: YES
         MACOSX_DEPLOYMENT_TARGET: "15.0"
-        # Tests do `@testable import LibreMac`, which transitively requires
-        # the CppBridge clang module declared in LibreMac/Bridge/module.modulemap.
-        # Mirror the host target's include / search paths so the test compile
-        # can resolve the same module.
-        SWIFT_INCLUDE_PATHS: $(SRCROOT)/LibreMac/Bridge
-        HEADER_SEARCH_PATHS:
-          - $(SRCROOT)/BridgeNative/include
-          - $(SRCROOT)/LibreMac/Bridge
 schemes:
   LibreMac:
     build:

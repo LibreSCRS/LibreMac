@@ -1,52 +1,79 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // SPDX-FileCopyrightText: 2026 hirashix0
 
+import AppKit
+import LibreMacAgentClient
 import LibreMacShared
 import SwiftUI
 import os
 
+/// Composition root. Owns the single `AgentClient` and the view models rooted
+/// on it, registers the agent + prompter LaunchAgents, and — crucially — owns
+/// the client's LIFETIME: `AgentClient.deinit` does NOT close its connection
+/// (the supervisor task holds the socket), so the client is explicitly
+/// `stop()`ped on termination. The host holds no card session and touches no
+/// smart-card subsystem — it is a pure agent client.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let client: AgentClient
+    let monitor: CardMonitor
+    let signing: SigningCoordinator
+    let registrar: AgentRegistrar
+
+    override init() {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let client = AgentClient(clientVersion: "LibreMac/\(version)")
+        self.client = client
+        self.monitor = CardMonitor(client: client)
+        self.signing = SigningCoordinator(client: client)
+        self.registrar = AgentRegistrar.system()
+        super.init()
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Logger.app.info("LibreMac launched")
+        // Registration first (materializes the App-Group container off-main),
+        // then bring the client up; both are independent async flows.
+        Task { await registrar.activate() }
+        Task { await client.start() }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // Close the socket and cancel the supervisor deterministically —
+        // deinit alone would leave the connection open until process exit.
+        Task { await client.stop() }
+    }
+}
+
 @main
 struct LibreMacApp: App {
-    /// App-scope BridgeRegistry — the LibreMac composition root. Constructor-
-    /// injected into every consumer; never accessed via a global. A future
-    /// CTK appex (P4) will construct its own `BridgeRegistry` rooted at the
-    /// appex bundle's PlugIns directory.
-    private let registry: BridgeRegistry
-    @State private var monitor: CardMonitor
-    @State private var signing: SigningCoordinator
-
-    // The coordinator is created once at app launch and lives for the
-    // app's lifetime. It queries `cardMonitor.activeSession` on demand;
-    // a brief reader drop on USB jitter no longer destroys in-flight
-    // signing UX state. Per Apple's @Observable lifetime guidance
-    // (WWDC22 "Discover Observation"): view models should outlive
-    // transient state; their lifetime matches the scene's.
-    init() {
-        Logger.app.info("LibreMac launched")
-        let r = BridgeRegistry()
-        r.loadBundledPlugins()
-        self.registry = r
-        let m = CardMonitor(registry: r)
-        self._monitor = State(initialValue: m)
-        self._signing = State(initialValue: SigningCoordinator(cardMonitor: m))
-    }
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
         MenuBarExtra("LibreMac", systemImage: menuBarIcon) {
             CardStatusView()
-                .environment(monitor)
+                .environment(appDelegate.monitor)
                 .padding(.horizontal, 12).padding(.top, 8)
 
-            if monitor.activeSession != nil {
+            if appDelegate.registrar.state == .requiresApproval {
                 Divider()
-                SignDemoView(coordinator: signing)
-                    .environment(monitor)
+                Button(loc("libremac_registrar_approve", "Approve the signing agent in Login Items…")) {
+                    appDelegate.registrar.openLoginItemsSettings()
+                }
+            }
+
+            if appDelegate.monitor.canSign {
+                Divider()
+                SignDemoView(coordinator: appDelegate.signing)
+                    .environment(appDelegate.monitor)
             }
 
             Divider()
-            SettingsLink { Text("Preferences…") }
-            Button("Quit LibreMac") { NSApplication.shared.terminate(nil) }
-                .keyboardShortcut("q")
+            SettingsLink { Text(loc("libremac_menu_preferences", "Preferences…")) }
+            Button(loc("libremac_menu_quit", "Quit LibreMac")) {
+                NSApplication.shared.terminate(nil)
+            }
+            .keyboardShortcut("q")
         }
         .menuBarExtraStyle(.menu)
 
@@ -54,11 +81,24 @@ struct LibreMacApp: App {
     }
 
     private var menuBarIcon: String {
-        switch monitor.status {
-        case .noReader, .readerConnected: return "creditcard"
-        case .cardPresent, .readingCertificates: return "creditcard.fill"
-        case .ready: return "checkmark.seal.fill"
-        case .error: return "exclamationmark.triangle.fill"
+        switch appDelegate.monitor.presence {
+        case .agentUnavailable:
+            return "bolt.horizontal.circle"
+        case .noReader, .readerEmpty:
+            return "creditcard"
+        case .card(let state):
+            switch state {
+            case .pkiOnly, .hybrid: return "checkmark.seal.fill"
+            case .identityOnly: return "person.text.rectangle"
+            case .preAuthRequired: return "lock.fill"
+            case .error, .none, .noCard: return "exclamationmark.triangle.fill"
+            }
+        case .quiesced:
+            return "moon.zzz.fill"
         }
+    }
+
+    private func loc(_ key: String, _ fallback: String) -> String {
+        LocalizedText(key: key, defaultText: fallback).resolve()
     }
 }

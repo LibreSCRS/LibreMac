@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // SPDX-FileCopyrightText: 2026 hirashix0
 //
-// Pure presentation for the `SigningCoordinator` state machine. The view is
-// stateless — the coordinator drives stage transitions, this file only
-// renders each stage.
+// Pure presentation for the `SigningCoordinator` state machine plus the
+// file-picking chrome. The PIN never enters this process: while the
+// operation waits on the user, this view shows only "confirm in the card
+// dialog" — the secure prompt is the agent's, over the protected
+// authentication path.
 
+import AppKit
 import LibreMacShared
 import SwiftUI
 
@@ -14,46 +17,100 @@ struct SignDemoView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Sign Demo")
+            Text(loc("libremac_sign_title", "Sign"))
                 .font(.headline)
 
             switch coordinator.stage {
             case .idle:
-                Button("Sign demo payload") {
-                    coordinator.beginPinEntry()
+                Button(loc("libremac_sign_button", "Sign a file…")) {
+                    startSign()
                 }
-                .disabled(monitor.activeSession == nil)
-            case .awaitingPin:
-                if let session = monitor.activeSession {
-                    PinEntryView(
-                        session: session,
-                        onVerified: { _ in
-                            Task { await coordinator.pinVerified() }
-                        },
-                        onCancel: { coordinator.cancelPinEntry() }
-                    )
+                .disabled(!monitor.canSign)
+            case .preparing:
+                ProgressView(loc("libremac_sign_preparing", "Preparing…"))
+            case .awaitingConsent:
+                Label(
+                    loc("libremac_sign_confirm", "Confirm the signature in the card dialog…"),
+                    systemImage: "hand.tap.fill"
+                )
+                .foregroundStyle(.orange)
+            case .working:
+                ProgressView(loc("libremac_sign_working", "Signing…"))
+            case .done(let destination):
+                Label(doneSummary(destination), systemImage: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+                Button(loc("libremac_sign_another", "Sign another file")) {
+                    coordinator.reset()
                 }
-            case .signing:
-                ProgressView("Signing…")
-            case .done(let signature, let sha):
-                Label(
-                    "Signed \(coordinator.payload.count) bytes; signature \(signature.count) bytes",
-                    systemImage: "checkmark.seal.fill"
-                )
-                .foregroundStyle(.green)
-                Text(
-                    "SHA-256(payload): \(sha.prefix(8).map { String(format: "%02x", $0) }.joined())…"
-                )
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-            case .failed(let err):
-                Label(
-                    err.localizedDescription, systemImage: "exclamationmark.triangle.fill"
-                )
-                .foregroundStyle(.red)
+            case .failed(let message):
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                Button(loc("libremac_sign_retry", "Try again")) {
+                    coordinator.reset()
+                }
             }
         }
         .padding(16)
         .frame(width: 360)
+    }
+
+    // MARK: - Actions
+
+    private func startSign() {
+        guard monitor.canSign,
+              let card = monitor.signingCard?.handle,
+              let certId = monitor.signingCertId
+        else { return }
+        Task { @MainActor in
+            // The menu bar menu must fully dismiss before a modal file panel
+            // runs; presenting it during menu teardown makes the panel drop
+            // the selection and return cancel. Yield a run-loop turn first.
+            try? await Task.sleep(for: .milliseconds(200))
+            guard let input = pickInputFile(),
+                  let destination = pickDestination(for: input)
+            else { return }
+            await coordinator.sign(
+                card: card, certId: certId, inputURL: input, destinationURL: destination)
+        }
+    }
+
+    private func pickInputFile() -> URL? {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = loc("libremac_sign_pick_input", "Choose file to sign")
+        return runPanel(panel) ? panel.url : nil
+    }
+
+    private func pickDestination(for input: URL) -> URL? {
+        let panel = NSSavePanel()
+        panel.prompt = loc("libremac_sign_pick_output", "Save signed file")
+        panel.nameFieldStringValue = input.deletingPathExtension().lastPathComponent + ".p7s"
+        return runPanel(panel) ? panel.url : nil
+    }
+
+    /// A menu-bar-only (accessory) app is not the active application, so a
+    /// sandbox file panel run as-is is dismissed before the user can act on
+    /// it. Promote to a regular, active application for the duration of the
+    /// panel, then restore the accessory policy.
+    private func runPanel(_ panel: NSSavePanel) -> Bool {
+        let previousPolicy = NSApp.activationPolicy()
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate()
+        defer { NSApp.setActivationPolicy(previousPolicy) }
+        return panel.runModal() == .OK
+    }
+
+    private func doneSummary(_ destination: URL) -> String {
+        LocalizedText(
+            key: "libremac_sign_done",
+            defaultText: "Signed — saved to {name}",
+            placeholders: ["name": destination.lastPathComponent]
+        ).resolve()
+    }
+
+    private func loc(_ key: String, _ fallback: String) -> String {
+        LocalizedText(key: key, defaultText: fallback).resolve()
     }
 }

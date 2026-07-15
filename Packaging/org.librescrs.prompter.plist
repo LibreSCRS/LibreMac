@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+SPDX-License-Identifier: LGPL-2.1-or-later
+SPDX-FileCopyrightText: 2026 hirashix0
+
+Bundled SMAppService LaunchAgent for librescrs-prompter — a SECOND, standalone
+sandboxed LaunchAgent (an inherit-sandboxed child spawned by the
+agent cannot RegisterApplication; the prompter needs its own app-sandboxed
+process to show the AppKit modal). The host app looks this up by
+basename via AppGroupConstants.AgentService.prompterPlistName — keep the
+filename and the Label in sync with that constant. BundleProgram (NOT
+ProgramArguments) for the same relocatability reason as the agent's plist.
+KeepAlive is the respawn mechanism (no PrompterSupervisor).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.librescrs.prompter</string>
+    <key>BundleProgram</key>
+    <string>Contents/MacOS/librescrs-prompter</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+    <key>AssociatedBundleIdentifiers</key>
+    <array>
+        <string>org.librescrs.LibreMac</string>
+    </array>
+</dict>
+</plist>

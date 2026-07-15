@@ -42,8 +42,8 @@ extension Logger {
     public static let bridge = Logger(subsystem: subsystem, category: "bridge")
     /// Card I/O, ATR detection, plugin selection.
     public static let card = Logger(subsystem: subsystem, category: "card")
-    /// Signing flow (PIN, sign, post-process).
+    /// Signing flow (consent, sign, post-process).
     public static let signing = Logger(subsystem: subsystem, category: "signing")
-    /// Cross-process XPC (P4 onwards; registered now for forward compatibility).
-    public static let xpc = Logger(subsystem: subsystem, category: "xpc")
+    /// Agent client: connection lifecycle, registration, socket transport.
+    public static let agent = Logger(subsystem: subsystem, category: "agent")
 }

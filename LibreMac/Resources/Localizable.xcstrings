@@ -9503,6 +9503,805 @@
           }
         }
       }
+    },
+    "libremac_error_auth_failed" : {
+      "comment" : "libremac_error_auth_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication with the card failed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аутентификација са картицом није успела."
+          }
+        }
+      }
+    },
+    "libremac_error_capability_missing" : {
+      "comment" : "libremac_error_capability_missing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This card does not support the requested operation."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова картица не подржава тражену операцију."
+          }
+        }
+      }
+    },
+    "libremac_error_card_removed" : {
+      "comment" : "libremac_error_card_removed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card was removed before the operation finished."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица је уклоњена пре завршетка операције."
+          }
+        }
+      }
+    },
+    "libremac_error_cert_expired" : {
+      "comment" : "libremac_error_cert_expired",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing certificate has expired."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сертификат за потписивање је истекао."
+          }
+        }
+      }
+    },
+    "libremac_error_chain_incomplete" : {
+      "comment" : "libremac_error_chain_incomplete",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The certificate chain could not be completed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ланац сертификата није могуће комплетирати."
+          }
+        }
+      }
+    },
+    "libremac_error_communication" : {
+      "comment" : "libremac_error_communication",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Communication with the card reader failed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Комуникација са читачем картице није успела."
+          }
+        }
+      }
+    },
+    "libremac_error_credential_blocked" : {
+      "comment" : "libremac_error_credential_blocked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card credential is blocked. Unblock it before retrying."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Акредитив картице је блокиран. Одблокирајте га пре поновног покушаја."
+          }
+        }
+      }
+    },
+    "libremac_error_credential_wrong" : {
+      "comment" : "libremac_error_credential_wrong",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The PIN or access code entered was incorrect."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Унети PIN или приступни код је нетачан."
+          }
+        }
+      }
+    },
+    "libremac_error_key_ambiguous" : {
+      "comment" : "libremac_error_key_ambiguous",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More than one key matched the selection."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Више од једног кључа одговара избору."
+          }
+        }
+      }
+    },
+    "libremac_error_key_not_found" : {
+      "comment" : "libremac_error_key_not_found",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected certificate could not be found on the card."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изабрани сертификат није пронађен на картици."
+          }
+        }
+      }
+    },
+    "libremac_error_parse" : {
+      "comment" : "libremac_error_parse",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The data read from the card could not be interpreted."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Податке прочитане са картице није могуће протумачити."
+          }
+        }
+      }
+    },
+    "libremac_error_prompter" : {
+      "comment" : "libremac_error_prompter",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The secure entry prompt could not be shown."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Безбедни упит за унос није могуће приказати."
+          }
+        }
+      }
+    },
+    "libremac_error_rate_limited" : {
+      "comment" : "libremac_error_rate_limited",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many signing requests. Try again shortly."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Превише захтева за потписивање. Покушајте поново ускоро."
+          }
+        }
+      }
+    },
+    "libremac_error_signing_engine" : {
+      "comment" : "libremac_error_signing_engine",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing engine reported an error."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Механизам за потписивање је пријавио грешку."
+          }
+        }
+      }
+    },
+    "libremac_error_tsa_unreachable" : {
+      "comment" : "libremac_error_tsa_unreachable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp authority is unreachable."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ауторитет за временски жиг није доступан."
+          }
+        }
+      }
+    },
+    "libremac_error_unsupported_card" : {
+      "comment" : "libremac_error_unsupported_card",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This card is not supported."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова картица није подржана."
+          }
+        }
+      }
+    },
+    "libremac_error_watchdog_timeout" : {
+      "comment" : "libremac_error_watchdog_timeout",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operation timed out."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Истекло је време за операцију."
+          }
+        }
+      }
+    },
+    "libremac_menu_preferences" : {
+      "comment" : "libremac_menu_preferences",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preferences…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подешавања…"
+          }
+        }
+      }
+    },
+    "libremac_menu_quit" : {
+      "comment" : "libremac_menu_quit",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit LibreMac"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изађи из LibreMac-а"
+          }
+        }
+      }
+    },
+    "libremac_presence_agent_unavailable" : {
+      "comment" : "libremac_presence_agent_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing agent is not running"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Агент за потписивање није покренут"
+          }
+        }
+      }
+    },
+    "libremac_presence_card_error" : {
+      "comment" : "libremac_presence_card_error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card is not usable"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица није употребљива"
+          }
+        }
+      }
+    },
+    "libremac_presence_certs_ready" : {
+      "comment" : "libremac_presence_certs_ready",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{count} certificate(s) ready"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{count} сертификат(а) спремно"
+          }
+        }
+      }
+    },
+    "libremac_presence_hybrid" : {
+      "comment" : "libremac_presence_hybrid",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ID & signing card ready"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ИД и картица за потписивање спремне"
+          }
+        }
+      }
+    },
+    "libremac_presence_identity" : {
+      "comment" : "libremac_presence_identity",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identity card present"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Идентификациона картица присутна"
+          }
+        }
+      }
+    },
+    "libremac_presence_no_reader" : {
+      "comment" : "libremac_presence_no_reader",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No reader detected"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниједан читач није откривен"
+          }
+        }
+      }
+    },
+    "libremac_presence_pki" : {
+      "comment" : "libremac_presence_pki",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing card ready"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица за потписивање спремна"
+          }
+        }
+      }
+    },
+    "libremac_presence_preauth" : {
+      "comment" : "libremac_presence_preauth",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card locked — unlock required"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица закључана — потребно откључавање"
+          }
+        }
+      }
+    },
+    "libremac_presence_quiesced" : {
+      "comment" : "libremac_presence_quiesced",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session paused"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сесија паузирана"
+          }
+        }
+      }
+    },
+    "libremac_presence_reader_empty" : {
+      "comment" : "libremac_presence_reader_empty",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reader connected — insert card"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Читач повезан — уметните картицу"
+          }
+        }
+      }
+    },
+    "libremac_quiesce_screen_locked" : {
+      "comment" : "libremac_quiesce_screen_locked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "screen locked"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "екран закључан"
+          }
+        }
+      }
+    },
+    "libremac_quiesce_session_inactive" : {
+      "comment" : "libremac_quiesce_session_inactive",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "another user is active"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "други корисник је активан"
+          }
+        }
+      }
+    },
+    "libremac_quiesce_shutdown" : {
+      "comment" : "libremac_quiesce_shutdown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "shutting down"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "гашење у току"
+          }
+        }
+      }
+    },
+    "libremac_quiesce_system_sleep" : {
+      "comment" : "libremac_quiesce_system_sleep",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "system asleep"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "систем спава"
+          }
+        }
+      }
+    },
+    "libremac_registrar_approve" : {
+      "comment" : "libremac_registrar_approve",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approve the signing agent in Login Items…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одобрите агент за потписивање у ставкама за пријаву…"
+          }
+        }
+      }
+    },
+    "libremac_sign_another" : {
+      "comment" : "libremac_sign_another",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign another file"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потпиши другу датотеку"
+          }
+        }
+      }
+    },
+    "libremac_sign_button" : {
+      "comment" : "libremac_sign_button",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign a file…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потпиши датотеку…"
+          }
+        }
+      }
+    },
+    "libremac_sign_confirm" : {
+      "comment" : "libremac_sign_confirm",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm the signature in the card dialog…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потврдите потпис у дијалогу картице…"
+          }
+        }
+      }
+    },
+    "libremac_sign_done" : {
+      "comment" : "libremac_sign_done",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed — saved to {name}"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписано — сачувано у {name}"
+          }
+        }
+      }
+    },
+    "libremac_sign_input_unreadable" : {
+      "comment" : "libremac_sign_input_unreadable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected file could not be opened for signing."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изабрану датотеку није могуће отворити за потписивање."
+          }
+        }
+      }
+    },
+    "libremac_sign_no_artifact" : {
+      "comment" : "libremac_sign_no_artifact",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signature completed but no signed file was returned."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање је завршено али потписана датотека није враћена."
+          }
+        }
+      }
+    },
+    "libremac_sign_pick_input" : {
+      "comment" : "libremac_sign_pick_input",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose file to sign"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изаберите датотеку за потписивање"
+          }
+        }
+      }
+    },
+    "libremac_sign_pick_output" : {
+      "comment" : "libremac_sign_pick_output",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save signed file"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сачувај потписану датотеку"
+          }
+        }
+      }
+    },
+    "libremac_sign_preparing" : {
+      "comment" : "libremac_sign_preparing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Припрема…"
+          }
+        }
+      }
+    },
+    "libremac_sign_retry" : {
+      "comment" : "libremac_sign_retry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покушај поново"
+          }
+        }
+      }
+    },
+    "libremac_sign_title" : {
+      "comment" : "libremac_sign_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање"
+          }
+        }
+      }
+    },
+    "libremac_sign_working" : {
+      "comment" : "libremac_sign_working",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање…"
+          }
+        }
+      }
+    },
+    "libremac_sign_write_failed" : {
+      "comment" : "libremac_sign_write_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signed file could not be written to the chosen location."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписану датотеку није могуће уписати на изабрану локацију."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

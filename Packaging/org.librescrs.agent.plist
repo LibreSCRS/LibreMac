@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+SPDX-License-Identifier: LGPL-2.1-or-later
+SPDX-FileCopyrightText: 2026 hirashix0
+
+Bundled SMAppService LaunchAgent for the per-user librescrs-agent daemon
+(the host app looks this up by basename via
+AppGroupConstants.AgentService.launchdPlistName — keep the filename and the
+Label in sync with that constant). BundleProgram (NOT ProgramArguments) is
+required: SMAppService resolves BundleProgram relative to the enclosing
+app bundle, so the staged path stays correct across every install location;
+an absolute ProgramArguments path breaks the moment the .app is relocated.
+KeepAlive is the respawn mechanism now that there is no PrompterSupervisor
+— launchd itself restarts a crashed agent.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.librescrs.agent</string>
+    <key>BundleProgram</key>
+    <string>Contents/MacOS/librescrs-agent</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+    <key>AssociatedBundleIdentifiers</key>
+    <array>
+        <string>org.librescrs.LibreMac</string>
+    </array>
+</dict>
+</plist>
