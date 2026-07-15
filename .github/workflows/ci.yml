@@ -1,13 +1,18 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 name: CI
 
-# LibreMac is the macOS-native host: a SwiftUI menu-bar app plus a thin C++
-# bridge (BridgeNative) over LibreMiddleware. It has no Linux build, so the
-# real work runs on a macOS runner. LibreMiddleware is consumed SHARED — the
-# app links the LibreSCRS_* dylibs and embeds them plus the card plugins into
-# the .app bundle. The build is self-contained: build-cmake-side.sh builds the
-# full LM FetchContent subproject and stages the dylibs + plugins from the
-# build tree, so no external install prefix is required.
+# LibreMac is a pure-Swift macOS host: a SwiftUI menu-bar app plus a CTK
+# token extension. It is LibreMiddleware-FREE at link time — the per-user
+# agent (built and shipped separately, from LibreDarwin) owns the card via
+# LM's PKCS#11 module, and this repo's host/extension only talk to the agent
+# over the App-Group socket. There is no C/C++ left in the host, so there is
+# no clang-format gate here; the Swift compiler's strict-concurrency and
+# warnings-as-errors settings are the format/lint gate.
+#
+# Deferred (D-P4-3): CI does NOT assemble or verify the agent bundle — that
+# needs the LibreDarwin build tree plus a signing identity. Until
+# LibreDarwin ships release artifacts, the release checklist runs
+# Scripts/bundle-agent.sh + Scripts/verify-bundle.sh locally.
 
 on:
   push:
@@ -16,123 +21,46 @@ on:
     branches: [main]
 
 jobs:
-  format-check:
-    # The format gate needs neither Xcode nor LibreMiddleware, so it runs on
-    # ubuntu-latest with the clang-format-21 the rest of the org pins. Only the
-    # C++ bridge is formatted here; Swift is checked by the compiler's strict
-    # concurrency / warnings-as-errors settings in the build job.
-    runs-on: ubuntu-latest
+  swift-test:
+    # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. Xcode 16
+    # (and its `swift test` toolchain) is preinstalled on macos-15.
+    runs-on: macos-15
+    strategy:
+      matrix:
+        package: [LibreMacAgentClient, LibreMacShared, Tools/ts2xcstrings]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install clang-format-21
-        run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm-21.list
-          sudo apt-get update
-          sudo apt-get install -y clang-format-21
-
-      - name: Check clang-format (C++ bridge)
-        run: |
-          find BridgeNative LibreMac/Bridge \( -name '*.cpp' -o -name '*.h' \) -print0 \
-            | xargs -0 clang-format-21 --dry-run --Werror
+      - name: swift test (${{ matrix.package }})
+        # LibreMacAgentClient includes an env-gated live-agent smoke test that
+        # SKIPS unless LIBRESCRS_AGENT_SOCK is set. Deliberately not set here
+        # — CI has no running agent to talk to.
+        run: swift test --package-path "${{ matrix.package }}"
 
   build-macos:
-    # macOS 15 runner: the project deploys to macOS 15.0 and needs the matching
-    # SDK (Xcode 16). Older runner images ship an SDK below the deployment
-    # target and fail to link.
+    # macOS 15 runner: the project deploys to macOS 15.0 and needs the
+    # matching SDK (Xcode 16). Older runner images ship an SDK below the
+    # deployment target and fail to link.
     runs-on: macos-15
-    env:
-      # Consumed by build-cmake-side.sh (LM_SRC resolution) and the xcstrings
-      # regen phase (LibreCelik lookup, which is absent here → it falls back to
-      # the committed catalog). Points at the multi-repo workspace root.
-      LIBRESCRS_ROOT: ${{ github.workspace }}
-      # Git ref of LibreMiddleware to build against. Track its trunk during the
-      # development cycle, as LibreCelik/LibreLinux/LibreAgent do; the 4.2.0 tag
-      # in cmake/FetchLibreMiddleware.cmake is only the no-sibling fallback.
-      MIDDLEWARE_REF: main
     steps:
       - name: Install build tools
-        # xcodegen generates the Xcode project; ninja drives the CMake side;
-        # autoconf/automake/libtool/pkg-config are required by the vendored
-        # OpenSC autoconf bootstrap that LibreMiddleware builds for the
-        # librescrs-opensc fallback module (same as LibreCelik's macOS job).
-        # jsonschema: LM's opensc-plugin manifest2header.py hard-fails without
-        # it (same install line as LM's own release.yml macOS job).
-        run: |
-          brew install xcodegen ninja autoconf automake libtool pkg-config
-          python3 -m pip install --break-system-packages --user jsonschema
+        # xcodegen generates the Xcode project. No LM build deps (autoconf/
+        # automake/libtool/pkg-config/ninja/jsonschema) are needed any more —
+        # the host links no LibreMiddleware.
+        run: brew install xcodegen
 
       - uses: actions/checkout@v4
-        with:
-          path: LibreMac
-
-      - name: Checkout LibreMiddleware
-        # LibreMac's FetchLibreMiddleware consumes this sibling checkout in
-        # place (SOURCE_DIR) when $LIBRESCRS_ROOT/LibreMiddleware exists.
-        # submodules: recursive — LM vendors OpenSC and curl as git submodules
-        # (thirdparty/opensc-source, thirdparty/curl-source); both are needed
-        # for the SHARED build to configure.
-        uses: actions/checkout@v4
-        with:
-          repository: LibreSCRS/LibreMiddleware
-          ref: ${{ env.MIDDLEWARE_REF }}
-          path: LibreMiddleware
-          fetch-depth: 0
-          submodules: recursive
+        # Single-repo checkout: no LibreMiddleware sibling, no submodules.
 
       - name: Generate Xcode project
-        working-directory: LibreMac
         run: ./Scripts/generate-project.sh
 
-      - name: Build (Release, universal x86_64 + arm64)
-        working-directory: LibreMac
+      - name: Build and test (Debug)
+        # CODE_SIGNING_ALLOWED=NO: the runner has no dev team, and the App
+        # Groups entitlement needs a provisioning profile otherwise. Universal
+        # (x86_64+arm64) Release builds and real signing/bundle verification
+        # are a release-gate concern (Scripts/bundle-agent.sh +
+        # Scripts/verify-bundle.sh, run locally), not this CI job.
         run: |
-          xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Release \
-            -derivedDataPath "$PWD/DerivedData" \
-            ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=YES \
-            build
-
-      - name: Verify app bundle
-        # The link succeeding is not enough: the app resolves the LibreSCRS_*
-        # dylibs and loads the card plugins at runtime, so assert the runtime
-        # closure is embedded, universal, and signed.
-        working-directory: LibreMac
-        run: |
-          set -euo pipefail
-          APP="DerivedData/Build/Products/Release/LibreMac.app"
-          FW="$APP/Contents/Frameworks"
-          PL="$APP/Contents/PlugIns/librescrs"
-
-          # Universal slice.
-          lipo -info "$APP/Contents/MacOS/LibreMac" | grep -q "x86_64 arm64"
-
-          # The three directly-linked public libraries must be embedded
-          # (version-agnostic linker-name symlinks).
-          for lib in Plugin SmartCard Auth; do
-            test -e "$FW/libLibreSCRS_$lib.dylib" \
-              || { echo "::error::missing $FW/libLibreSCRS_$lib.dylib"; exit 1; }
-          done
-
-          # Card plugins.
-          n_plugins=$(find "$PL" -type f -name '*.dylib' | wc -l | tr -d ' ')
-          test "$n_plugins" -ge 6 \
-            || { echo "::error::expected >=6 card plugins, found $n_plugins"; exit 1; }
-
-          # Runtime dependency closure: every @rpath/libLibreSCRS_* referenced
-          # by the host binary, the embedded dylibs, or the plugins must be
-          # present in Frameworks.
-          miss=0
-          bins="$APP/Contents/MacOS/LibreMac $(find "$FW" "$PL" -type f -name '*.dylib')"
-          for b in $bins; do
-            for dep in $(otool -L "$b" | grep -oE '@rpath/libLibreSCRS_[^ ]+' | sort -u); do
-              test -e "$FW/${dep#@rpath/}" \
-                || { echo "::error::MISSING ${dep#@rpath/} (needed by $(basename "$b"))"; miss=$((miss + 1)); }
-            done
-          done
-          test "$miss" -eq 0 || { echo "::error::$miss unresolved runtime dependencies"; exit 1; }
-
-          # Signature integrity across the whole bundle.
-          codesign --verify --deep --strict --verbose=1 "$APP"
-
-          echo "bundle OK: universal, plugins=$n_plugins, 0 missing runtime deps, signature valid"
+          xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Debug \
+            build test CODE_SIGNING_ALLOWED=NO
