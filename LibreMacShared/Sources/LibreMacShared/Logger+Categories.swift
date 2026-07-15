@@ -27,7 +27,7 @@ import os
 ///     - PIN, PUK, CAN, MRZ — even masked / hashed. These never enter a
 ///       log statement; if a developer ever needs to debug a credential
 ///       path, the debug build's path goes through a guard that aborts
-///       in release configurations. See `feedback_card_data_integrity.md`.
+///       in release configurations.
 ///
 /// The convention applies to every Logger.* call across LibreMac and
 /// LibreMacShared.
