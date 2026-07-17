@@ -60,6 +60,22 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
         request = .cancelOp(op: mwUInt(pairs, "op") ?? 0)
     case "GetSignResult":
         request = .getSignResult(op: mwUInt(pairs, "op") ?? 0)
+    case "Pkcs11.Login":
+        request = .pkLogin(reader: mwText(pairs, "reader") ?? "")
+    case "Pkcs11.Logout":
+        request = .pkLogout(reader: mwText(pairs, "reader") ?? "")
+    case "Pkcs11.PublicKey":
+        request = .pkPublicKey(reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "")
+    case "Pkcs11.SignRaw":
+        request = .pkSignRaw(
+            reader: mwText(pairs, "reader") ?? "",
+            cert: mwText(pairs, "cert") ?? "",
+            data: mwBytes(pairs, "data") ?? Data())
+    case "Pkcs11.Decrypt":
+        request = .pkDecrypt(
+            reader: mwText(pairs, "reader") ?? "",
+            cert: mwText(pairs, "cert") ?? "",
+            data: mwBytes(pairs, "data") ?? Data())
     default:
         throw MockWireError.malformed
     }
@@ -95,6 +111,11 @@ func requestTag(_ request: AgentRequest) -> String {
     case .resetConfig: return "ResetConfig"
     case .cancelOp: return "CancelOp"
     case .getSignResult: return "GetSignResult"
+    case .pkLogin: return "Pkcs11.Login"
+    case .pkLogout: return "Pkcs11.Logout"
+    case .pkPublicKey: return "Pkcs11.PublicKey"
+    case .pkSignRaw: return "Pkcs11.SignRaw"
+    case .pkDecrypt: return "Pkcs11.Decrypt"
     }
 }
 
@@ -116,6 +137,12 @@ func encodeReply(_ reply: AgentReply, req: UInt64) -> Data {
         pairs.append(("certs", .array(certs.map(encodeCertInfo))))
     case .certDer(let der):
         pairs.append(("der", .bytes(der)))
+    case .publicKey(let kty, let n, let e):
+        pairs.append(("kty", .text(kty)))
+        pairs.append(("n", .bytes(n)))
+        pairs.append(("e", .bytes(e)))
+    case .rawSignature(let sig):
+        pairs.append(("sig", .bytes(sig)))
     case .config(let entries):
         pairs.append(("entries", .map(entries.map { (Data($0.key.utf8), $0.value) })))
     case .ack:
@@ -297,6 +324,11 @@ private func mwText(_ pairs: [(Data, CBORValue)], _ key: String) -> String? {
 
 private func mwBool(_ pairs: [(Data, CBORValue)], _ key: String) -> Bool? {
     if case .bool(let b)? = mwGet(pairs, key) { return b }
+    return nil
+}
+
+private func mwBytes(_ pairs: [(Data, CBORValue)], _ key: String) -> Data? {
+    if case .bytes(let b)? = mwGet(pairs, key) { return b }
     return nil
 }
 

@@ -82,9 +82,9 @@ public enum OpResult: Sendable, Equatable {
 
 // MARK: - Requests (client -> agent)
 
-/// One client -> agent request body. The `Pkcs11.*` family is out of scope
-/// here — reserved for a future extension. Matches the agent's request-body
-/// wire contract.
+/// One client -> agent request body. Matches the agent's request-body wire
+/// contract, including the `Pkcs11.*` family used by the CTK extension's
+/// PKCS#11 seam.
 public enum AgentRequest: Sendable, Equatable {
     case hello(proto: UInt64, client: String?)
     case getState
@@ -98,6 +98,11 @@ public enum AgentRequest: Sendable, Equatable {
     case resetConfig(key: String)
     case cancelOp(op: UInt64)
     case getSignResult(op: UInt64)
+    case pkLogin(reader: String)
+    case pkLogout(reader: String)
+    case pkPublicKey(reader: String, cert: String)
+    case pkSignRaw(reader: String, cert: String, data: Data)
+    case pkDecrypt(reader: String, cert: String, data: Data)
 }
 
 extension AgentRequest {
@@ -142,6 +147,18 @@ extension AgentRequest {
             pairs = [("t", .text("CancelOp")), ("op", .int(Int64(op)))]
         case .getSignResult(let op):
             pairs = [("t", .text("GetSignResult")), ("op", .int(Int64(op)))]
+        case .pkLogin(let reader):
+            pairs = [("t", .text("Pkcs11.Login")), ("reader", .text(reader))]
+        case .pkLogout(let reader):
+            pairs = [("t", .text("Pkcs11.Logout")), ("reader", .text(reader))]
+        case .pkPublicKey(let reader, let cert):
+            pairs = [("t", .text("Pkcs11.PublicKey")), ("reader", .text(reader)), ("cert", .text(cert))]
+        case .pkSignRaw(let reader, let cert, let data):
+            pairs = [("t", .text("Pkcs11.SignRaw")), ("reader", .text(reader)),
+                     ("cert", .text(cert)), ("data", .bytes(data))]
+        case .pkDecrypt(let reader, let cert, let data):
+            pairs = [("t", .text("Pkcs11.Decrypt")), ("reader", .text(reader)),
+                     ("cert", .text(cert)), ("data", .bytes(data))]
         }
         pairs.append(("req", .int(Int64(req))))
         return cborMap(pairs).encode()
@@ -175,17 +192,19 @@ private func cborMap(_ pairs: [(String, CBORValue)]) -> CBORValue {
 
 // MARK: - Replies (agent -> client)
 
-/// One agent -> client reply arm. `PublicKeyReply` / `RawSignatureReply`
-/// (the `Pkcs11.*` surface) are out of scope. Mirrors the reply builders in
+/// One agent -> client reply arm. Mirrors the reply builders in
 /// `LibreSCRS::Darwin::wire` and CDDL `reply-ok`
 /// (`librescrs-agent.cddl:106-118`) plus the `err` arm
-/// (`librescrs-agent.cddl:93,97`).
+/// (`librescrs-agent.cddl:93,97`), including the `Pkcs11.*` surface's
+/// `PublicKeyReply` / `RawSignatureReply` arms.
 public enum AgentReply: Sendable, Equatable {
     case helloAck(agentVer: String, features: [String])
     case opStarted(op: UInt64)
     case state(readers: [ReaderState], cards: [CardState])
     case certList(certs: [CertificateInfo])
     case certDer(der: Data)
+    case publicKey(kty: String, n: Data, e: Data)
+    case rawSignature(sig: Data)
     case config(entries: [String: CBORValue])
     case ack
     case signRecovery(SignResult)
@@ -274,6 +293,16 @@ public enum AgentMessages {
         if let derRaw = mapGet(m, "der") {
             guard case .bytes(let der) = derRaw else { throw .wrongType("der") }
             return AgentReplyEnvelope(req: req, reply: .certDer(der: der))
+        }
+        if let sigRaw = mapGet(m, "sig") {
+            guard case .bytes(let sig) = sigRaw else { throw .wrongType("sig") }
+            return AgentReplyEnvelope(req: req, reply: .rawSignature(sig: sig))
+        }
+        if let ktyRaw = mapGet(m, "kty") {
+            guard case .text(let kty) = ktyRaw, kty == "RSA" else { throw .wrongType("kty") }
+            guard case .bytes(let n)? = mapGet(m, "n") else { throw .missingField("n") }
+            guard case .bytes(let e)? = mapGet(m, "e") else { throw .missingField("e") }
+            return AgentReplyEnvelope(req: req, reply: .publicKey(kty: kty, n: n, e: e))
         }
         if let entriesRaw = mapGet(m, "entries") {
             let entriesMap = try requireMap(entriesRaw, field: "entries")

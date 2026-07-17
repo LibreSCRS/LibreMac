@@ -29,6 +29,7 @@ final class MockAgentServer: @unchecked Sendable {
     private let lock = NSLock()
     private var isUp = true
     private var connection: SocketConnection?
+    private var rawServeFd: Int32 = -1
 
     private let requestsContinuation: AsyncStream<DecodedRequest>.Continuation
     /// Every request the currently (or most recently) connected client has
@@ -38,6 +39,14 @@ final class MockAgentServer: @unchecked Sendable {
 
     private var requestCounts: [String: Int] = [:]
 
+    /// Scripted per-request reaction, invoked with the decoded `req` id and
+    /// its wire `t` tag (`requestTag(_:)`) for every request this mock
+    /// decodes — both on the `SocketConnection` path (`connect()`) and the
+    /// raw-fd path (`connectedFd()`). Tests script replies/events from
+    /// inside this closure via `sendReplyRaw`/`sendEventRaw` (raw-fd path)
+    /// or `sendReply`/`sendEvent` (`SocketConnection` path).
+    var onRequest: ((UInt64, String) -> Void)?
+
     init() {
         let (stream, continuation) = AsyncStream<DecodedRequest>.makeStream()
         self.requests = stream
@@ -46,6 +55,7 @@ final class MockAgentServer: @unchecked Sendable {
 
     deinit {
         requestsContinuation.finish()
+        closeRawServeFd()
     }
 
     /// The connector closure to hand an `AgentClient` under test.
@@ -78,6 +88,7 @@ final class MockAgentServer: @unchecked Sendable {
                     if let decoded = try? decodeAgentRequest(frame.body) {
                         self?.recordRequest(decoded)
                         self?.requestsContinuation.yield(decoded)
+                        self?.onRequest?(decoded.req, requestTag(decoded.request))
                     }
                 }
             } catch {
@@ -98,6 +109,7 @@ final class MockAgentServer: @unchecked Sendable {
         connection = nil
         lock.unlock()
         conn?.close()
+        closeRawServeFd()
     }
 
     /// Severs the current connection but leaves the mock accepting new
@@ -146,5 +158,86 @@ final class MockAgentServer: @unchecked Sendable {
         let conn = connection
         lock.unlock()
         try? conn?.send(body: body, fds: fds)
+    }
+
+    // MARK: - Raw-fd path (for TokenAgentClient, which is not built on SocketConnection)
+
+    /// Returns a connected client fd; the mock serves the peer end using the same
+    /// wire codec as its SocketConnection path.
+    func connectedFd() -> Int32 {
+        var pair: [Int32] = [0, 0]
+        let result = socketpair(AF_UNIX, SOCK_STREAM, 0, &pair)
+        precondition(result == 0, "socketpair failed: \(String(cString: strerror(errno)))")
+        lock.lock()
+        rawServeFd = pair[0]
+        lock.unlock()
+        serve(peerFd: pair[0])
+        return pair[1]
+    }
+
+    /// Background read/decode/onRequest loop over `peerFd`, the mock's end
+    /// of the pair vended by `connectedFd()`. Runs until `peerFd` reaches
+    /// EOF or a protocol violation poisons the reassembler.
+    private func serve(peerFd: Int32) {
+        Thread.detachNewThread { [weak self] in
+            let reassembler = FrameReassembler()
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while true {
+                let n = read(peerFd, &buffer, buffer.count)
+                if n <= 0 { break }
+                guard let frames = try? reassembler.pump(bytes: Data(buffer[0..<n])) else { break }
+                for frame in frames {
+                    guard let decoded = try? decodeAgentRequest(frame.body) else { continue }
+                    self?.recordRequest(decoded)
+                    self?.requestsContinuation.yield(decoded)
+                    self?.onRequest?(decoded.req, requestTag(decoded.request))
+                }
+            }
+        }
+    }
+
+    /// Frame-encodes `reply` and writes it onto the raw-fd path's serve fd
+    /// (as opposed to `sendReply`, which drives the `SocketConnection`
+    /// path). For scripting a `TokenAgentClient` test's server side from
+    /// inside `onRequest`.
+    func sendReplyRaw(_ reply: AgentReply, req: UInt64) {
+        writeRawFrame(encodeReply(reply, req: req))
+    }
+
+    /// Frame-encodes `event` and writes it onto the raw-fd path's serve fd
+    /// (as opposed to `sendEvent`, which drives the `SocketConnection`
+    /// path).
+    func sendEventRaw(_ event: AgentEvent) {
+        writeRawFrame(encodeEvent(event))
+    }
+
+    private func writeRawFrame(_ body: Data) {
+        lock.lock()
+        let fd = rawServeFd
+        lock.unlock()
+        guard fd >= 0, let header = try? Frame.encodeHeader(bodyLength: body.count, fdCount: 0) else { return }
+        let framed = header + body
+        framed.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            var offset = 0
+            while offset < raw.count {
+                let n = write(fd, raw.baseAddress!.advanced(by: offset), raw.count - offset)
+                if n <= 0 { break }
+                offset += n
+            }
+        }
+    }
+
+    /// Closes the mock's end of the `connectedFd()` pair, if one was ever
+    /// vended. Idempotent. Unblocks `serve(peerFd:)`'s blocking `read` loop
+    /// (which then observes an error/EOF and returns, ending the detached
+    /// thread) — the raw-fd path's counterpart to `conn?.close()` tearing
+    /// down the `SocketConnection` path above.
+    private func closeRawServeFd() {
+        lock.lock()
+        let fd = rawServeFd
+        rawServeFd = -1
+        lock.unlock()
+        guard fd >= 0 else { return }
+        Darwin.close(fd)
     }
 }
