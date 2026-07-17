@@ -9861,6 +9861,40 @@
         }
       }
     },
+    "libremac_prefs_placeholder" : {
+      "comment" : "libremac_prefs_placeholder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No configurable settings in this release."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У овом издању нема подешавања."
+          }
+        }
+      }
+    },
+    "libremac_prefs_section_general" : {
+      "comment" : "libremac_prefs_section_general",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Опште"
+          }
+        }
+      }
+    },
     "libremac_presence_agent_unavailable" : {
       "comment" : "libremac_presence_agent_unavailable",
       "localizations" : {
