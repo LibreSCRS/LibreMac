@@ -19,12 +19,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let monitor: CardMonitor
     let signing: SigningCoordinator
     let registrar: AgentRegistrar
+    /// Publishes the signing card's Keychain identities to `ctkd`. Driven by
+    /// `monitor` on card presence/removal (see `CardMonitor`'s "Token
+    /// identity publishing" section); the app delegate only re-registers it
+    /// once on launch, below.
+    let tokenIdentityRegistrar: TokenIdentityRegistrar
 
     override init() {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
         let client = AgentClient(clientVersion: "LibreMac/\(version)")
         self.client = client
-        self.monitor = CardMonitor(client: client)
+        let tokenIdentityRegistrar = TokenIdentityRegistrar(
+            store: DriverConfigStore(classID: "org.librescrs.LibreMacToken"))
+        self.tokenIdentityRegistrar = tokenIdentityRegistrar
+        self.monitor = CardMonitor(client: client, tokenRegistrar: tokenIdentityRegistrar)
         self.signing = SigningCoordinator(client: client)
         self.registrar = AgentRegistrar.system()
         super.init()
@@ -32,6 +40,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Logger.app.info("LibreMac launched")
+        // Clear any driver configuration left over from a prior run before
+        // the first card-presence snapshot arrives — `TKTokenDriverConfiguration`
+        // goes stale across a ctkd restart with no refresh API (FB22701547),
+        // so the host must recycle it on every launch. No card is known yet
+        // at this point, so this is a pure clear; `monitor` republishes once
+        // a signing card's certificates are read.
+        tokenIdentityRegistrar.reregisterOnLaunch(currentCerts: [])
         // Registration first (materializes the App-Group container off-main),
         // then bring the client up; both are independent async flows.
         Task { await registrar.activate() }

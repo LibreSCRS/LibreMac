@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // SPDX-FileCopyrightText: 2026 hirashix0
 //
-// Coverage gate for the 18-value ErrorCode → copy table. Every non-`none`
+// Coverage gate for the 20-value ErrorCode → copy table. Every non-`none`
 // code MUST have client-localized copy; `.none` MUST defer to the agent's
 // msgFallback.
 

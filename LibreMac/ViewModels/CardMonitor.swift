@@ -7,6 +7,12 @@
 // into a single `Presence` value the views render. All wire work happens on
 // the `AgentClient` actor; this view model only `await`s it, so nothing ever
 // blocks the main thread.
+//
+// It also drives the optional `TokenIdentityRegistrar`: once a signing
+// card's certificates are read, the signing-capable ones are resolved to DER
+// and published; on removal (or a same-frame swap to a different card) any
+// previously published identity is cleared. See "Token identity publishing"
+// below.
 
 import Foundation
 import LibreMacAgentClient
@@ -58,6 +64,10 @@ public final class CardMonitor {
     private var certReadTask: Task<Void, Never>?
 
     private let client: AgentClient
+    /// Publishes the signing card's identities to `ctkd`, in step with card
+    /// presence. `nil` in most tests (and any host build that opts out) — the
+    /// whole publish/remove path below is then a no-op.
+    private let tokenRegistrar: TokenIdentityRegistrar?
 
     /// Non-isolated holder so `deinit` can cancel the stream-consumer tasks
     /// without crossing the actor boundary (Swift 6 forbids synchronous access
@@ -67,8 +77,9 @@ public final class CardMonitor {
     }
     private let taskHolder = TaskHolder()
 
-    public init(client: AgentClient) {
+    public init(client: AgentClient, tokenRegistrar: TokenIdentityRegistrar? = nil) {
         self.client = client
+        self.tokenRegistrar = tokenRegistrar
         // Capture the Sendable streams before the Task closures so `self`
         // (MainActor-isolated) is not pulled into the stream access itself.
         let registryUpdates = client.registryUpdates
@@ -144,13 +155,20 @@ public final class CardMonitor {
         certReadTask?.cancel()
         certReadTask = nil
         certificates = []
+        // The signing card's identity just changed — removed outright, or
+        // swapped for a different card in the same snapshot with no
+        // intervening empty one. Either way, remove-on-eject must clear any
+        // previously published Keychain identity immediately, not only
+        // after (if ever) a new card's certs finish reading.
+        tokenRegistrar?.onCardRemoved()
         guard let card = pkiCard else { return }
         certReadTask = Task { [weak self] in
-            await self?.readCertificates(cardHandle: card.handle)
+            await self?.readCertificates(card: card)
         }
     }
 
-    private func readCertificates(cardHandle: String) async {
+    private func readCertificates(card: CardState) async {
+        let cardHandle = card.handle
         do {
             let operation = try await client.readCertificates(card: cardHandle)
             let (status, _, _, _) = await operation.finished()
@@ -164,10 +182,57 @@ public final class CardMonitor {
             recomputePresence()
             Logger.card.info(
                 "Read \(certs.count, privacy: .public) certificates from \(cardHandle, privacy: .public)")
+
+            if let tokenRegistrar {
+                let publishable = await Self.publishableCerts(certs, reader: card.reader) {
+                    reader, certId in
+                    try await client.certificateDer(reader: reader, certId: certId)
+                }
+                guard !Task.isCancelled, currentCardHandle == cardHandle else { return }
+                tokenRegistrar.onCardPresent(certs: publishable)
+            }
         } catch {
             Logger.card.error(
                 "readCertificates failed: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    // MARK: - Token identity publishing
+
+    /// Resolves a `PublishableCert` for every signing-capable cert in
+    /// `certificates`, fetching each one's DER via `fetchDer`. A cert whose
+    /// DER fetch fails is skipped (logged) rather than aborting the whole
+    /// batch — mirrors `TokenIdentityRegistrar.onCardPresent`'s own
+    /// "skip, never crash the presence pipeline" contract.
+    ///
+    /// Free of any `AgentClient`/stream dependency (`fetchDer` is a plain
+    /// closure) so the card-presence -> registrar wiring is unit-testable
+    /// with a stub, without a live agent connection.
+    static func publishableCerts(
+        _ certificates: [CertificateInfo],
+        reader: String,
+        fetchDer: (_ reader: String, _ certId: String) async throws -> Data
+    ) async -> [PublishableCert] {
+        var result: [PublishableCert] = []
+        for cert in certificates where cert.signingCapable {
+            do {
+                let der = try await fetchDer(reader, cert.certId)
+                // RFC 5280 §4.2.1.3 KeyUsage, natural ordinal bit order (bit
+                // 0 = digitalSignature, bit 1 = nonRepudiation /
+                // contentCommitment — the qualified-signature flag). This is
+                // the same left-shift-by-ordinal convention the agent uses
+                // to populate `keyUsageBits` (`KeyUsageBit::NonRepudiation
+                // == 1`), not a reversed DER BIT STRING bit order.
+                let isQualified = cert.keyUsageBits & (1 << 1) != 0
+                result.append(
+                    PublishableCert(certId: cert.certId, der: der, isQualified: isQualified))
+            } catch {
+                Logger.card.error(
+                    "certificateDer failed for \(cert.certId, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                )
+            }
+        }
+        return result
     }
 
     // MARK: - Presence derivation

@@ -36,11 +36,14 @@ targets:
     platform: macOS
     sources:
       - path: LibreMac
+        excludes:
+          - LibreMacToken/**
     dependencies:
       - package: LibreMacShared
         product: LibreMacShared
       - package: LibreMacAgentClient
         product: LibreMacAgentClient
+      - target: LibreMacToken
     info:
       path: LibreMac/Info.plist
       properties:
@@ -90,6 +93,23 @@ targets:
         outputFiles:
           - "$(SRCROOT)/LibreMac/Resources/Localizable.xcstrings"
         basedOnDependencyAnalysis: false
+  LibreMacToken:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: LibreMac/LibreMacToken
+    dependencies:
+      - package: LibreMacAgentClient
+        product: LibreMacAgentClient
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.librescrs.LibreMac.LibreMacToken
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+        # Hand-written NSExtension dict (com.apple.ctk-tokens + driver class) —
+        # a generated `info:` block would clobber it, so this is wired via
+        # INFOPLIST_FILE, not the managed `info:` key.
+        INFOPLIST_FILE: LibreMac/LibreMacToken/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LibreMac/LibreMacToken/LibreMacToken.entitlements
   LibreMacTests:
     type: bundle.unit-test
     platform: macOS

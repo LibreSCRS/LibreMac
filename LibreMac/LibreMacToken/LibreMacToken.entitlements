@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)org.librescrs.LibreMac</string>
+	</array>
+	<!-- application-groups: the App-Group whose container holds the agent<->extension
+	     socket. macOS CTK appexes are sandboxed (OpenSCToken precedent) and cannot
+	     reach /tmp; the App-Group container is the shared location both this
+	     sandboxed appex (via this entitlement) and the non-sandboxed agent (via the
+	     absolute container path, same user) can reach. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.org.librescrs.LibreMac</string>
+	</array>
+	<!-- DELIBERATELY ABSENT:
+	     - com.apple.security.smartcard: the extension drives NO card (shape b).
+	     - com.apple.developer.smartcard-services: Apple-gated, NOT needed (confirmed). -->
+</dict>
+</plist>
