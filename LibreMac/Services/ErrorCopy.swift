@@ -18,7 +18,7 @@ public enum ErrorCopy {
 
     /// The localized `LocalizedText` for a code the client phrases itself, or
     /// `nil` for `.none` / any code deferred to the agent's `msgFallback`.
-    /// Split out from `message(...)` so a test can assert the 18-value
+    /// Split out from `message(...)` so a test can assert the 19-value
     /// coverage and the fallback boundary directly.
     public static func localizedText(for code: ErrorCode) -> LocalizedText? {
         switch code {
@@ -78,6 +78,9 @@ public enum ErrorCopy {
         case .engineUnavailable:
             return text("libremac_error_engine_unavailable",
                         "The signing engine could not be loaded. Check that LibreSCRS is installed correctly.")
+        case .invalidDocument:
+            return text("libremac_error_invalid_document",
+                        "The document you tried to sign is invalid or unreadable. Check the file.")
         }
     }
 

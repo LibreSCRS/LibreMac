@@ -9657,6 +9657,23 @@
         }
       }
     },
+    "libremac_error_invalid_document" : {
+      "comment" : "libremac_error_invalid_document",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The document you tried to sign is invalid or unreadable. Check the file."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Документ који сте покушали да потпишете је неисправан или нечитљив. Проверите датотеку."
+          }
+        }
+      }
+    },
     "libremac_error_key_ambiguous" : {
       "comment" : "libremac_error_key_ambiguous",
       "localizations" : {

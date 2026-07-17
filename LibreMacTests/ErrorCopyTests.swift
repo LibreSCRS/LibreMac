@@ -24,9 +24,9 @@ struct ErrorCopyTests {
         }
     }
 
-    @Test("the taxonomy still has exactly 18 values")
-    func taxonomyHasEighteenValues() {
-        #expect(ErrorCode.allCases.count == 18)
+    @Test("the taxonomy still has exactly 20 values")
+    func taxonomyHasTwentyValues() {
+        #expect(ErrorCode.allCases.count == 20)
     }
 
     @Test("none falls back to the agent-provided msgFallback verbatim")
