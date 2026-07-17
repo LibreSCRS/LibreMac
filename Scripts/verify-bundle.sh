@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # SPDX-FileCopyrightText: 2026 hirashix0
 #
-# Verifies a LibreMac .app bundle-agent.sh has staged and signed correctly.
-# Each assertion prints PASS/FAIL/SKIP and the script
-# exits non-zero if any hard assertion fails. Two assertions are intrinsically
+# Verifies a LibreMac .app bundle-agent.sh has staged and signed correctly,
+# plus that the Xcode-nested Contents/PlugIns/LibreMacToken.appex carries its
+# expected entitlements. Each assertion prints PASS/FAIL/SKIP and the script
+# exits non-zero if any hard assertion fails. Some assertions are intrinsically
 # best-effort on an ad-hoc-signed / no-Developer-ID machine and are recorded
 # rather than gated: the WHOLE-BUNDLE signature (the host .app itself may be
-# unsigned under CODE_SIGNING_ALLOWED=NO) and `spctl -a` (Gatekeeper always
-# rejects ad-hoc signatures — that is expected, not a bug).
+# unsigned under CODE_SIGNING_ALLOWED=NO), `spctl -a` (Gatekeeper always
+# rejects ad-hoc signatures — that is expected, not a bug), and the appex
+# Team-signed check (skipped honestly, never claimed, when the appex is only
+# ad-hoc signed — i.e. codesign reports TeamIdentifier=not set).
 set -uo pipefail
 
 APP_PATH="${1:?usage: verify-bundle.sh <path-to-LibreMac.app>}"
@@ -135,6 +138,42 @@ if [ -x "$MACOS/librescrs-prompter" ]; then
     else
         fail "librescrs-prompter entitlements do not match the expected set"
     fi
+fi
+
+# ---------------------------------------------------------------- LibreMacToken.appex
+# Nested by the Xcode build (project.yml host `dependencies:`), not staged by
+# bundle-agent.sh — this only checks what landed in the built bundle.
+TOKEN_APPEX="$APP_PATH/Contents/PlugIns/LibreMacToken.appex"
+if [ -d "$TOKEN_APPEX" ]; then
+    pass "LibreMacToken.appex present at Contents/PlugIns/LibreMacToken.appex"
+
+    ok=1
+    check_entitlement "$TOKEN_APPEX" "keychain-access-groups" present || ok=0
+    check_entitlement "$TOKEN_APPEX" "com.apple.security.application-groups" present || ok=0
+    if [ "$ok" = 1 ]; then
+        pass "LibreMacToken.appex entitlements match the expected set (keychain-access-groups+application-groups)"
+    else
+        fail "LibreMacToken.appex entitlements do not match the expected set"
+    fi
+
+    if codesign --verify --strict "$TOKEN_APPEX" 2>/tmp/verify-bundle-codesign.err; then
+        pass "codesign --verify --strict LibreMacToken.appex"
+    else
+        fail "codesign --verify --strict LibreMacToken.appex: $(cat /tmp/verify-bundle-codesign.err)"
+    fi
+
+    # Team-signed check: only meaningful with a real Developer ID identity.
+    # codesign reports TeamIdentifier=not set for ad-hoc (-s -) signatures —
+    # on this team-less machine that is expected, so the check is skipped
+    # rather than reported as a pass or a fail.
+    team_id="$(codesign -dvvv "$TOKEN_APPEX" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+    if [ -z "$team_id" ] || [ "$team_id" = "not set" ]; then
+        skip "LibreMacToken.appex Team-signed check (ad-hoc signature, no Team ID on this machine — record-only)"
+    else
+        pass "LibreMacToken.appex is Team-signed (TeamIdentifier=$team_id)"
+    fi
+else
+    fail "LibreMacToken.appex missing from Contents/PlugIns"
 fi
 
 # ---------------------------------------------------------------- per-component signature

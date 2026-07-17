@@ -18,16 +18,32 @@
 #   Contents/Library/LaunchAgents/org.librescrs.{agent,prompter}.plist <- Packaging/
 #   Contents/Resources/librescrs-agent.version <- stamped from the LibreDarwin build tree
 #
+# Not staged by this script but signed by it: Contents/PlugIns/LibreMacToken.appex
+# is nested into the host .app by the Xcode build itself (LibreMacToken is a
+# `dependencies:` entry of the host target in project.yml) — this script only
+# adds the appex's own inside-out signature, it does not copy it into place.
+#
 # Entitlements (both host and agent sandboxed):
 #   agent:    app-sandbox + smartcard + network.client + application-groups
 #   prompter: app-sandbox + application-groups   (NOT inherit — an
 #             inherit-sandboxed child spawned by the agent cannot
 #             RegisterApplication; the prompter is its own standalone
 #             sandboxed LaunchAgent)
+#   LibreMacToken.appex: app-sandbox + keychain-access-groups + application-groups
+#             (LibreMac/LibreMacToken/LibreMacToken.entitlements is the source
+#             of truth; deliberately no smartcard entitlement — shape (b), the
+#             extension never drives the card)
 #
-# Signing is ALWAYS inside-out (dylibs/plugins -> executables) and NEVER
-# --deep. The host .app itself is left to the caller's build (Xcode / the
-# release pipeline) — this script only signs the components it staged.
+# Signing is ALWAYS inside-out (dylibs/plugins -> LibreMacToken.appex ->
+# top-level executables) and NEVER --deep. The host .app itself is left to
+# the caller's build (Xcode / the release pipeline) — this script only signs
+# the components it staged or that Xcode nested, so the host app is always
+# (re-)signed strictly after everything here.
+#
+# CODESIGN_IDENTITY (env, default "-" = ad-hoc): every codesign invocation in
+# this script uses this identity. On a team-less machine the default ad-hoc
+# path is unchanged; set CODESIGN_IDENTITY to a "Developer ID Application: ..."
+# identity (or its hash) to Team-sign everything staged/signed here instead.
 #
 # *** DEV-AGENT LABEL COLLISION ***
 # packaging/install-dev.sh (LibreDarwin) bootstraps a LaunchAgent with the
@@ -45,6 +61,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_PATH="${1:?usage: bundle-agent.sh <path-to-LibreMac.app> [LIBREDARWIN_PREFIX] [LM_LIB_PREFIX]}"
 LIBREDARWIN_PREFIX="${2:-${LIBREDARWIN_PREFIX:-$REPO_ROOT/../LibreDarwin/build-release}}"
 LM_LIB_PREFIX="${3:-${LM_LIB_PREFIX:-$REPO_ROOT/../LibreMiddleware/build/_install/lib}}"
+CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
 
 [ -d "$APP_PATH" ] || { echo "bundle-agent: no such app bundle: $APP_PATH" >&2; exit 1; }
 [ -x "$LIBREDARWIN_PREFIX/agent/librescrs-agent" ] || {
@@ -203,18 +220,31 @@ fix_homebrew() {
 }
 fix_homebrew
 
-# ---------------------------------------------------------------- sign (inside-out, ad-hoc)
-# Never --deep: sign every dylib/plugin first, then each executable
-# individually with its own identifier + entitlements. The host .app's own
-# signature is the caller's responsibility (Xcode build / release pipeline).
+# ---------------------------------------------------------------- sign (inside-out)
+# Never --deep: sign every dylib/plugin first, then the nested CTK token
+# extension, then each top-level executable individually with its own
+# identifier + entitlements. The host .app's own signature is the caller's
+# responsibility (Xcode build / release pipeline) and always happens after
+# this script returns, so nested-before-container holds end to end.
 for lib in "$FRAMEWORKS"/*.dylib "$PLUGINS"/*.dylib; do
     [ -f "$lib" ] || continue
-    codesign --force -s - "$lib"
+    codesign --force -s "$CODESIGN_IDENTITY" "$lib"
 done
-codesign --force -s - --identifier org.librescrs.prompter \
+
+TOKEN_APPEX="$APP_PATH/Contents/PlugIns/LibreMacToken.appex"
+[ -d "$TOKEN_APPEX" ] || {
+    echo "bundle-agent: LibreMacToken.appex not nested under Contents/PlugIns (regenerate + build the host target first — it embeds LibreMacToken via project.yml)" >&2
+    exit 1
+}
+codesign --force -s "$CODESIGN_IDENTITY" --identifier org.librescrs.LibreMac.LibreMacToken \
+    --entitlements "$REPO_ROOT/LibreMac/LibreMacToken/LibreMacToken.entitlements" "$TOKEN_APPEX"
+
+codesign --force -s "$CODESIGN_IDENTITY" --identifier org.librescrs.prompter \
     --entitlements "$ENTS_DIR/prompter.plist" "$MACOS/librescrs-prompter"
-codesign --force -s - --identifier org.librescrs.agent \
+codesign --force -s "$CODESIGN_IDENTITY" --identifier org.librescrs.agent \
     --entitlements "$ENTS_DIR/agent.plist" "$MACOS/librescrs-agent"
 
-echo "bundle-agent: signed ${#lm_dylibs[@]} LM dylib(s) + pkcs11 + ${#plugin_srcs[@]} plugin(s) + agent + prompter (ad-hoc, inside-out)"
+id_label="ad-hoc"
+[ "$CODESIGN_IDENTITY" = "-" ] || id_label="identity=$CODESIGN_IDENTITY"
+echo "bundle-agent: signed ${#lm_dylibs[@]} LM dylib(s) + pkcs11 + ${#plugin_srcs[@]} plugin(s) + LibreMacToken.appex + agent + prompter ($id_label, inside-out)"
 echo "bundle-agent: done -> $APP_PATH"

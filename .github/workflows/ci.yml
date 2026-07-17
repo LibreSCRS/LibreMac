@@ -34,7 +34,10 @@ jobs:
       - name: swift test (${{ matrix.package }})
         # LibreMacAgentClient includes an env-gated live-agent smoke test that
         # SKIPS unless LIBRESCRS_AGENT_SOCK is set. Deliberately not set here
-        # — CI has no running agent to talk to.
+        # — CI has no running agent to talk to. The PKCS#11 wire, transport,
+        # and token op-engine suites live in this same package's single test
+        # target, so this matrix entry already runs them — no separate entry
+        # needed.
         run: swift test --package-path "${{ matrix.package }}"
 
   build-macos:
@@ -61,6 +64,15 @@ jobs:
         # (x86_64+arm64) Release builds and real signing/bundle verification
         # are a release-gate concern (Scripts/bundle-agent.sh +
         # Scripts/verify-bundle.sh, run locally), not this CI job.
+        #
+        # The LibreMac target depends on LibreMacToken (project.yml) and
+        # xcodegen wires that as an "Embed Foundation Extensions" build
+        # phase, so this one `build` action already compiles
+        # LibreMacToken.appex and nests it under LibreMac.app — no separate
+        # build step is needed for the token extension. Hardware acceptance
+        # of the extension against ctkd + a real card is a signed-build,
+        # Developer-ID-gated step and stays out of this CI job; see
+        # Packaging/HARDWARE-ACCEPTANCE.md.
         run: |
           xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Debug \
             build test CODE_SIGNING_ALLOWED=NO
