@@ -24,6 +24,12 @@ public enum AgentClientError: Error, Sendable, Equatable {
     /// A locally observed communication failure (send failed, or a
     /// terminal operation stopped with no way to recover its result).
     case communicationError
+    /// The connected agent's `HelloAck.features` lacks the token this call
+    /// is gated on (the credential ops require `"credentials"`) — the
+    /// request was never sent: an older agent fails an unknown request `t`
+    /// closed and drops the whole connection, so the client gates instead
+    /// of probing.
+    case notSupported
 }
 
 /// A live snapshot of the reader/card registry, published on
@@ -503,9 +509,17 @@ public actor AgentClient {
     }
 
     /// `(agentVersion, features)` as reported by the most recent
-    /// `HelloAck` — display-only (capability display, never gating).
+    /// `HelloAck` — for capability display; the one gated surface (the
+    /// credential ops) goes through `supportsCredentials` instead.
     public func agentInfo() -> (version: String?, features: [String]) {
         (agentVersion, agentFeatures)
+    }
+
+    /// Whether the most recent `HelloAck.features` advertises the
+    /// `"credentials"` token — the gate for `listCredentials` /
+    /// `managePin` / `activateSigningKey`.
+    public var supportsCredentials: Bool {
+        agentFeatures.contains("credentials")
     }
 
     // MARK: - High-level API — operations
@@ -554,6 +568,48 @@ public actor AgentClient {
         closeFds(fds)
         guard case .opStarted(let op) = reply else { throw AgentClientError.unexpectedReply }
         return registerOperation(op: op, kind: .sign)
+    }
+
+    /// Starts a `ListCredentials` operation (the credential listing for
+    /// one card). Gated on `supportsCredentials` — see
+    /// `requireCredentialsSupport()`.
+    public func listCredentials(card: String) async throws -> AgentOperation {
+        guard connection != nil else { throw AgentClientError.notConnected }
+        try requireCredentialsSupport()
+        return try await startOperation(.listCredentials(card: card), kind: .listCredentials)
+    }
+
+    /// Starts a `ManagePin` operation on `pinId` (a record id from the
+    /// most recent listing of `card` — this wire never carries a secret).
+    /// `activateKey` is meaningful only with verb `.activatePin` and stays
+    /// off the wire for every other verb (`AgentRequest.encode(req:)`).
+    /// Gated on `supportsCredentials`.
+    public func managePin(
+        card: String, pinId: String, verb: CredentialVerb, activateKey: Bool = false
+    ) async throws -> AgentOperation {
+        guard connection != nil else { throw AgentClientError.notConnected }
+        try requireCredentialsSupport()
+        return try await startOperation(
+            .managePin(card: card, pinId: pinId, verb: verb, activateKey: activateKey), kind: .managePin)
+    }
+
+    /// Starts an `ActivateSigningKey` operation (standalone signing-key
+    /// bring-up continuation). Gated on `supportsCredentials`.
+    public func activateSigningKey(card: String) async throws -> AgentOperation {
+        guard connection != nil else { throw AgentClientError.notConnected }
+        try requireCredentialsSupport()
+        return try await startOperation(.activateSigningKey(card: card), kind: .activateSigningKey)
+    }
+
+    /// The client-side feature gate for the three credential ops: an agent
+    /// that predates the credentials contract fails an unknown request `t`
+    /// closed and DROPS the connection, so the client must never send —
+    /// throw `.notSupported` before anything reaches the wire. Callers
+    /// check the connection first (`agentFeatures` is only meaningful
+    /// after a handshake), so a disconnected client reports
+    /// `.notConnected` rather than "agent too old".
+    private func requireCredentialsSupport() throws {
+        guard supportsCredentials else { throw AgentClientError.notSupported }
     }
 
     public func cancel(op: UInt64) async throws {

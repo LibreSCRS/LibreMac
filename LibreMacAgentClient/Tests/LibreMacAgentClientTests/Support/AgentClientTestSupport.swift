@@ -62,16 +62,20 @@ func answerHandshake(
 
 /// `start()`s `client` against `mock` and drives the initial handshake,
 /// returning the shared request iterator so the caller can keep consuming
-/// requests from exactly where the handshake left off.
+/// requests from exactly where the handshake left off. `features` is the
+/// `HelloAck.features` token list the mock advertises — the default `[]`
+/// stands in for an older agent that predates every feature token.
 func startAndHandshake(
     _ mock: MockAgentServer,
     _ client: AgentClient,
+    features: [String] = [],
     readers: [ReaderState] = [],
     cards: [CardState] = [],
     sourceLocation: SourceLocation = #_sourceLocation
 ) async -> AsyncStream<DecodedRequest>.AsyncIterator {
     await client.start()
     var iterator = mock.requests.makeAsyncIterator()
-    await answerHandshake(mock, &iterator, readers: readers, cards: cards, sourceLocation: sourceLocation)
+    await answerHandshake(
+        mock, &iterator, features: features, readers: readers, cards: cards, sourceLocation: sourceLocation)
     return iterator
 }

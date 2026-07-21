@@ -78,6 +78,7 @@ public enum OpResult: Sendable, Equatable {
     case photo(PhotoResult)
     case certificates([CertificateInfo])
     case sign(SignResult)
+    case credentials(CredentialsPayload)
 }
 
 // MARK: - Requests (client -> agent)
@@ -103,6 +104,16 @@ public enum AgentRequest: Sendable, Equatable {
     case pkPublicKey(reader: String, cert: String)
     case pkSignRaw(reader: String, cert: String, data: Data)
     case pkDecrypt(reader: String, cert: String, data: Data)
+    /// Credentials1 seam — gate all three on the `"credentials"` HelloAck
+    /// feature token (`librescrs-agent.cddl:122-128`): an agent predating
+    /// that contract fails an unknown request `t` closed and DROPS the
+    /// connection, so skipping the gate costs the whole session.
+    case listCredentials(card: String)
+    /// `pinId` is a record id from the most recent listing of this card
+    /// (this wire never carries a secret). `activateKey` crosses the wire
+    /// only with verb `.activatePin` — see `encode(req:)`.
+    case managePin(card: String, pinId: String, verb: CredentialVerb, activateKey: Bool)
+    case activateSigningKey(card: String)
 }
 
 extension AgentRequest {
@@ -159,6 +170,25 @@ extension AgentRequest {
         case .pkDecrypt(let reader, let cert, let data):
             pairs = [("t", .text("Pkcs11.Decrypt")), ("reader", .text(reader)),
                      ("cert", .text(cert)), ("data", .bytes(data))]
+        case .listCredentials(let card):
+            pairs = [("t", .text("ListCredentials")), ("card", .text(card))]
+        case .managePin(let card, let pinId, let verb, let activateKey):
+            pairs = [
+                ("t", .text("ManagePin")),
+                ("card", .text(card)),
+                ("pinId", .text(pinId)),
+                ("verb", .text(verb.rawValue)),
+            ]
+            // `activateKey` is legal only with verb "activate_pin"
+            // (InvalidRequest otherwise, `librescrs-agent.cddl:79-86`):
+            // flatten the non-optional Bool onto the wire's optional key
+            // by OMITTING it for every other verb, mirroring the peer
+            // codec's `std::optional<bool>` encode.
+            if verb == .activatePin {
+                pairs.append(("activateKey", .bool(activateKey)))
+            }
+        case .activateSigningKey(let card):
+            pairs = [("t", .text("ActivateSigningKey")), ("card", .text(card))]
         }
         pairs.append(("req", .int(Int64(req))))
         return cborMap(pairs).encode()
@@ -569,9 +599,64 @@ private func parseOpResult(_ v: CBORValue) throws(MessageError) -> OpResult {
         return .certificates(certs)
     case "Sign":
         return .sign(try parseSignResult(v))
+    case "Credentials":
+        guard let credResultRaw = mapGet(m, "result") else { throw .missingField("result") }
+        let recordsArr = try requireArray(m, "records")
+        var records: [CredentialRecord] = []
+        for item in recordsArr {
+            records.append(try parseCredRecord(item))
+        }
+        return .credentials(CredentialsPayload(result: try parseCredResult(credResultRaw), records: records))
     default:
         throw .wrongType("kind")
     }
+}
+
+/// Parses a `cred-result` shape. `outcome` decodes FAIL-CLOSED
+/// (`CredentialOutcome`'s contract — the `SyncError` precedent); the
+/// optional keys are omitted-when-absent on the wire.
+private func parseCredResult(_ v: CBORValue) throws(MessageError) -> CredentialResult {
+    let m = try requireMap(v, field: "result")
+    let token = try requireText(m, "outcome")
+    guard let outcome = CredentialOutcome(rawValue: token) else {
+        throw .wrongType("outcome")
+    }
+    return CredentialResult(
+        outcome: outcome,
+        retriesLeft: try optionalUInt32(m, "retriesLeft"),
+        blocked: try requireBool(m, "blocked"),
+        pinActivated: try optionalBool(m, "pinActivated"),
+        keyActivated: try optionalBool(m, "keyActivated"))
+}
+
+/// Parses one `cred-record` (22 wire keys). The four token-valued enum
+/// fields decode via `init(token:)` — unrecognized tokens degrade to
+/// `.unknown` (see `CredentialKind`), unlike the fail-closed `outcome`.
+private func parseCredRecord(_ v: CBORValue) throws(MessageError) -> CredentialRecord {
+    let m = try requireMap(v, field: "cred-record")
+    return CredentialRecord(
+        id: try requireText(m, "id"),
+        label: try requireText(m, "label"),
+        kind: CredentialKind(token: try requireText(m, "kind")),
+        state: CredentialState(token: try requireText(m, "state")),
+        retriesLeft: try optionalUInt32(m, "retriesLeft"),
+        retriesMax: try optionalUInt32(m, "retriesMax"),
+        usesLeft: try optionalUInt32(m, "usesLeft"),
+        unblocksLeft: try optionalUInt32(m, "unblocksLeft"),
+        minLength: try optionalUInt32(m, "minLength"),
+        maxLength: try optionalUInt32(m, "maxLength"),
+        canChange: try requireBool(m, "canChange"),
+        unblockable: try requireBool(m, "unblockable"),
+        unblockStyle: CredentialUnblockStyle(token: try requireText(m, "unblockStyle")),
+        activatable: try requireBool(m, "activatable"),
+        keyActivationPending: try requireBool(m, "keyActivationPending"),
+        keyActivatable: try requireBool(m, "keyActivatable"),
+        recovery: CredentialRecovery(token: try requireText(m, "recovery")),
+        probeSafe: try requireBool(m, "probeSafe"),
+        blockedGuidanceKey: try optionalText(m, "blockedGuidanceKey"),
+        blockedGuidanceFallback: try optionalText(m, "blockedGuidanceFallback"),
+        keyActivationGuidanceKey: try optionalText(m, "keyActivationGuidanceKey"),
+        keyActivationGuidanceFallback: try optionalText(m, "keyActivationGuidanceFallback"))
 }
 
 // MARK: - CBORValue accessor primitives
@@ -669,4 +754,9 @@ private func optionalUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(Mess
     guard let raw = mapGet(m, key) else { return nil }
     guard let u = numericUInt64(raw) else { throw .wrongType(key) }
     return u
+}
+
+private func optionalUInt32(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt32? {
+    guard let u = try optionalUInt64(m, key) else { return nil }
+    return UInt32(truncatingIfNeeded: u)
 }

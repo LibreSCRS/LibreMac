@@ -18,6 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let client: AgentClient
     let monitor: CardMonitor
     let signing: SigningCoordinator
+    /// The app's ONE credentials view model, fed through a
+    /// `CredentialsClientAdapter` rather than the shared client directly:
+    /// the client's registry/quiescence `AsyncStream`s are unicast and
+    /// `monitor` consumes them, so the credentials events come from
+    /// `monitor`'s forwarding taps instead.
+    let credentials: CredentialsViewModel
     let registrar: AgentRegistrar
     /// Publishes the signing card's Keychain identities to `ctkd`. Driven by
     /// `monitor` on card presence/removal (see `CardMonitor`'s "Token
@@ -32,8 +38,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let tokenIdentityRegistrar = TokenIdentityRegistrar(
             store: DriverConfigStore(classID: "org.librescrs.LibreMacToken"))
         self.tokenIdentityRegistrar = tokenIdentityRegistrar
-        self.monitor = CardMonitor(client: client, tokenRegistrar: tokenIdentityRegistrar)
+        let monitor = CardMonitor(client: client, tokenRegistrar: tokenIdentityRegistrar)
+        self.monitor = monitor
         self.signing = SigningCoordinator(client: client)
+        self.credentials = CredentialsViewModel(
+            client: CredentialsClientAdapter(client: client, monitor: monitor))
         self.registrar = AgentRegistrar.system()
         super.init()
     }
@@ -83,6 +92,9 @@ struct LibreMacApp: App {
                     .environment(appDelegate.monitor)
             }
 
+            CredentialsMenuItem()
+                .environment(appDelegate.monitor)
+
             Divider()
             SettingsLink { Text(loc("libremac_menu_preferences", "Preferences…")) }
             Button(loc("libremac_menu_quit", "Quit LibreMac")) {
@@ -91,6 +103,12 @@ struct LibreMacApp: App {
             .keyboardShortcut("q")
         }
         .menuBarExtraStyle(.menu)
+
+        Window(loc("libremac_credentials_title", "Card Credentials"), id: "credentials") {
+            CredentialsView(viewModel: appDelegate.credentials)
+                .environment(appDelegate.monitor)
+        }
+        .defaultSize(width: 520, height: 360)
 
         Settings { PreferencesView() }
     }
@@ -110,6 +128,34 @@ struct LibreMacApp: App {
             }
         case .quiesced:
             return "moon.zzz.fill"
+        }
+    }
+
+    private func loc(_ key: String, _ fallback: String) -> String {
+        LocalizedText(key: key, defaultText: fallback).resolve()
+    }
+}
+
+/// The gated "Card Credentials…" menu item. A separate view (not inline in
+/// the `App` body) because `@Environment(\.openWindow)` resolves in a view
+/// hierarchy. Shown only when the connected agent advertises the
+/// `"credentials"` feature AND a present card carries the PinManagement
+/// capability — read from `CardMonitor.cards` directly, since the coarse
+/// `Presence` grouping deliberately ignores that bit.
+private struct CredentialsMenuItem: View {
+    @Environment(CardMonitor.self) var monitor
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        if monitor.agentFeatures.contains("credentials")
+            && monitor.cards.contains(where: { $0.caps.contains(.pinManagement) }) {
+            Divider()
+            Button(loc("libremac_credentials_menu", "Card Credentials…")) {
+                // LSUIElement app: without an explicit activation the new
+                // window opens BEHIND the frontmost app. Activate first.
+                NSApp.activate()
+                openWindow(id: "credentials")
+            }
         }
     }
 

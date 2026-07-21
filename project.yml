@@ -81,6 +81,15 @@ targets:
           else
               LC="$SRCROOT/../LibreCelik"
           fi
+          # Regeneration MUST only run with LibreCelik present: the committed
+          # catalog stays authoritative when it's absent, and we never
+          # regenerate without the full input set. ts2xcstrings does carry
+          # forward committed entries missing from its imports, but that path
+          # is fragile — the carry-forward decode is a silent `try?` (a
+          # decode failure drops every carried key without warning) and
+          # re-encoding passes entries through a subset model that strips
+          # unknown fields. The real protections are this early exit plus the
+          # no-overlap rule (no LibreMac .ts id may start with `lc-`).
           if [ ! -f "$LC/resources/i18n/LibreCelik_en.ts" ]; then
               echo "warning: LibreCelik .ts files not found at $LC; using committed Localizable.xcstrings as-is" >&2
               exit 0
@@ -89,7 +98,9 @@ targets:
           swift run --package-path "$SRCROOT/Tools/ts2xcstrings" ts2xcstrings \
               --output "$SRCROOT/LibreMac/Resources/Localizable.xcstrings" \
               "$LC/resources/i18n/LibreCelik_en.ts" \
-              "$LC/resources/i18n/LibreCelik_sr_RS.ts"
+              "$LC/resources/i18n/LibreCelik_sr_RS.ts" \
+              "$SRCROOT/LibreMac/Resources/i18n/LibreMac_en.ts" \
+              "$SRCROOT/LibreMac/Resources/i18n/LibreMac_sr_RS.ts"
         outputFiles:
           - "$(SRCROOT)/LibreMac/Resources/Localizable.xcstrings"
         basedOnDependencyAnalysis: false

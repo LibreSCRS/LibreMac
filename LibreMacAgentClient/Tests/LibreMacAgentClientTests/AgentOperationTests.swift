@@ -170,6 +170,148 @@ struct AgentOperationTests {
         await client.stop()
     }
 
+    // MARK: - Credential operations (gated on the "credentials" feature token)
+
+    @Test("ListCredentials follows the op lifecycle and delivers the credentials payload")
+    func listCredentialsLifecycleDeliversPayload() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        var iterator = await startAndHandshake(mock, client, features: ["credentials"])
+
+        async let opTask = client.listCredentials(card: "c1")
+        let startReq = try #require(await iterator.next())
+        guard case .listCredentials(let card) = startReq.request else {
+            Issue.record("expected ListCredentials, got \(startReq.request)")
+            return
+        }
+        #expect(card == "c1")
+        mock.sendReply(.opStarted(op: 61), req: startReq.req)
+        let operation = try await opTask
+        #expect(operation.kind == .listCredentials)
+
+        let listing = CredentialsPayload(
+            result: CredentialResult(outcome: .ok, blocked: false),
+            records: [
+                CredentialRecord(
+                    id: "sign:0x92", label: "Signing PIN", kind: .sign, state: .operational,
+                    retriesLeft: 3, retriesMax: 3, canChange: true, unblockable: true,
+                    unblockStyle: .unblockAndChange, activatable: false, keyActivationPending: false,
+                    keyActivatable: false, recovery: .holderViaPuk, probeSafe: true)
+            ])
+        mock.sendEvent(.opResultReady(op: 61, result: .credentials(listing)))
+        mock.sendEvent(.opFinished(op: 61, status: .ok, code: .none, msgKey: "", msgFallback: "listed"))
+
+        let (status, code, _, _) = await operation.finished()
+        #expect(status == .ok)
+        #expect(code == .none)
+        #expect(operation.credentialsResult == listing)
+        #expect(operation.result == .credentials(listing))
+
+        await client.stop()
+    }
+
+    @Test("ManagePin follows the op lifecycle; the default activateKey=false stays off the wire for verb change")
+    func managePinLifecycleDeliversPayload() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        var iterator = await startAndHandshake(mock, client, features: ["credentials"])
+
+        async let opTask = client.managePin(card: "c1", pinId: "user:0x80", verb: .change)
+        let startReq = try #require(await iterator.next())
+        guard case .managePin(let card, let pinId, let verb, let activateKey) = startReq.request else {
+            Issue.record("expected ManagePin, got \(startReq.request)")
+            return
+        }
+        #expect(card == "c1")
+        #expect(pinId == "user:0x80")
+        #expect(verb == .change)
+        // The mock's decoder flattens an ABSENT `activateKey` wire key onto
+        // false, so this proves only that the key was not sent as true; the
+        // real omission proof is the ManagePin.cbor byte-compare on the Mac.
+        #expect(activateKey == false)
+        mock.sendReply(.opStarted(op: 62), req: startReq.req)
+        let operation = try await opTask
+        #expect(operation.kind == .managePin)
+
+        let mutation = CredentialsPayload(
+            result: CredentialResult(outcome: .ok, retriesLeft: 3, blocked: false), records: [])
+        mock.sendEvent(.opResultReady(op: 62, result: .credentials(mutation)))
+        mock.sendEvent(.opFinished(op: 62, status: .ok, code: .none, msgKey: "", msgFallback: "changed"))
+
+        let (status, code, _, _) = await operation.finished()
+        #expect(status == .ok)
+        #expect(code == .none)
+        #expect(operation.credentialsResult == mutation)
+
+        await client.stop()
+    }
+
+    @Test("ActivateSigningKey follows the op lifecycle and delivers the credentials payload")
+    func activateSigningKeyLifecycleDeliversPayload() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        var iterator = await startAndHandshake(mock, client, features: ["credentials"])
+
+        async let opTask = client.activateSigningKey(card: "c1")
+        let startReq = try #require(await iterator.next())
+        guard case .activateSigningKey(let card) = startReq.request else {
+            Issue.record("expected ActivateSigningKey, got \(startReq.request)")
+            return
+        }
+        #expect(card == "c1")
+        mock.sendReply(.opStarted(op: 63), req: startReq.req)
+        let operation = try await opTask
+        #expect(operation.kind == .activateSigningKey)
+
+        let activation = CredentialsPayload(
+            result: CredentialResult(outcome: .ok, blocked: false, pinActivated: true, keyActivated: true),
+            records: [])
+        mock.sendEvent(.opResultReady(op: 63, result: .credentials(activation)))
+        mock.sendEvent(.opFinished(op: 63, status: .ok, code: .none, msgKey: "", msgFallback: "activated"))
+
+        let (status, code, _, _) = await operation.finished()
+        #expect(status == .ok)
+        #expect(code == .none)
+        #expect(operation.credentialsResult == activation)
+
+        await client.stop()
+    }
+
+    @Test("a non-Ok OpFinished retains a prior credentials result — the failed-attempt payload stays readable after finished()")
+    func nonOkFinishRetainsPriorCredentialsResult() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        var iterator = await startAndHandshake(mock, client, features: ["credentials"])
+
+        async let opTask = client.managePin(card: "c1", pinId: "user:0x80", verb: .change)
+        let startReq = try #require(await iterator.next())
+        guard case .managePin = startReq.request else {
+            Issue.record("expected ManagePin, got \(startReq.request)")
+            return
+        }
+        mock.sendReply(.opStarted(op: 64), req: startReq.req)
+        let operation = try await opTask
+
+        // The agent reports the failed attempt as a RESULT (retriesLeft for
+        // the UI) and then terminalizes non-Ok — the payload must survive
+        // the error finish, not be dropped alongside it.
+        let failedAttempt = CredentialsPayload(
+            result: CredentialResult(outcome: .invalidPin, retriesLeft: 2, blocked: false), records: [])
+        mock.sendEvent(.opResultReady(op: 64, result: .credentials(failedAttempt)))
+        mock.sendEvent(
+            .opFinished(
+                op: 64, status: .error, code: .credentialWrong, msgKey: "credentialWrong",
+                msgFallback: "Wrong PIN"))
+
+        let (status, code, msgKey, _) = await operation.finished()
+        #expect(status == .error)
+        #expect(code == .credentialWrong)
+        #expect(msgKey == "credentialWrong")
+        #expect(operation.credentialsResult == failedAttempt)
+
+        await client.stop()
+    }
+
     @Test("cancel() emits CancelOp{op}")
     func cancelEmitsCancelOp() async throws {
         let mock = MockAgentServer()

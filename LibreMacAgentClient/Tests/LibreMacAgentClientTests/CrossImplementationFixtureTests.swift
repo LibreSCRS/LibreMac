@@ -16,6 +16,12 @@ import Foundation
 // hand-written fixtures in MessagesRoundTripTests.swift; C++ QCBOR-backed
 // encoder here) must agree byte-for-byte with one decoder.
 //
+// The REQUEST fixtures (client -> agent shapes) invert that: the C++ agent
+// is the decoder there, so those tests byte-compare THIS package's
+// `AgentRequest.encode(req: 1)` output against the C++ generator's bytes
+// (the generator hardcodes req id 1) — both sides emit canonical CBOR, so
+// equality is exact.
+//
 // To regenerate: LibreDarwin `cmake --build build-release -j4 --target
 // MessagesRoundTripTest && ./build-release/agent/tests/MessagesRoundTripTest
 // --dump-fixtures <dir>`, then copy `<dir>/*.cbor` over this directory.
@@ -116,6 +122,36 @@ struct CrossImplementationFixtureTests {
         #expect(env.reply == .err(ErrInfo(code: .name(.unknownCard))))
     }
 
+    @Test("ErrNameUnknownCredential.cbor — named `name` arm, UnknownCredential")
+    func errNameUnknownCredential() throws {
+        let env = try AgentMessages.decodeReply(try fixture("ErrNameUnknownCredential"))
+        #expect(env.req == 11)
+        #expect(env.reply == .err(ErrInfo(code: .name(.unknownCredential))))
+    }
+
+    // ---- requests (client -> agent: Swift encode vs the C++ bytes, req id 1) ----
+
+    @Test("ListCredentials.cbor — Swift encode matches the C++ bytes")
+    func listCredentialsRequest() throws {
+        let expected = try fixture("ListCredentials")
+        #expect(AgentRequest.listCredentials(card: "reader/0:card/0").encode(req: 1) == expected)
+    }
+
+    @Test("ManagePin.cbor — Swift encode matches the C++ bytes; activateKey omitted for verb `change`")
+    func managePinRequest() throws {
+        let expected = try fixture("ManagePin")
+        let encoded = AgentRequest.managePin(
+            card: "reader/0:card/0", pinId: "sign:0x92", verb: .change, activateKey: false
+        ).encode(req: 1)
+        #expect(encoded == expected)
+    }
+
+    @Test("ActivateSigningKey.cbor — Swift encode matches the C++ bytes")
+    func activateSigningKeyRequest() throws {
+        let expected = try fixture("ActivateSigningKey")
+        #expect(AgentRequest.activateSigningKey(card: "reader/0:card/0").encode(req: 1) == expected)
+    }
+
     // ---- events ----
 
     @Test("ReaderAdded.cbor")
@@ -200,6 +236,43 @@ struct CrossImplementationFixtureTests {
                 ))
     }
 
+    @Test("OpResultReadyCredentialsList.cbor — Ok listing, one fully-populated record (all 22 cred-record keys)")
+    func opResultReadyCredentialsList() throws {
+        let ev = try AgentMessages.decodeEvent(try fixture("OpResultReadyCredentialsList"))
+        let record = CredentialRecord(
+            id: "sign:0x92", label: "Signing PIN", kind: .sign, state: .operational,
+            retriesLeft: 3, retriesMax: 3, usesLeft: 5, unblocksLeft: 10, minLength: 4, maxLength: 8,
+            canChange: true, unblockable: true, unblockStyle: .unblockAndChange,
+            activatable: true, keyActivationPending: true, keyActivatable: true,
+            recovery: .holderViaPuk, probeSafe: true,
+            blockedGuidanceKey: "guidance.blocked.key",
+            blockedGuidanceFallback: "Blocked; contact issuer",
+            keyActivationGuidanceKey: "guidance.activate.key",
+            keyActivationGuidanceFallback: "Activate your signing key")
+        #expect(
+            ev
+                == .opResultReady(
+                    op: 25,
+                    result: .credentials(
+                        CredentialsPayload(
+                            result: CredentialResult(outcome: .ok, blocked: false), records: [record]))
+                ))
+    }
+
+    @Test("OpResultReadyCredentialsFailed.cbor — failed mutation: invalidPin, retriesLeft=2, no records")
+    func opResultReadyCredentialsFailed() throws {
+        let ev = try AgentMessages.decodeEvent(try fixture("OpResultReadyCredentialsFailed"))
+        #expect(
+            ev
+                == .opResultReady(
+                    op: 26,
+                    result: .credentials(
+                        CredentialsPayload(
+                            result: CredentialResult(outcome: .invalidPin, retriesLeft: 2, blocked: false),
+                            records: []))
+                ))
+    }
+
     @Test("OpFinished.cbor")
     func opFinished() throws {
         let ev = try AgentMessages.decodeEvent(try fixture("OpFinished"))
@@ -221,9 +294,11 @@ struct CrossImplementationFixtureTests {
         let names = Set(files.map { $0.deletingPathExtension().lastPathComponent })
         let covered: Set<String> = [
             "HelloAck", "OpStarted", "State", "CertList", "CertDer", "Config", "Ack", "SignRecovery", "ErrCode",
-            "ErrName", "ReaderAdded", "ReaderRemoved", "CardAdded", "CardRemoved", "PropertyChanged",
+            "ErrName", "ErrNameUnknownCredential", "ListCredentials", "ManagePin", "ActivateSigningKey",
+            "ReaderAdded", "ReaderRemoved", "CardAdded", "CardRemoved", "PropertyChanged",
             "ConfigChanged", "OpProgress", "OpResultReadyIdentity", "OpResultReadyPhoto",
-            "OpResultReadyCertificates", "OpResultReadySign", "OpFinished", "AgentQuiesced",
+            "OpResultReadyCertificates", "OpResultReadySign", "OpResultReadyCredentialsList",
+            "OpResultReadyCredentialsFailed", "OpFinished", "AgentQuiesced",
         ]
         #expect(names == covered)
     }

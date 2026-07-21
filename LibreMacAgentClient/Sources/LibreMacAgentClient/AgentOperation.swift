@@ -13,6 +13,9 @@ public enum OperationKind: Sendable, Equatable {
     case getPhoto
     case readCertificates
     case sign
+    case listCredentials
+    case managePin
+    case activateSigningKey
 }
 
 /// A live (or just-finished) `Operation1` handle. Mutable state
@@ -167,6 +170,15 @@ public final class AgentOperation: @unchecked Sendable {
 
     public var signResult: SignResult? {
         if case .sign(let value) = result { return value }
+        return nil
+    }
+
+    /// Shared by all three credential ops (a mutation's `records` is always
+    /// empty). Still readable after a non-Ok `finished()` — a failed
+    /// attempt's payload (`retriesLeft`) arrives as an `OpResultReady`
+    /// BEFORE the error terminalization and is retained through it.
+    public var credentialsResult: CredentialsPayload? {
+        if case .credentials(let value) = result { return value }
         return nil
     }
 

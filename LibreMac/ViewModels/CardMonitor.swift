@@ -35,6 +35,27 @@ public final class CardMonitor {
     /// Certificates read from the current PKI card (empty until the read op
     /// completes; cleared when the card changes or the agent vanishes).
     public private(set) var certificates: [CertificateInfo] = []
+    /// The connected agent's `HelloAck.features`, published observably so a
+    /// menu body (which cannot `await` the `AgentClient` actor) can gate on
+    /// it. Refreshed on every connect — the availability flip follows the
+    /// HelloAck, so `agentInfo()` is current by then — and reset to empty on
+    /// disconnect.
+    public private(set) var agentFeatures: Set<String> = []
+
+    // MARK: - Credentials event taps
+
+    /// Re-publications of every registry snapshot / quiescence event this
+    /// monitor consumes. The `AgentClient` streams are UNICAST and this
+    /// monitor is their consumer, so the credentials wiring must not iterate
+    /// them too — it subscribes to these taps instead. The taps are
+    /// themselves unicast `AsyncStream`s with exactly ONE intended consumer:
+    /// the `CredentialsClientAdapter` behind the app's single
+    /// `CredentialsViewModel`. Nothing else may iterate them.
+    public nonisolated let registryUpdatesTap: AsyncStream<RegistrySnapshot>
+    /// See `registryUpdatesTap` — same contract, quiescence events.
+    public nonisolated let quiescenceTap: AsyncStream<QuiesceReason>
+    private nonisolated let registryTapContinuation: AsyncStream<RegistrySnapshot>.Continuation
+    private nonisolated let quiescenceTapContinuation: AsyncStream<QuiesceReason>.Continuation
 
     // MARK: - Derived signing inputs (read by SigningCoordinator / SignDemoView)
 
@@ -80,6 +101,14 @@ public final class CardMonitor {
     public init(client: AgentClient, tokenRegistrar: TokenIdentityRegistrar? = nil) {
         self.client = client
         self.tokenRegistrar = tokenRegistrar
+        let (registryTapStream, registryTapContinuation) =
+            AsyncStream.makeStream(of: RegistrySnapshot.self)
+        self.registryUpdatesTap = registryTapStream
+        self.registryTapContinuation = registryTapContinuation
+        let (quiescenceTapStream, quiescenceTapContinuation) =
+            AsyncStream.makeStream(of: QuiesceReason.self)
+        self.quiescenceTap = quiescenceTapStream
+        self.quiescenceTapContinuation = quiescenceTapContinuation
         // Capture the Sendable streams before the Task closures so `self`
         // (MainActor-isolated) is not pulled into the stream access itself.
         let registryUpdates = client.registryUpdates
@@ -89,21 +118,33 @@ public final class CardMonitor {
         // These tasks are created in a `@MainActor` context and therefore
         // inherit MainActor isolation: the stream `await`s suspend without
         // blocking the main thread, and the `apply(...)` calls are same-actor
-        // (synchronous) mutations of the observable state.
+        // (synchronous) mutations of the observable state. The registry and
+        // quiescence loops forward each event into the credentials taps
+        // BEFORE applying it locally, so the taps' consumer never observes an
+        // event later than this monitor did.
         taskHolder.tasks.append(Task { [weak self] in
             for await snapshot in registryUpdates {
+                registryTapContinuation.yield(snapshot)
                 guard let self else { return }
                 self.apply(snapshot: snapshot)
             }
         })
         taskHolder.tasks.append(Task { [weak self] in
             for await value in availability {
+                // On connect the client has already completed its handshake
+                // (availability flips true only after HelloAck), so the
+                // feature set read here is the freshly acknowledged one.
+                var features: Set<String> = []
+                if value {
+                    features = Set(await client.agentInfo().features)
+                }
                 guard let self else { return }
-                self.apply(available: value)
+                self.apply(available: value, features: features)
             }
         })
         taskHolder.tasks.append(Task { [weak self] in
             for await reason in quiescence {
+                quiescenceTapContinuation.yield(reason)
                 guard let self else { return }
                 self.apply(quiesced: reason)
             }
@@ -114,6 +155,8 @@ public final class CardMonitor {
         for task in taskHolder.tasks {
             task.cancel()
         }
+        registryTapContinuation.finish()
+        quiescenceTapContinuation.finish()
     }
 
     // MARK: - Stream handlers
@@ -128,8 +171,9 @@ public final class CardMonitor {
         recomputePresence()
     }
 
-    private func apply(available value: Bool) {
+    private func apply(available value: Bool, features: Set<String>) {
         available = value
+        agentFeatures = features
         if !value {
             // The client's death sweep already cleared the registry; drop the
             // derived cert state too so no stale "certificates ready" survives.

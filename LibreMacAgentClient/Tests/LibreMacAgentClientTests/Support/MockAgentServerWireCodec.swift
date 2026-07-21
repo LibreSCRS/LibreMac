@@ -76,6 +76,22 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
             reader: mwText(pairs, "reader") ?? "",
             cert: mwText(pairs, "cert") ?? "",
             data: mwBytes(pairs, "data") ?? Data())
+    case "ListCredentials":
+        request = .listCredentials(card: mwText(pairs, "card") ?? "")
+    case "ManagePin":
+        // The client's encoder omits `activateKey` for every verb but
+        // `.activatePin`; absent flattens back onto `false`. An
+        // unrecognized verb token fails closed like an unknown `t`.
+        guard let verb = CredentialVerb(rawValue: mwText(pairs, "verb") ?? "") else {
+            throw MockWireError.malformed
+        }
+        request = .managePin(
+            card: mwText(pairs, "card") ?? "",
+            pinId: mwText(pairs, "pinId") ?? "",
+            verb: verb,
+            activateKey: mwBool(pairs, "activateKey") ?? false)
+    case "ActivateSigningKey":
+        request = .activateSigningKey(card: mwText(pairs, "card") ?? "")
     default:
         throw MockWireError.malformed
     }
@@ -116,6 +132,9 @@ func requestTag(_ request: AgentRequest) -> String {
     case .pkPublicKey: return "Pkcs11.PublicKey"
     case .pkSignRaw: return "Pkcs11.SignRaw"
     case .pkDecrypt: return "Pkcs11.Decrypt"
+    case .listCredentials: return "ListCredentials"
+    case .managePin: return "ManagePin"
+    case .activateSigningKey: return "ActivateSigningKey"
     }
 }
 
@@ -272,6 +291,51 @@ private func encodeSignResult(_ result: SignResult) -> CBORValue {
     ])
 }
 
+private func encodeCredResult(_ result: CredentialResult) -> CBORValue {
+    var pairs: [(String, CBORValue)] = [("outcome", .text(result.outcome.rawValue))]
+    if let retriesLeft = result.retriesLeft {
+        pairs.append(("retriesLeft", .uint(UInt64(retriesLeft))))
+    }
+    pairs.append(("blocked", .bool(result.blocked)))
+    if let pinActivated = result.pinActivated {
+        pairs.append(("pinActivated", .bool(pinActivated)))
+    }
+    if let keyActivated = result.keyActivated {
+        pairs.append(("keyActivated", .bool(keyActivated)))
+    }
+    return mwMap(pairs)
+}
+
+private func encodeCredRecord(_ record: CredentialRecord) -> CBORValue {
+    var pairs: [(String, CBORValue)] = [
+        ("id", .text(record.id)),
+        ("label", .text(record.label)),
+        ("kind", .text(record.kind.rawValue)),
+        ("state", .text(record.state.rawValue)),
+    ]
+    if let v = record.retriesLeft { pairs.append(("retriesLeft", .uint(UInt64(v)))) }
+    if let v = record.retriesMax { pairs.append(("retriesMax", .uint(UInt64(v)))) }
+    if let v = record.usesLeft { pairs.append(("usesLeft", .uint(UInt64(v)))) }
+    if let v = record.unblocksLeft { pairs.append(("unblocksLeft", .uint(UInt64(v)))) }
+    if let v = record.minLength { pairs.append(("minLength", .uint(UInt64(v)))) }
+    if let v = record.maxLength { pairs.append(("maxLength", .uint(UInt64(v)))) }
+    pairs.append(contentsOf: [
+        ("canChange", .bool(record.canChange)),
+        ("unblockable", .bool(record.unblockable)),
+        ("unblockStyle", .text(record.unblockStyle.rawValue)),
+        ("activatable", .bool(record.activatable)),
+        ("keyActivationPending", .bool(record.keyActivationPending)),
+        ("keyActivatable", .bool(record.keyActivatable)),
+        ("recovery", .text(record.recovery.rawValue)),
+        ("probeSafe", .bool(record.probeSafe)),
+    ])
+    if let v = record.blockedGuidanceKey { pairs.append(("blockedGuidanceKey", .text(v))) }
+    if let v = record.blockedGuidanceFallback { pairs.append(("blockedGuidanceFallback", .text(v))) }
+    if let v = record.keyActivationGuidanceKey { pairs.append(("keyActivationGuidanceKey", .text(v))) }
+    if let v = record.keyActivationGuidanceFallback { pairs.append(("keyActivationGuidanceFallback", .text(v))) }
+    return mwMap(pairs)
+}
+
 private func encodeOpResult(_ result: OpResult) -> CBORValue {
     switch result {
     case .identity(let r):
@@ -285,6 +349,12 @@ private func encodeOpResult(_ result: OpResult) -> CBORValue {
         return mwMap([("kind", .text("Certificates")), ("certs", .array(certs.map(encodeCertInfo)))])
     case .sign(let result):
         return encodeSignResult(result)
+    case .credentials(let payload):
+        return mwMap([
+            ("kind", .text("Credentials")),
+            ("result", encodeCredResult(payload.result)),
+            ("records", .array(payload.records.map(encodeCredRecord))),
+        ])
     }
 }
 

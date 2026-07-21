@@ -3,7 +3,9 @@
 //
 // Coverage gate for the 20-value ErrorCode → copy table. Every non-`none`
 // code MUST have client-localized copy; `.none` MUST defer to the agent's
-// msgFallback.
+// msgFallback. Also gates the SyncError overload: the five credential
+// entry errors get dedicated, mutually distinct copy; every other name
+// keeps rendering as a communication failure.
 
 import Testing
 import LibreMacAgentClient
@@ -39,5 +41,55 @@ struct ErrorCopyTests {
     func localizedCodeReturnsNonEmpty() {
         let message = ErrorCopy.message(for: .credentialWrong, msgFallback: "")
         #expect(!message.isEmpty)
+    }
+
+    // MARK: - Sync-error copy (credentials entry gates)
+
+    /// The five named entry errors the credentials request gates surface
+    /// (capability, validation ×2, authorization, rate limit) — each MUST
+    /// carry its own dedicated copy.
+    private static let credentialEntryErrors: [SyncError] = [
+        .unsupportedOnThisCard, .notAuthorized, .rateLimited,
+        .unknownCredential, .invalidRequest,
+    ]
+
+    @Test("each credential entry error yields its own distinct copy")
+    func credentialEntryErrorCopyIsDistinct() {
+        let texts = Self.credentialEntryErrors.map { ErrorCopy.localizedText(for: $0) }
+        #expect(Set(texts.map(\.key)).count == texts.count,
+                "credential entry errors share a copy key")
+        #expect(Set(texts.map(\.defaultText)).count == texts.count,
+                "credential entry errors share fallback copy")
+        for text in texts {
+            #expect(text.key.hasPrefix("libremac_credentials_err_"),
+                    "unexpected key \(text.key)")
+            #expect(!text.defaultText.isEmpty)
+        }
+    }
+
+    @Test("credential entry errors do not reuse the communication copy")
+    func credentialEntryErrorCopyIsNotCommunication() {
+        let communication = ErrorCopy.localizedText(for: ErrorCode.communicationError)
+        #expect(communication != nil)
+        for error in Self.credentialEntryErrors {
+            let text = ErrorCopy.localizedText(for: error)
+            #expect(text.key != communication?.key,
+                    "\(error) reuses the communication key")
+            #expect(text.defaultText != communication?.defaultText,
+                    "\(error) reuses the communication copy")
+        }
+    }
+
+    @Test("every other sync error falls back to the communication copy")
+    func otherSyncErrorsFallBackToCommunicationCopy() {
+        let communication = ErrorCopy.localizedText(for: ErrorCode.communicationError)
+        for error in SyncError.allCases
+        where !Self.credentialEntryErrors.contains(error) {
+            let text = ErrorCopy.localizedText(for: error)
+            #expect(text.key == communication?.key,
+                    "\(error) should render as a communication failure")
+            #expect(text.defaultText == communication?.defaultText,
+                    "\(error) should carry the communication fallback copy")
+        }
     }
 }

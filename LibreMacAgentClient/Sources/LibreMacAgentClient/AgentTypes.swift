@@ -43,7 +43,15 @@ public enum ErrorCode: UInt32, Sendable, Equatable, CaseIterable {
 /// string `name` arm of a reply's `err` field. Distinct from the numeric
 /// `ErrorCode` — one or the other, never both (`err-info`,
 /// `librescrs-agent.cddl:97,101-105`). The raw value IS the wire string,
-/// mirroring the agent's sync-error names. 15 values.
+/// mirroring the agent's sync-error names. 17 values.
+///
+/// Version-skew note: this enum decodes FAIL-CLOSED (`SyncError(rawValue:)`
+/// in `parseErrInfo`, no degrade case), so a name this build does not know
+/// makes the whole reply frame undecodable and the pending request
+/// surfaces as a `defaultPropTimeout` (3 s) timeout instead of a typed
+/// error. That is acceptable by construction: the host app and the agent
+/// ship together, so a name-vocabulary skew is a packaging bug to catch,
+/// not a runtime state to tolerate.
 public enum SyncError: String, Sendable, Equatable, CaseIterable {
     case unknownCard = "UnknownCard"
     case keyNotFound = "KeyNotFound"
@@ -60,6 +68,8 @@ public enum SyncError: String, Sendable, Equatable, CaseIterable {
     case unsupportedSignatureParameter = "UnsupportedSignatureParameter"
     case inputTooLarge = "InputTooLarge"
     case rateLimited = "RateLimited"
+    case unknownCredential = "UnknownCredential"
+    case invalidRequest = "InvalidRequest"
 }
 
 /// `Operation1` progress phase. Mirrors
@@ -122,6 +132,111 @@ public struct Capabilities: OptionSet, Sendable, Equatable {
     public static let identityData = Capabilities(rawValue: 1 << 1)
     public static let emrtdCrypto = Capabilities(rawValue: 1 << 2)
     public static let pinManagement = Capabilities(rawValue: 1 << 3)
+}
+
+// MARK: - Credential wire enums (Credentials1 seam)
+
+/// Client-side verb vocabulary for `ManagePin` — the closed CDDL
+/// `cred-verb` set (`librescrs-agent.cddl:88`). The raw value IS the wire
+/// token (`activate_pin` stays snake_case on the wire).
+public enum CredentialVerb: String, Sendable, Equatable, CaseIterable {
+    case change = "change"
+    case unblock = "unblock"
+    case activatePin = "activate_pin"
+}
+
+/// Outcome of a credential mutation, carried as `cred-result.outcome`.
+/// Mirrors `LibreSCRS::Agent::CredentialOutcome` and CDDL `cred-outcome`
+/// (`librescrs-agent.cddl:215-217`); the raw value IS the camelCase wire
+/// token. Decodes FAIL-CLOSED (`CredentialOutcome(rawValue:)`, no degrade
+/// case — the `SyncError` precedent): the outcome drives the client's
+/// mutation follow-up, so guessing at an unrecognized token is worse than
+/// failing the frame.
+public enum CredentialOutcome: String, Sendable, Equatable, CaseIterable {
+    case unspecified = "unspecified"
+    case ok = "ok"
+    case userCancelled = "userCancelled"
+    case missingFields = "missingFields"
+    case invalidPin = "invalidPin"
+    case blocked = "blocked"
+    case pluginError = "pluginError"
+    case unsupported = "unsupported"
+    case keyActivationFailed = "keyActivationFailed"
+    case cardRemoved = "cardRemoved"
+}
+
+/// Credential kind (`cred-record.kind`). Mirrors CDDL `cred-kind`
+/// (`librescrs-agent.cddl:227`); the raw value IS the wire token.
+///
+/// Unlike every other enum in this package (which decode fail-closed),
+/// the four record-token enums (`CredentialKind` / `CredentialState` /
+/// `CredentialUnblockStyle` / `CredentialRecovery`) DEGRADE an
+/// unrecognized token to `.unknown` via `init(token:)`. The wire
+/// vocabulary itself reserves an `unknown` member as its "cannot
+/// classify" value, and a record carrying one future token is still a
+/// valid, displayable record — dropping a whole listing over one appended
+/// token would be strictly worse than surfacing that record as unknown.
+public enum CredentialKind: String, Sendable, Equatable, CaseIterable {
+    case user = "user"
+    case sign = "sign"
+    case puk = "puk"
+    case can = "can"
+    case unknown = "unknown"
+
+    /// Tolerant wire-token decode: unrecognized -> `.unknown` (see the
+    /// type comment for why this enum family degrades).
+    public init(token: String) {
+        self = Self(rawValue: token) ?? .unknown
+    }
+}
+
+/// Credential lifecycle state (`cred-record.state`). Mirrors CDDL
+/// `cred-state` (`librescrs-agent.cddl:228`); the raw value IS the wire
+/// token. Degrades unrecognized tokens to `.unknown` — see
+/// `CredentialKind` for the rationale shared by this enum family.
+public enum CredentialState: String, Sendable, Equatable, CaseIterable {
+    case unknown = "unknown"
+    case transport = "transport"
+    case operational = "operational"
+    case needsChange = "needsChange"
+    case blocked = "blocked"
+
+    /// Tolerant wire-token decode: unrecognized -> `.unknown`.
+    public init(token: String) {
+        self = Self(rawValue: token) ?? .unknown
+    }
+}
+
+/// How an unblock behaves on this credential (`cred-record.unblockStyle`).
+/// Mirrors CDDL `unblock-style` (`librescrs-agent.cddl:229`); the raw
+/// value IS the wire token. Degrades unrecognized tokens to `.unknown` —
+/// see `CredentialKind` for the rationale shared by this enum family.
+public enum CredentialUnblockStyle: String, Sendable, Equatable, CaseIterable {
+    case unknown = "unknown"
+    case resetOnly = "resetOnly"
+    case setsNewPin = "setsNewPin"
+    case unblockAndChange = "unblockAndChange"
+
+    /// Tolerant wire-token decode: unrecognized -> `.unknown`.
+    public init(token: String) {
+        self = Self(rawValue: token) ?? .unknown
+    }
+}
+
+/// Recovery path once a credential is blocked (`cred-record.recovery`).
+/// Mirrors CDDL `cred-recovery` (`librescrs-agent.cddl:230`); the raw
+/// value IS the wire token. Degrades unrecognized tokens to `.unknown` —
+/// see `CredentialKind` for the rationale shared by this enum family.
+public enum CredentialRecovery: String, Sendable, Equatable, CaseIterable {
+    case unknown = "unknown"
+    case holderViaPuk = "holderViaPuk"
+    case issuerProcess = "issuerProcess"
+    case none = "none"
+
+    /// Tolerant wire-token decode: unrecognized -> `.unknown`.
+    public init(token: String) {
+        self = Self(rawValue: token) ?? .unknown
+    }
 }
 
 // MARK: - Value models
@@ -333,5 +448,112 @@ public struct PhotoResult: Sendable, Equatable {
 
     public init(photos: [PhotoItem]) {
         self.photos = photos
+    }
+}
+
+/// One credential (PIN/PUK/CAN) record from a credentials listing.
+/// Mirrors `LibreSCRS::Agent::CredentialRecord` and CDDL `cred-record`
+/// (`librescrs-agent.cddl:218-226`) — 22 camelCase wire keys: the wire's
+/// optional keys are optionals here; the always-written booleans are
+/// non-optional. `id` is the agent-synthesized handle a `ManagePin`
+/// addresses (this wire never carries a secret).
+public struct CredentialRecord: Sendable, Equatable {
+    public let id: String
+    public let label: String
+    public let kind: CredentialKind
+    public let state: CredentialState
+    public let retriesLeft: UInt32?
+    public let retriesMax: UInt32?
+    public let usesLeft: UInt32?
+    public let unblocksLeft: UInt32?
+    public let minLength: UInt32?
+    public let maxLength: UInt32?
+    public let canChange: Bool
+    public let unblockable: Bool
+    public let unblockStyle: CredentialUnblockStyle
+    public let activatable: Bool
+    public let keyActivationPending: Bool
+    public let keyActivatable: Bool
+    public let recovery: CredentialRecovery
+    public let probeSafe: Bool
+    public let blockedGuidanceKey: String?
+    public let blockedGuidanceFallback: String?
+    public let keyActivationGuidanceKey: String?
+    public let keyActivationGuidanceFallback: String?
+
+    public init(
+        id: String, label: String, kind: CredentialKind, state: CredentialState,
+        retriesLeft: UInt32? = nil, retriesMax: UInt32? = nil, usesLeft: UInt32? = nil,
+        unblocksLeft: UInt32? = nil, minLength: UInt32? = nil, maxLength: UInt32? = nil,
+        canChange: Bool, unblockable: Bool, unblockStyle: CredentialUnblockStyle,
+        activatable: Bool, keyActivationPending: Bool, keyActivatable: Bool,
+        recovery: CredentialRecovery, probeSafe: Bool,
+        blockedGuidanceKey: String? = nil, blockedGuidanceFallback: String? = nil,
+        keyActivationGuidanceKey: String? = nil, keyActivationGuidanceFallback: String? = nil
+    ) {
+        self.id = id
+        self.label = label
+        self.kind = kind
+        self.state = state
+        self.retriesLeft = retriesLeft
+        self.retriesMax = retriesMax
+        self.usesLeft = usesLeft
+        self.unblocksLeft = unblocksLeft
+        self.minLength = minLength
+        self.maxLength = maxLength
+        self.canChange = canChange
+        self.unblockable = unblockable
+        self.unblockStyle = unblockStyle
+        self.activatable = activatable
+        self.keyActivationPending = keyActivationPending
+        self.keyActivatable = keyActivatable
+        self.recovery = recovery
+        self.probeSafe = probeSafe
+        self.blockedGuidanceKey = blockedGuidanceKey
+        self.blockedGuidanceFallback = blockedGuidanceFallback
+        self.keyActivationGuidanceKey = keyActivationGuidanceKey
+        self.keyActivationGuidanceFallback = keyActivationGuidanceFallback
+    }
+}
+
+/// Uniform result of a credential mutation (and the `Ok` result of a
+/// listing). Mirrors `LibreSCRS::Agent::CredentialOpResult` and CDDL
+/// `cred-result` (`librescrs-agent.cddl:213-214`). `pinActivated` /
+/// `keyActivated` are populated for the `activate_pin` bring-up
+/// continuation and for `ActivateSigningKey` (partial bring-up =
+/// `pinActivated == true`, `keyActivated == false`, outcome
+/// `.keyActivationFailed`).
+public struct CredentialResult: Sendable, Equatable {
+    public let outcome: CredentialOutcome
+    public let retriesLeft: UInt32?
+    public let blocked: Bool
+    public let pinActivated: Bool?
+    public let keyActivated: Bool?
+
+    public init(
+        outcome: CredentialOutcome, retriesLeft: UInt32? = nil, blocked: Bool,
+        pinActivated: Bool? = nil, keyActivated: Bool? = nil
+    ) {
+        self.outcome = outcome
+        self.retriesLeft = retriesLeft
+        self.blocked = blocked
+        self.pinActivated = pinActivated
+        self.keyActivated = keyActivated
+    }
+}
+
+/// `Credentials` op-result payload: the mutation/list result plus the
+/// (possibly empty) record listing. Mirrors
+/// `LibreSCRS::Darwin::wire::CredentialsResult` and CDDL
+/// `credentials-result` (`librescrs-agent.cddl:211-212`). A mutation's
+/// `records` is always `[]`; a listing emits this payload only when it
+/// completes Ok.
+public struct CredentialsPayload: Sendable, Equatable {
+    public let result: CredentialResult
+    public let records: [CredentialRecord]
+
+    public init(result: CredentialResult, records: [CredentialRecord]) {
+        self.result = result
+        self.records = records
     }
 }

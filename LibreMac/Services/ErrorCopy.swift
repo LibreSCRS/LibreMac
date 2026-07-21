@@ -8,7 +8,9 @@
 // client renders that, it does not invent copy. This maps the small set of
 // client-synchronous codes to a localized message, falling back to the
 // agent-provided `msgFallback` for anything not localized here (and for
-// `.none`).
+// `.none`). Named sync errors get the same treatment: the five credential
+// entry errors carry dedicated copy; every other name renders as a
+// communication failure.
 
 import LibreMacAgentClient
 import LibreMacShared
@@ -34,8 +36,7 @@ public enum ErrorCopy {
             return text("libremac_error_credential_blocked",
                         "The card credential is blocked. Unblock it before retrying.")
         case .communicationError:
-            return text("libremac_error_communication",
-                        "Communication with the card reader failed.")
+            return communicationCopy
         case .parseError:
             return text("libremac_error_parse",
                         "The data read from the card could not be interpreted.")
@@ -84,6 +85,39 @@ public enum ErrorCopy {
         }
     }
 
+    /// The localized copy for a named sync error surfaced by the credentials
+    /// request gates. The five credential entry errors — capability
+    /// (`UnsupportedOnThisCard`), validation (`UnknownCredential`,
+    /// `InvalidRequest`), authorization (`NotAuthorized`) and rate limiting
+    /// (`RateLimited`) — each carry dedicated copy; every OTHER name keeps
+    /// the pre-existing client posture of rendering as a communication
+    /// failure. Exhaustive over `SyncError` (no `default`) so an appended
+    /// wire name forces a copy decision here.
+    public static func localizedText(for error: SyncError) -> LocalizedText {
+        switch error {
+        case .unsupportedOnThisCard:
+            return text("libremac_credentials_err_unsupported",
+                        "Credential management is not supported on this card.")
+        case .notAuthorized:
+            return text("libremac_credentials_err_not_authorized",
+                        "You are not authorized to manage card credentials.")
+        case .rateLimited:
+            return text("libremac_credentials_err_rate_limited",
+                        "Too many attempts. Try again shortly.")
+        case .unknownCredential:
+            return text("libremac_credentials_err_unknown_credential",
+                        "The selected credential no longer exists on the card.")
+        case .invalidRequest:
+            return text("libremac_credentials_err_invalid_request",
+                        "The request is not valid for this credential.")
+        case .unknownCard, .keyNotFound, .userNotLoggedIn, .unknownConfigKey,
+             .readOnlyConfig, .invalidConfigValue, .unsupportedProtocol,
+             .authFailed, .communicationError, .notSupported,
+             .unsupportedSignatureParameter, .inputTooLarge:
+            return communicationCopy
+        }
+    }
+
     /// Resolved user-facing message for a terminal operation outcome. Uses the
     /// client-localized copy when this code has one; otherwise the agent's
     /// authored `msgFallback` (which is non-empty by the operation contract).
@@ -93,6 +127,11 @@ public enum ErrorCopy {
         }
         return msgFallback
     }
+
+    /// Shared by the `ErrorCode` table and the sync-error fallback arm.
+    private static let communicationCopy = LocalizedText(
+        key: "libremac_error_communication",
+        defaultText: "Communication with the card reader failed.")
 
     private static func text(_ key: String, _ fallback: String) -> LocalizedText {
         LocalizedText(key: key, defaultText: fallback)

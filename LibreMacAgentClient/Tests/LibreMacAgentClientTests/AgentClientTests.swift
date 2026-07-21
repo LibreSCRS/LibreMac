@@ -320,4 +320,101 @@ struct AgentClientTests {
 
         await client.stop()
     }
+
+    // MARK: - Credential ops — HelloAck feature gating
+
+    @Test("without the credentials feature token, all three credential ops throw .notSupported and never send")
+    func credentialOpsWithoutFeatureTokenThrowNotSupported() async {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        // Default handshake features: [] — no "credentials" token.
+        _ = await startAndHandshake(mock, client)
+
+        #expect(await client.supportsCredentials == false)
+
+        do {
+            _ = try await client.listCredentials(card: "c1")
+            Issue.record("expected .notSupported from listCredentials")
+        } catch AgentClientError.notSupported {
+            // Expected.
+        } catch {
+            Issue.record("expected .notSupported from listCredentials, got \(error)")
+        }
+        do {
+            _ = try await client.managePin(card: "c1", pinId: "sign:0x92", verb: .change)
+            Issue.record("expected .notSupported from managePin")
+        } catch AgentClientError.notSupported {
+            // Expected.
+        } catch {
+            Issue.record("expected .notSupported from managePin, got \(error)")
+        }
+        do {
+            _ = try await client.activateSigningKey(card: "c1")
+            Issue.record("expected .notSupported from activateSigningKey")
+        } catch AgentClientError.notSupported {
+            // Expected.
+        } catch {
+            Issue.record("expected .notSupported from activateSigningKey, got \(error)")
+        }
+
+        // The gate is strictly client-side: an old agent fails an unknown
+        // request `t` closed and DROPS the connection, so none of the
+        // three requests may ever reach the wire.
+        #expect(mock.count(of: "ListCredentials") == 0)
+        #expect(mock.count(of: "ManagePin") == 0)
+        #expect(mock.count(of: "ActivateSigningKey") == 0)
+
+        await client.stop()
+    }
+
+    @Test("on a never-started client, credential ops throw .notConnected — not .notSupported — despite the empty feature set")
+    func credentialOpsOnUnstartedClientThrowNotConnected() async {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        // Never started: no connection, so the feature set is empty too —
+        // but the connection guard must win over the feature gate, or a
+        // merely disconnected client would misreport as "agent too old".
+        #expect(await client.supportsCredentials == false)
+
+        do {
+            _ = try await client.listCredentials(card: "c1")
+            Issue.record("expected .notConnected from listCredentials")
+        } catch AgentClientError.notConnected {
+            // Expected.
+        } catch {
+            Issue.record("expected .notConnected from listCredentials, got \(error)")
+        }
+        do {
+            _ = try await client.managePin(card: "c1", pinId: "sign:0x92", verb: .change)
+            Issue.record("expected .notConnected from managePin")
+        } catch AgentClientError.notConnected {
+            // Expected.
+        } catch {
+            Issue.record("expected .notConnected from managePin, got \(error)")
+        }
+
+        await client.stop()
+    }
+
+    @Test("with the credentials feature token, listCredentials sends ListCredentials")
+    func listCredentialsSendsWhenFeatureTokenPresent() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        var iterator = await startAndHandshake(mock, client, features: ["credentials"])
+
+        #expect(await client.supportsCredentials == true)
+
+        async let opTask = client.listCredentials(card: "c1")
+        let request = try #require(await iterator.next())
+        guard case .listCredentials(let card) = request.request else {
+            Issue.record("expected ListCredentials, got \(request.request)")
+            return
+        }
+        #expect(card == "c1")
+        mock.sendReply(.opStarted(op: 30), req: request.req)
+        let operation = try await opTask
+        #expect(operation.kind == .listCredentials)
+
+        await client.stop()
+    }
 }
