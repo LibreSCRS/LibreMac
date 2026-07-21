@@ -453,7 +453,7 @@ public struct PhotoResult: Sendable, Equatable {
 
 /// One credential (PIN/PUK/CAN) record from a credentials listing.
 /// Mirrors `LibreSCRS::Agent::CredentialRecord` and CDDL `cred-record`
-/// (`librescrs-agent.cddl:218-226`) — 22 camelCase wire keys: the wire's
+/// (`librescrs-agent.cddl:218-226`) — 23 camelCase wire keys: the wire's
 /// optional keys are optionals here; the always-written booleans are
 /// non-optional. `id` is the agent-synthesized handle a `ManagePin`
 /// addresses (this wire never carries a secret).
@@ -465,6 +465,7 @@ public struct CredentialRecord: Sendable, Equatable {
     public let retriesLeft: UInt32?
     public let retriesMax: UInt32?
     public let usesLeft: UInt32?
+    public let usesMax: UInt32?
     public let unblocksLeft: UInt32?
     public let minLength: UInt32?
     public let maxLength: UInt32?
@@ -484,6 +485,7 @@ public struct CredentialRecord: Sendable, Equatable {
     public init(
         id: String, label: String, kind: CredentialKind, state: CredentialState,
         retriesLeft: UInt32? = nil, retriesMax: UInt32? = nil, usesLeft: UInt32? = nil,
+        usesMax: UInt32? = nil,
         unblocksLeft: UInt32? = nil, minLength: UInt32? = nil, maxLength: UInt32? = nil,
         canChange: Bool, unblockable: Bool, unblockStyle: CredentialUnblockStyle,
         activatable: Bool, keyActivationPending: Bool, keyActivatable: Bool,
@@ -498,6 +500,7 @@ public struct CredentialRecord: Sendable, Equatable {
         self.retriesLeft = retriesLeft
         self.retriesMax = retriesMax
         self.usesLeft = usesLeft
+        self.usesMax = usesMax
         self.unblocksLeft = unblocksLeft
         self.minLength = minLength
         self.maxLength = maxLength

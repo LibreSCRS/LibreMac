@@ -236,12 +236,12 @@ struct CrossImplementationFixtureTests {
                 ))
     }
 
-    @Test("OpResultReadyCredentialsList.cbor — Ok listing, one fully-populated record (all 22 cred-record keys)")
+    @Test("OpResultReadyCredentialsList.cbor — Ok listing, one fully-populated record (all 23 cred-record keys)")
     func opResultReadyCredentialsList() throws {
         let ev = try AgentMessages.decodeEvent(try fixture("OpResultReadyCredentialsList"))
         let record = CredentialRecord(
             id: "sign:0x92", label: "Signing PIN", kind: .sign, state: .operational,
-            retriesLeft: 3, retriesMax: 3, usesLeft: 5, unblocksLeft: 10, minLength: 4, maxLength: 8,
+            retriesLeft: 3, retriesMax: 3, usesLeft: 5, usesMax: 20, unblocksLeft: 10, minLength: 4, maxLength: 8,
             canChange: true, unblockable: true, unblockStyle: .unblockAndChange,
             activatable: true, keyActivationPending: true, keyActivatable: true,
             recovery: .holderViaPuk, probeSafe: true,

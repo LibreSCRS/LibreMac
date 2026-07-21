@@ -629,7 +629,7 @@ private func parseCredResult(_ v: CBORValue) throws(MessageError) -> CredentialR
         keyActivated: try optionalBool(m, "keyActivated"))
 }
 
-/// Parses one `cred-record` (22 wire keys). The four token-valued enum
+/// Parses one `cred-record` (23 wire keys). The four token-valued enum
 /// fields decode via `init(token:)` — unrecognized tokens degrade to
 /// `.unknown` (see `CredentialKind`), unlike the fail-closed `outcome`.
 private func parseCredRecord(_ v: CBORValue) throws(MessageError) -> CredentialRecord {
@@ -642,6 +642,7 @@ private func parseCredRecord(_ v: CBORValue) throws(MessageError) -> CredentialR
         retriesLeft: try optionalUInt32(m, "retriesLeft"),
         retriesMax: try optionalUInt32(m, "retriesMax"),
         usesLeft: try optionalUInt32(m, "usesLeft"),
+        usesMax: try optionalUInt32(m, "usesMax"),
         unblocksLeft: try optionalUInt32(m, "unblocksLeft"),
         minLength: try optionalUInt32(m, "minLength"),
         maxLength: try optionalUInt32(m, "maxLength"),

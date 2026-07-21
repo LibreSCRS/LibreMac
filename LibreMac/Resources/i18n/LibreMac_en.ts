@@ -307,12 +307,20 @@
         <translation>Activate Signing Key…</translation>
     </message>
     <message id="libremac_credentials_retries_left">
-        <source>{count} attempt(s) left</source>
-        <translation>{count} attempt(s) left</translation>
+        <source>Attempts: {count}</source>
+        <translation>Attempts: {count}</translation>
+    </message>
+    <message id="libremac_credentials_retries_max">
+        <source>Attempts: {count} of {max}</source>
+        <translation>Attempts: {count} of {max}</translation>
     </message>
     <message id="libremac_credentials_uses_left">
-        <source>{count} use(s) left</source>
-        <translation>{count} use(s) left</translation>
+        <source>Uses: {count}</source>
+        <translation>Uses: {count}</translation>
+    </message>
+    <message id="libremac_credentials_uses_max">
+        <source>Uses: {count} of {max}</source>
+        <translation>Uses: {count} of {max}</translation>
     </message>
     <message id="libremac_credentials_outcome_unspecified">
         <source>The operation finished without a reported result.</source>

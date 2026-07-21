@@ -58,7 +58,9 @@ struct CatalogCompletenessTests {
         "libremac_credentials_action_activate_key",
         // counters
         "libremac_credentials_retries_left",
+        "libremac_credentials_retries_max",
         "libremac_credentials_uses_left",
+        "libremac_credentials_uses_max",
         // outcome copy (all ten wire tokens)
         "libremac_credentials_outcome_unspecified",
         "libremac_credentials_outcome_ok",

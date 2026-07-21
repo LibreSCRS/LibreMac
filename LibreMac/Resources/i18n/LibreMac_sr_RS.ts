@@ -68,7 +68,7 @@
     </message>
     <message id="libremac_error_credential_wrong">
         <source>The PIN or access code entered was incorrect.</source>
-        <translation>Унети PIN или приступни код је нетачан.</translation>
+        <translation>Унети ПИН или приступни код је нетачан.</translation>
     </message>
     <message id="libremac_error_engine_unavailable">
         <source>The signing engine could not be loaded. Check that LibreSCRS is installed correctly.</source>
@@ -307,12 +307,20 @@
         <translation>Активирај кључ за потписивање…</translation>
     </message>
     <message id="libremac_credentials_retries_left">
-        <source>{count} attempt(s) left</source>
-        <translation>Преостало покушаја: {count}</translation>
+        <source>Attempts: {count}</source>
+        <translation>Покушаји: {count}</translation>
+    </message>
+    <message id="libremac_credentials_retries_max">
+        <source>Attempts: {count} of {max}</source>
+        <translation>Покушаји: {count} од {max}</translation>
     </message>
     <message id="libremac_credentials_uses_left">
-        <source>{count} use(s) left</source>
-        <translation>Преостало употреба: {count}</translation>
+        <source>Uses: {count}</source>
+        <translation>Употребе: {count}</translation>
+    </message>
+    <message id="libremac_credentials_uses_max">
+        <source>Uses: {count} of {max}</source>
+        <translation>Употребе: {count} од {max}</translation>
     </message>
     <message id="libremac_credentials_outcome_unspecified">
         <source>The operation finished without a reported result.</source>

@@ -388,7 +388,7 @@ struct MessagesEventDecodeTests {
         ])
         let full = CredentialRecord(
             id: "user:0x01", label: "PIN", kind: .user, state: .operational,
-            retriesLeft: 3, retriesMax: 3, usesLeft: 10, unblocksLeft: 7,
+            retriesLeft: 3, retriesMax: 3, usesLeft: 10, usesMax: nil, unblocksLeft: 7,
             minLength: 4, maxLength: 8,
             canChange: true, unblockable: true, unblockStyle: .setsNewPin,
             activatable: false, keyActivationPending: false, keyActivatable: false,

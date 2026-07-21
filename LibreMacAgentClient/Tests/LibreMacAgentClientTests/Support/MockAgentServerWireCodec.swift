@@ -316,6 +316,7 @@ private func encodeCredRecord(_ record: CredentialRecord) -> CBORValue {
     if let v = record.retriesLeft { pairs.append(("retriesLeft", .uint(UInt64(v)))) }
     if let v = record.retriesMax { pairs.append(("retriesMax", .uint(UInt64(v)))) }
     if let v = record.usesLeft { pairs.append(("usesLeft", .uint(UInt64(v)))) }
+    if let v = record.usesMax { pairs.append(("usesMax", .uint(UInt64(v)))) }
     if let v = record.unblocksLeft { pairs.append(("unblocksLeft", .uint(UInt64(v)))) }
     if let v = record.minLength { pairs.append(("minLength", .uint(UInt64(v)))) }
     if let v = record.maxLength { pairs.append(("maxLength", .uint(UInt64(v)))) }

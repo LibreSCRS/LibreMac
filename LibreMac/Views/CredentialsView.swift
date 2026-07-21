@@ -92,16 +92,32 @@ struct CredentialsView: View {
                     .font(.caption)
                     .foregroundStyle(Self.stateTint(record.state))
                 if let retries = record.retriesLeft {
-                    Text(Self.countText(
-                        "libremac_credentials_retries_left", "{count} attempt(s) left", retries))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let retriesMax = record.retriesMax {
+                        Text(Self.rangeText(
+                            "libremac_credentials_retries_max", "Attempts: {count} of {max}",
+                            retries, retriesMax))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(Self.countText(
+                            "libremac_credentials_retries_left", "Attempts: {count}", retries))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 if let uses = record.usesLeft {
-                    Text(Self.countText(
-                        "libremac_credentials_uses_left", "{count} use(s) left", uses))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let usesMax = record.usesMax {
+                        Text(Self.rangeText(
+                            "libremac_credentials_uses_max", "Uses: {count} of {max}",
+                            uses, usesMax))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(Self.countText(
+                            "libremac_credentials_uses_left", "Uses: {count}", uses))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 // Guidance rides the record as an agent-authored
                 // key/fallback pair (the client owns the translations; the
@@ -296,6 +312,15 @@ struct CredentialsView: View {
     private static func countText(_ key: String, _ fallback: String, _ count: UInt32) -> String {
         LocalizedText(
             key: key, defaultText: fallback, placeholders: ["count": String(count)]
+        ).resolve()
+    }
+
+    private static func rangeText(
+        _ key: String, _ fallback: String, _ count: UInt32, _ max: UInt32
+    ) -> String {
+        LocalizedText(
+            key: key, defaultText: fallback,
+            placeholders: ["count": String(count), "max": String(max)]
         ).resolve()
     }
 
