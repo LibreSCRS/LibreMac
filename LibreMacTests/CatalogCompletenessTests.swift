@@ -56,6 +56,13 @@ struct CatalogCompletenessTests {
         "libremac_credentials_action_unblock",
         "libremac_credentials_action_activate_pin",
         "libremac_credentials_action_activate_key",
+        "libremac_credentials_action_cancel",
+        // unblock confirm sheet
+        "libremac_credentials_unblock_title",
+        "libremac_credentials_unblock_prompt_notice",
+        "libremac_credentials_unblock_budget",
+        "libremac_credentials_unblock_budget_nomax",
+        "libremac_credentials_unblock_continue",
         // counters
         "libremac_credentials_retries_left",
         "libremac_credentials_retries_max",
@@ -72,6 +79,8 @@ struct CatalogCompletenessTests {
         "libremac_credentials_outcome_unsupported",
         "libremac_credentials_outcome_keyActivationFailed",
         "libremac_credentials_outcome_cardRemoved",
+        // attributed invalid-PIN variant (retries-aware)
+        "libremac_credentials_outcome_invalidPin_attributed",
         // sync-error copy (ErrorCopy.localizedText(for: SyncError))
         "libremac_credentials_err_unsupported",
         "libremac_credentials_err_not_authorized",

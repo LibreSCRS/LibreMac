@@ -386,6 +386,34 @@
         <source>The request is not valid for this credential.</source>
         <translation>The request is not valid for this credential.</translation>
     </message>
+    <message id="libremac_credentials_unblock_title">
+        <source>Unblock PIN</source>
+        <translation>Unblock PIN</translation>
+    </message>
+    <message id="libremac_credentials_action_cancel">
+        <source>Cancel</source>
+        <translation>Cancel</translation>
+    </message>
+    <message id="libremac_credentials_unblock_prompt_notice">
+        <source>You will be asked for the PUK in a secure prompt.</source>
+        <translation>You will be asked for the PUK in a secure prompt.</translation>
+    </message>
+    <message id="libremac_credentials_unblock_budget">
+        <source>PUK: {count} of {max} unblocks left.</source>
+        <translation>PUK: {count} of {max} unblocks left.</translation>
+    </message>
+    <message id="libremac_credentials_unblock_budget_nomax">
+        <source>PUK: {count} unblocks left.</source>
+        <translation>PUK: {count} unblocks left.</translation>
+    </message>
+    <message id="libremac_credentials_unblock_continue">
+        <source>Continue</source>
+        <translation>Continue</translation>
+    </message>
+    <message id="libremac_credentials_outcome_invalidPin_attributed">
+        <source>The {who} was not correct — {count} attempt(s) left.</source>
+        <translation>The {who} was not correct — {count} attempt(s) left.</translation>
+    </message>
     <message id="librescrs.pin.blocked.issuer">
         <source>Unblocking is done by the issuer.</source>
         <translation>Unblocking is done by the issuer.</translation>

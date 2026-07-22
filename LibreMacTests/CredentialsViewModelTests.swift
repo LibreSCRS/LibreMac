@@ -47,6 +47,8 @@ final class MockCredentialsClient: AgentCredentialsClient, @unchecked Sendable {
     private var managePinQueue: [Result<AgentOperation, AgentClientError>] = []
     private var listedCardsStorage: [String] = []
     private var managePinCallsStorage: [ManagePinCall] = []
+    private var activateSigningKeyQueue: [Result<AgentOperation, AgentClientError>] = []
+    private var activateSigningKeyCardsStorage: [String] = []
 
     init() {
         let (registryStream, registryContinuation) = AsyncStream<RegistrySnapshot>.makeStream()
@@ -71,6 +73,14 @@ final class MockCredentialsClient: AgentCredentialsClient, @unchecked Sendable {
 
     var managePinCalls: [ManagePinCall] {
         withLock { managePinCallsStorage }
+    }
+
+    var activateSigningKeyCards: [String] {
+        withLock { activateSigningKeyCardsStorage }
+    }
+
+    func queueActivateSigningKey(_ operation: AgentOperation) {
+        withLock { activateSigningKeyQueue.append(.success(operation)) }
     }
 
     func queueList(_ operation: AgentOperation) {
@@ -117,8 +127,15 @@ final class MockCredentialsClient: AgentCredentialsClient, @unchecked Sendable {
     }
 
     func activateSigningKey(card: String) async throws -> AgentOperation {
-        Issue.record("activateSigningKey(card: \(card)) is not driven by this view model")
-        throw AgentClientError.unexpectedReply
+        let next: Result<AgentOperation, AgentClientError>? = withLock {
+            activateSigningKeyCardsStorage.append(card)
+            return activateSigningKeyQueue.isEmpty ? nil : activateSigningKeyQueue.removeFirst()
+        }
+        guard let next else {
+            Issue.record("activateSigningKey(card: \(card)) called with an empty queue")
+            throw AgentClientError.unexpectedReply
+        }
+        return try next.get()
     }
 }
 
@@ -127,17 +144,19 @@ final class MockCredentialsClient: AgentCredentialsClient, @unchecked Sendable {
 /// A credential record with display-plausible defaults; the boolean
 /// affordances and counters are the knobs the cases turn.
 private func credentialRecord(
-    id: String = "pin.user", label: String = "User PIN",
-    retriesLeft: UInt32? = 3,
+    id: String = "pin.user", label: String = "User PIN", kind: CredentialKind = .user,
+    retriesLeft: UInt32? = 3, usesLeft: UInt32? = nil, usesMax: UInt32? = nil,
+    unblocksLeft: UInt32? = nil,
     canChange: Bool = true, unblockable: Bool = false,
-    activatable: Bool = false, keyActivatable: Bool = false
+    activatable: Bool = false, keyActivationPending: Bool = false, keyActivatable: Bool = false
 ) -> CredentialRecord {
     CredentialRecord(
-        id: id, label: label, kind: .user, state: .operational,
-        retriesLeft: retriesLeft, retriesMax: 3, minLength: 4, maxLength: 8,
+        id: id, label: label, kind: kind, state: .operational,
+        retriesLeft: retriesLeft, retriesMax: 3, usesLeft: usesLeft, usesMax: usesMax,
+        unblocksLeft: unblocksLeft, minLength: 4, maxLength: 8,
         canChange: canChange, unblockable: unblockable, unblockStyle: .unblockAndChange,
-        activatable: activatable, keyActivationPending: false, keyActivatable: keyActivatable,
-        recovery: .holderViaPuk, probeSafe: true)
+        activatable: activatable, keyActivationPending: keyActivationPending,
+        keyActivatable: keyActivatable, recovery: .holderViaPuk, probeSafe: true)
 }
 
 /// An `AgentOperation` already carrying its credentials payload (when any)
@@ -372,6 +391,105 @@ struct CredentialsViewModelTests {
         #expect(viewModel.cards.count == 1)
     }
 
+    @Test("unblock sends the unblock verb and re-lists on Unsupported")
+    func unblockSendsVerbAndRelists() async {
+        let client = MockCredentialsClient()
+        client.queueList(listOperation(records: [credentialRecord(unblockable: true)]))
+        // Unsupported arrives as a RESULT payload even though the op finishes
+        // non-Ok — the VM must read `credentialsResult`, not treat it as a throw.
+        client.queueManagePin(mutationOperation(
+            outcome: .unsupported, status: .error, code: .capabilityMissing))
+        client.queueList(listOperation(records: [credentialRecord(unblockable: true)], id: 3))
+        let viewModel = CredentialsViewModel(client: client)
+        await viewModel.refresh(card: "card:0")
+
+        await viewModel.unblock(card: "card:0", pinId: "pin.user")
+
+        #expect(client.managePinCalls == [
+            .init(card: "card:0", pinId: "pin.user", verb: .unblock, activateKey: false)])
+        #expect(client.listedCards == ["card:0", "card:0"])
+        #expect(viewModel.lastOutcome?.outcome == .unsupported)
+        #expect(viewModel.entryError == nil)
+    }
+
+    @Test("activate carries activateKey=true only when the key is pending")
+    func activatePassesKeyContinuation() async {
+        let client = MockCredentialsClient()
+        client.queueList(listOperation(records: [
+            credentialRecord(id: "pin.sign", label: "Signature PIN", kind: .sign,
+                             activatable: true, keyActivationPending: true, keyActivatable: true)]))
+        client.queueManagePin(mutationOperation(outcome: .unsupported))
+        client.queueList(listOperation(records: [], id: 3))
+        let viewModel = CredentialsViewModel(client: client)
+        await viewModel.refresh(card: "card:0")
+
+        await viewModel.activate(card: "card:0", pinId: "pin.sign")
+
+        #expect(client.managePinCalls == [
+            .init(card: "card:0", pinId: "pin.sign", verb: .activatePin, activateKey: true)])
+    }
+
+    @Test("activateKey drives the id-less ActivateSigningKey and attributes to SIGN")
+    func activateKeyDrivesSigningKey() async {
+        let client = MockCredentialsClient()
+        client.queueList(listOperation(records: [credentialRecord(keyActivationPending: true, keyActivatable: true)]))
+        client.queueActivateSigningKey(mutationOperation(outcome: .unsupported))
+        client.queueList(listOperation(records: [], id: 3))
+        let viewModel = CredentialsViewModel(client: client)
+        await viewModel.refresh(card: "card:0")
+
+        await viewModel.activateKey(card: "card:0")
+
+        #expect(client.activateSigningKeyCards == ["card:0"])
+        #expect(viewModel.presentedKind == .sign)
+    }
+
+    @Test("a mutation records the presented kind of the addressed credential")
+    func presentedKindTracksVerb() async {
+        let client = MockCredentialsClient()
+        client.queueList(listOperation(records: [credentialRecord(id: "pin.puk", label: "PUK", kind: .puk, unblockable: true)]))
+        client.queueManagePin(mutationOperation(outcome: .ok))
+        client.queueList(listOperation(records: [], id: 3))
+        let viewModel = CredentialsViewModel(client: client)
+        await viewModel.refresh(card: "card:0")
+
+        await viewModel.unblock(card: "card:0", pinId: "pin.puk")
+
+        #expect(viewModel.presentedKind == .puk)
+    }
+
+    @Test("change records the addressed PIN's own kind as presentedKind, not a hard-coded value")
+    func presentedKindReflectsAddressedPin() async {
+        let client = MockCredentialsClient()
+        client.queueList(listOperation(records: [
+            credentialRecord(id: "pin.sign", label: "Signature PIN", kind: .sign)]))
+        client.queueManagePin(mutationOperation(outcome: .ok))
+        client.queueList(listOperation(records: [], id: 3))
+        let viewModel = CredentialsViewModel(client: client)
+        await viewModel.refresh(card: "card:0")
+
+        await viewModel.change(card: "card:0", pinId: "pin.sign")
+
+        #expect(viewModel.presentedKind == .sign)
+    }
+
+    @Test("activate omits the key continuation when the key is not pending")
+    func activateOmitsKeyContinuationWhenNotPending() async {
+        let client = MockCredentialsClient()
+        client.queueList(listOperation(records: [
+            credentialRecord(id: "pin.sign", label: "Signature PIN", kind: .sign,
+                             activatable: true, keyActivationPending: false, keyActivatable: true)]))
+        client.queueManagePin(mutationOperation(outcome: .unsupported))
+        client.queueList(listOperation(records: [], id: 3))
+        let viewModel = CredentialsViewModel(client: client)
+        await viewModel.refresh(card: "card:0")
+
+        await viewModel.activate(card: "card:0", pinId: "pin.sign")
+
+        #expect(client.managePinCalls == [
+            .init(card: "card:0", pinId: "pin.sign", verb: .activatePin, activateKey: false)])
+    }
+
     @Test("clear(card:) drops exactly that card's section")
     func clearDropsOneSection() async {
         let client = MockCredentialsClient()
@@ -392,16 +510,55 @@ struct CredentialsViewModelTests {
         let viewModel = CredentialsViewModel(client: client)
 
         let everything = credentialRecord(
-            canChange: true, unblockable: true, activatable: true, keyActivatable: true)
+            canChange: true, unblockable: true, activatable: true,
+            keyActivationPending: true, keyActivatable: true)
         #expect(viewModel.actions(for: everything) == [.change, .unblock, .activatePin, .activateKey])
 
         let nothing = credentialRecord(canChange: false)
         #expect(viewModel.actions(for: nothing) == [])
 
         let noChange = credentialRecord(
-            canChange: false, unblockable: true, activatable: true, keyActivatable: true)
+            canChange: false, unblockable: true, activatable: true,
+            keyActivationPending: true, keyActivatable: true)
         #expect(
             viewModel.actions(for: noChange) == [.unblock, .activatePin, .activateKey],
             "canChange=false yields no .change even when everything else is advertised")
+    }
+
+    @Test("activate-signing-key is offered only while the key is pending")
+    func activateKeyGatedOnPending() {
+        let client = MockCredentialsClient()
+        let viewModel = CredentialsViewModel(client: client)
+        let pending = credentialRecord(keyActivationPending: true, keyActivatable: true)
+        let notPending = credentialRecord(keyActivationPending: false, keyActivatable: true)
+        #expect(viewModel.actions(for: pending).contains(.activateKey))
+        #expect(!viewModel.actions(for: notPending).contains(.activateKey))
+    }
+
+    @Test("the unblock budget is the PUK record's usage, not the PIN's unblocksLeft")
+    func unblockBudgetReadsPukUsage() async {
+        let client = MockCredentialsClient()
+        // The PIN carries a POPULATED `unblocksLeft` (5) distinct from the PUK's
+        // `usesLeft` (8): a budget read from the wrong counter would surface 5, so
+        // asserting 8 rules out reading the PIN's reset counter, not just a nil one.
+        client.queueList(listOperation(records: [
+            credentialRecord(id: "pin.user", unblocksLeft: 5, unblockable: true),
+            credentialRecord(id: "pin.puk", label: "PUK", kind: .puk, usesLeft: 8, usesMax: 10, canChange: false),
+        ]))
+        let viewModel = CredentialsViewModel(client: client)
+        await viewModel.refresh(card: "card:0")
+
+        let budget = viewModel.unblockBudget(forCard: "card:0")
+        #expect(budget?.usesLeft == 8)
+        #expect(budget?.usesMax == 10)
+    }
+
+    @Test("no PUK record means no unblock budget")
+    func unblockBudgetNilWithoutPuk() async {
+        let client = MockCredentialsClient()
+        client.queueList(listOperation(records: [credentialRecord(unblockable: true)]))
+        let viewModel = CredentialsViewModel(client: client)
+        await viewModel.refresh(card: "card:0")
+        #expect(viewModel.unblockBudget(forCard: "card:0") == nil)
     }
 }

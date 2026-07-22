@@ -6,9 +6,9 @@
 // listing/mutation flow and the section lifetime live there; this view only
 // initiates listings for the cards `CardMonitor` reports as
 // PIN-management-capable and renders what the view model publishes. NO
-// secret ever passes through this process: the one live mutation (a PIN
-// change) names a record handle and the agent collects the PINs in its own
-// secure dialog.
+// secret ever passes through this process: every mutation (change,
+// unblock, activate, activate-key) names a record handle and the agent
+// collects the PINs/PUKs in its own secure dialog.
 
 import LibreMacAgentClient
 import LibreMacShared
@@ -21,6 +21,15 @@ struct CredentialsView: View {
     /// Presentation-only in-flight latch so a double-click cannot start two
     /// mutations; the view model itself is request-at-a-time by usage.
     @State private var busy = false
+
+    /// The credential an unblock confirm sheet is open for (card, pinId), or nil.
+    @State private var unblockTarget: UnblockTarget?
+
+    private struct UnblockTarget: Identifiable {
+        let card: String
+        let pinId: String
+        var id: String { "\(card)\u{0000}\(pinId)" }
+    }
 
     var body: some View {
         ScrollView {
@@ -41,6 +50,9 @@ struct CredentialsView: View {
             for handle in manageableCardHandles {
                 await viewModel.refresh(card: handle)
             }
+        }
+        .sheet(item: $unblockTarget) { target in
+            unblockConfirm(target)
         }
     }
 
@@ -145,10 +157,10 @@ struct CredentialsView: View {
 
     /// One button per advertised affordance, strictly from
     /// `viewModel.actions(for:)` (which derives them from the record's
-    /// booleans). Only `.change` is driven in this increment — the view
-    /// model exposes no unblock / activate operation yet — so the other
-    /// three render their advertised titles disabled rather than pretending
-    /// to be live.
+    /// booleans). All four affordances are live: `.change` and the two
+    /// activate flows dispatch straight to the view model, while `.unblock`
+    /// first raises its confirm sheet — each drives a real view-model
+    /// operation.
     @ViewBuilder
     private func actionButtons(card: String, record: CredentialRecord) -> some View {
         let actions = viewModel.actions(for: record)
@@ -160,28 +172,85 @@ struct CredentialsView: View {
                 .disabled(busy)
             }
             if actions.contains(.unblock) {
-                Button(Self.loc("libremac_credentials_action_unblock", "Unblock…")) {}
-                    .disabled(true)
+                Button(Self.loc("libremac_credentials_action_unblock", "Unblock…")) {
+                    unblockTarget = UnblockTarget(card: card, pinId: record.id)
+                }
+                .disabled(busy)
             }
             if actions.contains(.activatePin) {
-                Button(Self.loc("libremac_credentials_action_activate_pin", "Activate…")) {}
-                    .disabled(true)
+                Button(Self.loc("libremac_credentials_action_activate_pin", "Activate…")) {
+                    run { await viewModel.activate(card: card, pinId: record.id) }
+                }
+                .disabled(busy)
             }
             if actions.contains(.activateKey) {
                 Button(Self.loc(
-                    "libremac_credentials_action_activate_key", "Activate Signing Key…")) {}
-                    .disabled(true)
+                    "libremac_credentials_action_activate_key", "Activate Signing Key…")) {
+                    run { await viewModel.activateKey(card: card) }
+                }
+                .disabled(busy)
             }
         }
     }
 
     private func change(card: String, pinId: String) {
+        run { await viewModel.change(card: card, pinId: pinId) }
+    }
+
+    /// Runs one view-model mutation behind the presentation-only `busy` latch
+    /// so a double-click cannot start two.
+    private func run(_ mutation: @escaping @MainActor () async -> Void) {
         guard !busy else { return }
         busy = true
         Task { @MainActor in
-            await viewModel.change(card: card, pinId: pinId)
+            await mutation()
             busy = false
         }
+    }
+
+    @ViewBuilder
+    private func unblockConfirm(_ target: UnblockTarget) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(Self.loc("libremac_credentials_unblock_title", "Unblock PIN"))
+                .font(.headline)
+            if let budget = budgetLine(forCard: target.card) {
+                Text(budget)
+            }
+            Text(Self.loc(
+                "libremac_credentials_unblock_prompt_notice",
+                "You will be asked for the PUK in a secure prompt."))
+                .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button(Self.loc("libremac_credentials_action_cancel", "Cancel")) {
+                    unblockTarget = nil
+                }
+                .keyboardShortcut(.cancelAction)
+                Button(Self.loc("libremac_credentials_unblock_continue", "Continue")) {
+                    let card = target.card
+                    let pinId = target.pinId
+                    unblockTarget = nil
+                    run { await viewModel.unblock(card: card, pinId: pinId) }
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 360)
+    }
+
+    /// The PUK budget line for the unblock sheet, or nil when the card has no
+    /// PUK usage to show.
+    private func budgetLine(forCard card: String) -> String? {
+        guard let budget = viewModel.unblockBudget(forCard: card) else { return nil }
+        if let max = budget.usesMax {
+            return Self.rangeText(
+                "libremac_credentials_unblock_budget", "PUK: {count} of {max} unblocks left.",
+                budget.usesLeft, max)
+        }
+        return Self.countText(
+            "libremac_credentials_unblock_budget_nomax", "PUK: {count} unblocks left.",
+            budget.usesLeft)
     }
 
     // MARK: - Outcome / error status
@@ -199,7 +268,8 @@ struct CredentialsView: View {
             .font(.callout)
             .foregroundStyle(.red)
         } else if let result = viewModel.lastOutcome {
-            Label(Self.outcomeText(result.outcome), systemImage: Self.outcomeIcon(result.outcome))
+            Label(Self.outcomeText(result, presented: viewModel.presentedKind),
+                  systemImage: Self.outcomeIcon(result.outcome))
                 .font(.callout)
                 .foregroundStyle(Self.outcomeTint(result.outcome))
         }
@@ -248,6 +318,17 @@ struct CredentialsView: View {
         case .unknown:
             return AnyShapeStyle(.secondary)
         }
+    }
+
+    private static func outcomeText(_ result: CredentialResult, presented: CredentialKind) -> String {
+        if result.outcome == .invalidPin, let retries = result.retriesLeft {
+            return LocalizedText(
+                key: "libremac_credentials_outcome_invalidPin_attributed",
+                defaultText: "The {who} was not correct — {count} attempt(s) left.",
+                placeholders: ["who": kindTitle(presented), "count": String(retries)]
+            ).resolve()
+        }
+        return outcomeText(result.outcome)
     }
 
     private static func outcomeText(_ outcome: CredentialOutcome) -> String {

@@ -386,6 +386,34 @@
         <source>The request is not valid for this credential.</source>
         <translation>Захтев није важећи за овај акредитив.</translation>
     </message>
+    <message id="libremac_credentials_unblock_title">
+        <source>Unblock PIN</source>
+        <translation>Одблокирање ПИН-а</translation>
+    </message>
+    <message id="libremac_credentials_action_cancel">
+        <source>Cancel</source>
+        <translation>Откажи</translation>
+    </message>
+    <message id="libremac_credentials_unblock_prompt_notice">
+        <source>You will be asked for the PUK in a secure prompt.</source>
+        <translation>ПУК ћете унети у сигурном прозору.</translation>
+    </message>
+    <message id="libremac_credentials_unblock_budget">
+        <source>PUK: {count} of {max} unblocks left.</source>
+        <translation>ПУК: преостало {count} од {max} одблокирања.</translation>
+    </message>
+    <message id="libremac_credentials_unblock_budget_nomax">
+        <source>PUK: {count} unblocks left.</source>
+        <translation>ПУК: преостало {count} одблокирања.</translation>
+    </message>
+    <message id="libremac_credentials_unblock_continue">
+        <source>Continue</source>
+        <translation>Настави</translation>
+    </message>
+    <message id="libremac_credentials_outcome_invalidPin_attributed">
+        <source>The {who} was not correct — {count} attempt(s) left.</source>
+        <translation>{who} није тачан — преостало покушаја: {count}.</translation>
+    </message>
     <message id="librescrs.pin.blocked.issuer">
         <source>Unblocking is done by the issuer.</source>
         <translation>Деблокаду обавља издавалац картице.</translation>

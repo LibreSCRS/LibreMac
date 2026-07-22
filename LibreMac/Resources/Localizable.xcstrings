@@ -9606,6 +9606,23 @@
         }
       }
     },
+    "libremac_credentials_action_cancel" : {
+      "comment" : "libremac_credentials_action_cancel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Откажи"
+          }
+        }
+      }
+    },
     "libremac_credentials_action_change" : {
       "comment" : "libremac_credentials_action_change",
       "localizations" : {
@@ -9878,6 +9895,23 @@
         }
       }
     },
+    "libremac_credentials_outcome_invalidPin_attributed" : {
+      "comment" : "libremac_credentials_outcome_invalidPin_attributed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The {who} was not correct — {count} attempt(s) left."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{who} није тачан — преостало покушаја: {count}."
+          }
+        }
+      }
+    },
     "libremac_credentials_outcome_keyActivationFailed" : {
       "comment" : "libremac_credentials_outcome_keyActivationFailed",
       "localizations" : {
@@ -10129,6 +10163,91 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Акредитиви картице"
+          }
+        }
+      }
+    },
+    "libremac_credentials_unblock_budget" : {
+      "comment" : "libremac_credentials_unblock_budget",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PUK: {count} of {max} unblocks left."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПУК: преостало {count} од {max} одблокирања."
+          }
+        }
+      }
+    },
+    "libremac_credentials_unblock_budget_nomax" : {
+      "comment" : "libremac_credentials_unblock_budget_nomax",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PUK: {count} unblocks left."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПУК: преостало {count} одблокирања."
+          }
+        }
+      }
+    },
+    "libremac_credentials_unblock_continue" : {
+      "comment" : "libremac_credentials_unblock_continue",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настави"
+          }
+        }
+      }
+    },
+    "libremac_credentials_unblock_prompt_notice" : {
+      "comment" : "libremac_credentials_unblock_prompt_notice",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You will be asked for the PUK in a secure prompt."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПУК ћете унети у сигурном прозору."
+          }
+        }
+      }
+    },
+    "libremac_credentials_unblock_title" : {
+      "comment" : "libremac_credentials_unblock_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unblock PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одблокирање ПИН-а"
           }
         }
       }

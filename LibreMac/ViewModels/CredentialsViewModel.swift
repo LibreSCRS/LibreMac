@@ -89,6 +89,10 @@ public final class CredentialsViewModel {
     /// transport-shaped failure folded to `.communicationError`. Cleared at
     /// the start of every new request.
     public private(set) var entryError: SyncError?
+    /// The credential kind the most recent mutation presented — the PUK for an
+    /// unblock, the SIGN PIN for a key activation — so a count-bearing outcome
+    /// names the right credential (KDE `m_pendingPresentedKind`).
+    public private(set) var presentedKind: CredentialKind = .unknown
 
     // MARK: - Backing state
 
@@ -177,32 +181,71 @@ public final class CredentialsViewModel {
     /// result, since a mid-flight change may still have applied card-side;
     /// an entry error means nothing changed, so nothing is re-listed.
     public func change(card: String, pinId: String) async {
+        await drive(card: card, presented: kind(ofPin: pinId, in: card)) {
+            try await self.client.managePin(
+                card: card, pinId: pinId, verb: .change, activateKey: false)
+        }
+    }
+
+    public func unblock(card: String, pinId: String) async {
+        await drive(card: card, presented: .puk) {
+            try await self.client.managePin(
+                card: card, pinId: pinId, verb: .unblock, activateKey: false)
+        }
+    }
+
+    public func activate(card: String, pinId: String) async {
+        // Bring the on-card signing key up in the same flow when it is pending,
+        // so the spent transport value is not requested twice (KDE parity).
+        let activateKey = record(card: card, pinId: pinId)?.keyActivationPending ?? false
+        await drive(card: card, presented: kind(ofPin: pinId, in: card)) {
+            try await self.client.managePin(
+                card: card, pinId: pinId, verb: .activatePin, activateKey: activateKey)
+        }
+    }
+
+    public func activateKey(card: String) async {
+        await drive(card: card, presented: .sign) {
+            try await self.client.activateSigningKey(card: card)
+        }
+    }
+
+    /// Shared mutation drive: launch the verb, read the typed result (a failed
+    /// attempt still populates it), re-list so counters re-render. An attempt
+    /// that entered execution re-lists even without a typed result (it may have
+    /// applied card-side); an entry error means nothing changed.
+    private func drive(
+        card: String, presented: CredentialKind,
+        _ launch: () async throws -> AgentOperation
+    ) async {
         entryError = nil
         lastOutcome = nil
+        presentedKind = presented
         let operation: AgentOperation
         do {
-            operation = try await client.managePin(
-                card: card, pinId: pinId, verb: .change, activateKey: false)
+            operation = try await launch()
         } catch {
             entryError = Self.syncError(from: error)
             return
         }
         _ = await operation.finished()
         guard let payload = operation.credentialsResult else {
-            // Terminalized with no result payload at all (a cancelled
-            // operation, or a connection lost mid-flight): nothing typed to
-            // show. The attempt still entered execution, so the card may
-            // have changed state — re-list first (a dead connection just
-            // fails into the same error), then surface the communication
-            // entry error for the attempt itself.
             Logger.card.error(
-                "PIN change terminalized without a result for \(card, privacy: .public)")
+                "credential mutation terminalized without a result for \(card, privacy: .public)")
             await refresh(card: card)
             entryError = .communicationError
             return
         }
         lastOutcome = payload.result
         await refresh(card: card)
+    }
+
+    private func record(card: String, pinId: String) -> CredentialRecord? {
+        cards.first(where: { $0.card == card })?.records.first(where: { $0.id == pinId })
+    }
+
+    private func kind(ofPin pinId: String, in card: String) -> CredentialKind {
+        record(card: card, pinId: pinId)?.kind ?? .unknown
     }
 
     // MARK: - Clearing
@@ -222,8 +265,21 @@ public final class CredentialsViewModel {
         if record.canChange { actions.append(.change) }
         if record.unblockable { actions.append(.unblock) }
         if record.activatable { actions.append(.activatePin) }
-        if record.keyActivatable { actions.append(.activateKey) }
+        if record.keyActivatable && record.keyActivationPending { actions.append(.activateKey) }
         return actions
+    }
+
+    /// The PUK's remaining unblock budget for `card` — the count the holder
+    /// spends one of on an unblock — read from the section's PUK record's
+    /// usage counters. `nil` when the section has no PUK record with a usage
+    /// count. NOT the addressed PIN's `unblocksLeft` (a reset counter).
+    public func unblockBudget(forCard card: String) -> (usesLeft: UInt32, usesMax: UInt32?)? {
+        guard
+            let section = cards.first(where: { $0.card == card }),
+            let puk = section.records.first(where: { $0.kind == .puk }),
+            let usesLeft = puk.usesLeft
+        else { return nil }
+        return (usesLeft, puk.usesMax)
     }
 
     // MARK: - Stream handlers
