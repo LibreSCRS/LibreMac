@@ -202,6 +202,10 @@ public final class SigningCoordinator {
             }
         case .timeout:
             return ErrorCopy.message(for: .watchdogTimeout, msgFallback: "")
+        case .notSupported:
+            // The agent lacks the feature token this call is gated on — a
+            // capability gap, not a transport failure.
+            return ErrorCopy.message(for: .capabilityMissing, msgFallback: "")
         case .notConnected, .connectionLost, .communicationError, .unexpectedReply:
             return ErrorCopy.message(for: .communicationError, msgFallback: "")
         }

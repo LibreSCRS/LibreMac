@@ -2829,13 +2829,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1 tries remaining"
+            "value" : "Attempts: %1"
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Преостало покушаја: %1"
+            "value" : "Покушаји: %1"
+          }
+        }
+      }
+    },
+    "lc-eid-pin-tries-remaining-of" : {
+      "comment" : "lc-eid-pin-tries-remaining-of",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attempts: %1 of %2"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покушаји: %1 од %2"
           }
         }
       }
@@ -2853,6 +2870,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "?"
+          }
+        }
+      }
+    },
+    "lc-eid-pin-uses-remaining" : {
+      "comment" : "lc-eid-pin-uses-remaining",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses: %1"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Употребе: %1"
+          }
+        }
+      }
+    },
+    "lc-eid-pin-uses-remaining-of" : {
+      "comment" : "lc-eid-pin-uses-remaining-of",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses: %1 of %2"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Употребе: %1 од %2"
           }
         }
       }
@@ -8348,6 +8399,23 @@
         }
       }
     },
+    "lc-sign-fail-document" : {
+      "comment" : "lc-sign-fail-document",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FAILED: the document is invalid or unreadable"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ГРЕШКА: документ је неисправан или нечитљив"
+          }
+        }
+      }
+    },
     "lc-sign-fail-generic" : {
       "comment" : "lc-sign-fail-generic",
       "localizations" : {
@@ -9504,6 +9572,601 @@
         }
       }
     },
+    "libremac_credentials_action_activate_key" : {
+      "comment" : "libremac_credentials_action_activate_key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activate Signing Key…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Активирај кључ за потписивање…"
+          }
+        }
+      }
+    },
+    "libremac_credentials_action_activate_pin" : {
+      "comment" : "libremac_credentials_action_activate_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activate…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Активирај…"
+          }
+        }
+      }
+    },
+    "libremac_credentials_action_change" : {
+      "comment" : "libremac_credentials_action_change",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Промени…"
+          }
+        }
+      }
+    },
+    "libremac_credentials_action_unblock" : {
+      "comment" : "libremac_credentials_action_unblock",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unblock…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одблокирај…"
+          }
+        }
+      }
+    },
+    "libremac_credentials_err_invalid_request" : {
+      "comment" : "libremac_credentials_err_invalid_request",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request is not valid for this credential."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Захтев није важећи за овај акредитив."
+          }
+        }
+      }
+    },
+    "libremac_credentials_err_not_authorized" : {
+      "comment" : "libremac_credentials_err_not_authorized",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You are not authorized to manage card credentials."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Немате овлашћење за управљање акредитивима картице."
+          }
+        }
+      }
+    },
+    "libremac_credentials_err_rate_limited" : {
+      "comment" : "libremac_credentials_err_rate_limited",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many attempts. Try again shortly."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Превише покушаја. Покушајте поново ускоро."
+          }
+        }
+      }
+    },
+    "libremac_credentials_err_unknown_credential" : {
+      "comment" : "libremac_credentials_err_unknown_credential",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected credential no longer exists on the card."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изабрани акредитив више не постоји на картици."
+          }
+        }
+      }
+    },
+    "libremac_credentials_err_unsupported" : {
+      "comment" : "libremac_credentials_err_unsupported",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Credential management is not supported on this card."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Управљање акредитивима није подржано на овој картици."
+          }
+        }
+      }
+    },
+    "libremac_credentials_kind_can" : {
+      "comment" : "libremac_credentials_kind_can",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CAN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CAN"
+          }
+        }
+      }
+    },
+    "libremac_credentials_kind_puk" : {
+      "comment" : "libremac_credentials_kind_puk",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PUK"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПУК"
+          }
+        }
+      }
+    },
+    "libremac_credentials_kind_sign" : {
+      "comment" : "libremac_credentials_kind_sign",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПИН за потписивање"
+          }
+        }
+      }
+    },
+    "libremac_credentials_kind_unknown" : {
+      "comment" : "libremac_credentials_kind_unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown credential"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Непознат акредитив"
+          }
+        }
+      }
+    },
+    "libremac_credentials_kind_user" : {
+      "comment" : "libremac_credentials_kind_user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "User PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кориснички ПИН"
+          }
+        }
+      }
+    },
+    "libremac_credentials_menu" : {
+      "comment" : "libremac_credentials_menu",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card Credentials…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Акредитиви картице…"
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_blocked" : {
+      "comment" : "libremac_credentials_outcome_blocked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The credential is blocked."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Акредитив је блокиран."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_cardRemoved" : {
+      "comment" : "libremac_credentials_outcome_cardRemoved",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card was removed before the operation finished."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица је уклоњена пре завршетка операције."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_invalidPin" : {
+      "comment" : "libremac_credentials_outcome_invalidPin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The PIN entered was incorrect."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Унети ПИН је нетачан."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_keyActivationFailed" : {
+      "comment" : "libremac_credentials_outcome_keyActivationFailed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing key could not be activated."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кључ за потписивање није могуће активирати."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_missingFields" : {
+      "comment" : "libremac_credentials_outcome_missingFields",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A required entry was missing."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недостаје обавезан унос."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_ok" : {
+      "comment" : "libremac_credentials_outcome_ok",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operation completed successfully."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Операција је успешно завршена."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_pluginError" : {
+      "comment" : "libremac_credentials_outcome_pluginError",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card plugin reported an error."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додатак за картицу је пријавио грешку."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_unspecified" : {
+      "comment" : "libremac_credentials_outcome_unspecified",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operation finished without a reported result."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Операција је завршена без пријављеног резултата."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_unsupported" : {
+      "comment" : "libremac_credentials_outcome_unsupported",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This operation is not supported on this card."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова операција није подржана на овој картици."
+          }
+        }
+      }
+    },
+    "libremac_credentials_outcome_userCancelled" : {
+      "comment" : "libremac_credentials_outcome_userCancelled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operation was cancelled."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Операција је отказана."
+          }
+        }
+      }
+    },
+    "libremac_credentials_retries_left" : {
+      "comment" : "libremac_credentials_retries_left",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attempts: {count}"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покушаји: {count}"
+          }
+        }
+      }
+    },
+    "libremac_credentials_retries_max" : {
+      "comment" : "libremac_credentials_retries_max",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attempts: {count} of {max}"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покушаји: {count} од {max}"
+          }
+        }
+      }
+    },
+    "libremac_credentials_state_blocked" : {
+      "comment" : "libremac_credentials_state_blocked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blocked"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Блокиран"
+          }
+        }
+      }
+    },
+    "libremac_credentials_state_needs_change" : {
+      "comment" : "libremac_credentials_state_needs_change",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change required"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потребна је промена"
+          }
+        }
+      }
+    },
+    "libremac_credentials_state_operational" : {
+      "comment" : "libremac_credentials_state_operational",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спреман"
+          }
+        }
+      }
+    },
+    "libremac_credentials_state_transport" : {
+      "comment" : "libremac_credentials_state_transport",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transport (not activated)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Транспортни (није активиран)"
+          }
+        }
+      }
+    },
+    "libremac_credentials_state_unknown" : {
+      "comment" : "libremac_credentials_state_unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Непознат"
+          }
+        }
+      }
+    },
+    "libremac_credentials_title" : {
+      "comment" : "libremac_credentials_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card Credentials"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Акредитиви картице"
+          }
+        }
+      }
+    },
+    "libremac_credentials_uses_left" : {
+      "comment" : "libremac_credentials_uses_left",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses: {count}"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Употребе: {count}"
+          }
+        }
+      }
+    },
+    "libremac_credentials_uses_max" : {
+      "comment" : "libremac_credentials_uses_max",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses: {count} of {max}"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Употребе: {count} од {max}"
+          }
+        }
+      }
+    },
     "libremac_error_auth_failed" : {
       "comment" : "libremac_error_auth_failed",
       "localizations" : {
@@ -9635,7 +10298,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Унети PIN или приступни код је нетачан."
+            "value" : "Унети ПИН или приступни код је нетачан."
           }
         }
       }
@@ -10367,6 +11030,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Потписану датотеку није могуће уписати на изабрану локацију."
+          }
+        }
+      }
+    },
+    "librescrs.pin.blocked.issuer" : {
+      "comment" : "librescrs.pin.blocked.issuer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unblocking is done by the issuer (police counter)."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Деблокаду обавља издавалац картице (шалтер полиције)."
+          }
+        }
+      }
+    },
+    "librescrs.pin.keyActivation.issuer" : {
+      "comment" : "librescrs.pin.keyActivation.issuer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing key is activated by the issuer."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Активацију кључа за потписивање обавља издавалац."
           }
         }
       }
