@@ -387,8 +387,8 @@
         <translation>The request is not valid for this credential.</translation>
     </message>
     <message id="librescrs.pin.blocked.issuer">
-        <source>Unblocking is done by the issuer (police counter).</source>
-        <translation>Unblocking is done by the issuer (police counter).</translation>
+        <source>Unblocking is done by the issuer.</source>
+        <translation>Unblocking is done by the issuer.</translation>
     </message>
     <message id="librescrs.pin.keyActivation.issuer">
         <source>The signing key is activated by the issuer.</source>

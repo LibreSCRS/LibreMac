@@ -387,8 +387,8 @@
         <translation>Захтев није важећи за овај акредитив.</translation>
     </message>
     <message id="librescrs.pin.blocked.issuer">
-        <source>Unblocking is done by the issuer (police counter).</source>
-        <translation>Деблокаду обавља издавалац картице (шалтер полиције).</translation>
+        <source>Unblocking is done by the issuer.</source>
+        <translation>Деблокаду обавља издавалац картице.</translation>
     </message>
     <message id="librescrs.pin.keyActivation.issuer">
         <source>The signing key is activated by the issuer.</source>

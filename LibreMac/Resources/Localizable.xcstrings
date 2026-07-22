@@ -11040,13 +11040,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unblocking is done by the issuer (police counter)."
+            "value" : "Unblocking is done by the issuer."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Деблокаду обавља издавалац картице (шалтер полиције)."
+            "value" : "Деблокаду обавља издавалац картице."
           }
         }
       }
