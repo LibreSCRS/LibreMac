@@ -79,6 +79,9 @@ struct LibreMacApp: App {
                 .environment(appDelegate.monitor)
                 .padding(.horizontal, 12).padding(.top, 8)
 
+            ReaderPickerMenu()
+                .environment(appDelegate.monitor)
+
             if appDelegate.registrar.state == .requiresApproval {
                 Divider()
                 Button(loc("libremac_registrar_approve", "Approve the signing agent in Login Items…")) {
@@ -148,7 +151,8 @@ private struct CredentialsMenuItem: View {
 
     var body: some View {
         if monitor.agentFeatures.contains("credentials")
-            && monitor.cards.contains(where: { $0.caps.contains(.pinManagement) }) {
+            && monitor.cards.contains(where: { $0.caps.contains(.pinManagement) })
+        {
             Divider()
             Button(loc("libremac_credentials_menu", "Card Credentials…")) {
                 // LSUIElement app: without an explicit activation the new
