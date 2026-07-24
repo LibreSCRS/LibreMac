@@ -59,9 +59,42 @@ public final class CardMonitor {
 
     // MARK: - Derived signing inputs (read by SigningCoordinator / SignDemoView)
 
-    /// The first PKI-capable card, if any — the card a sign op targets.
+    /// The active card iff it is PKI-capable — the card a sign op targets. An
+    /// identity-only active card (passport, vehicle) yields `nil`, so Sign hides.
     public var signingCard: CardState? {
-        cards.first(where: { $0.caps.contains(.pki) })
+        activeCard.flatMap { $0.caps.contains(.pki) ? $0 : nil }
+    }
+
+    // MARK: - Reader selection (multi-reader)
+
+    /// Transient app-session selection: the reader HANDLE the user picked.
+    /// Never persisted; cleared on agent disconnect. Drives every flow.
+    public private(set) var selectedReader: String?
+
+    /// The one card every flow acts on — the selected reader's card if it still
+    /// holds one, else the deterministic first. Capability-neutral.
+    public var activeCard: CardState? {
+        resolveActiveCard(cards: cards, readers: readers, selectedReader: selectedReader)
+    }
+
+    /// Picker model: the present cards in deterministic order (one row per card;
+    /// a reader holds exactly one card). Shown by the menu picker for >= 2.
+    public var readersWithCards: [CardState] {
+        sortedCards(cards, readers: readers)
+    }
+
+    /// Friendly, disambiguated label for a reader handle (contact/contactless,
+    /// serial-tail uniqueness). Served from a map rebuilt when the roster changes.
+    public func readerLabel(for readerHandle: String) -> String {
+        readerLabelMap[readerHandle] ?? readerHandle
+    }
+
+    /// User pick from the picker (transient). Re-targets certs/status/sign.
+    public func selectReader(_ readerHandle: String) {
+        guard selectedReader != readerHandle else { return }
+        selectedReader = readerHandle
+        reconcileCertificateReading()
+        recomputePresence()
     }
 
     /// The first signing-capable certificate on the current card.
@@ -82,6 +115,7 @@ public final class CardMonitor {
     private var available = false
     private var quiescedReason: QuiesceReason?
     private var currentCardHandle: String?
+    private var readerLabelMap: [String: String] = [:]
     private var certReadTask: Task<Void, Never>?
 
     private let client: AgentClient
@@ -122,33 +156,36 @@ public final class CardMonitor {
         // quiescence loops forward each event into the credentials taps
         // BEFORE applying it locally, so the taps' consumer never observes an
         // event later than this monitor did.
-        taskHolder.tasks.append(Task { [weak self] in
-            for await snapshot in registryUpdates {
-                registryTapContinuation.yield(snapshot)
-                guard let self else { return }
-                self.apply(snapshot: snapshot)
-            }
-        })
-        taskHolder.tasks.append(Task { [weak self] in
-            for await value in availability {
-                // On connect the client has already completed its handshake
-                // (availability flips true only after HelloAck), so the
-                // feature set read here is the freshly acknowledged one.
-                var features: Set<String> = []
-                if value {
-                    features = Set(await client.agentInfo().features)
+        taskHolder.tasks.append(
+            Task { [weak self] in
+                for await snapshot in registryUpdates {
+                    registryTapContinuation.yield(snapshot)
+                    guard let self else { return }
+                    self.apply(snapshot: snapshot)
                 }
-                guard let self else { return }
-                self.apply(available: value, features: features)
-            }
-        })
-        taskHolder.tasks.append(Task { [weak self] in
-            for await reason in quiescence {
-                quiescenceTapContinuation.yield(reason)
-                guard let self else { return }
-                self.apply(quiesced: reason)
-            }
-        })
+            })
+        taskHolder.tasks.append(
+            Task { [weak self] in
+                for await value in availability {
+                    // On connect the client has already completed its handshake
+                    // (availability flips true only after HelloAck), so the
+                    // feature set read here is the freshly acknowledged one.
+                    var features: Set<String> = []
+                    if value {
+                        features = Set(await client.agentInfo().features)
+                    }
+                    guard let self else { return }
+                    self.apply(available: value, features: features)
+                }
+            })
+        taskHolder.tasks.append(
+            Task { [weak self] in
+                for await reason in quiescence {
+                    quiescenceTapContinuation.yield(reason)
+                    guard let self else { return }
+                    self.apply(quiesced: reason)
+                }
+            })
     }
 
     deinit {
@@ -162,13 +199,27 @@ public final class CardMonitor {
     // MARK: - Stream handlers
 
     private func apply(snapshot: RegistrySnapshot) {
+        let readersChanged = snapshot.readers != readers
         readers = snapshot.readers
         cards = snapshot.cards
+        if readersChanged { rebuildReaderLabels() }
         // A registry snapshot is "the next presence event" that clears a
         // pending quiesce (the agent emits no explicit un-quiesce).
         quiescedReason = nil
         reconcileCertificateReading()
         recomputePresence()
+    }
+
+    private func rebuildReaderLabels() {
+        readerLabelMap = readerDisplayLabels(
+            readers,
+            contact: { Self.ifaceLabel("libremac_reader_iface_contact", "{model} — contact", $0) },
+            contactless: { Self.ifaceLabel("libremac_reader_iface_contactless", "{model} — contactless", $0) }
+        )
+    }
+
+    private nonisolated static func ifaceLabel(_ key: String, _ fallback: String, _ model: String) -> String {
+        LocalizedText(key: key, defaultText: fallback, placeholders: ["model": model]).resolve()
     }
 
     private func apply(available value: Bool, features: Set<String>) {
@@ -181,6 +232,10 @@ public final class CardMonitor {
             certReadTask = nil
             currentCardHandle = nil
             certificates = []
+            // A handle does not survive an agent restart; drop the transient
+            // pick so no stale reader handle lingers into a reconnect.
+            selectedReader = nil
+            readerLabelMap = [:]
         }
         recomputePresence()
     }
@@ -193,19 +248,21 @@ public final class CardMonitor {
     // MARK: - Certificate reading (the one op this view model drives)
 
     private func reconcileCertificateReading() {
-        let pkiCard = cards.first(where: { $0.caps.contains(.pki) })
-        guard pkiCard?.handle != currentCardHandle else { return }
-        currentCardHandle = pkiCard?.handle
+        let active = activeCard
+        guard active?.handle != currentCardHandle else { return }
+        currentCardHandle = active?.handle
         certReadTask?.cancel()
         certReadTask = nil
         certificates = []
-        // The signing card's identity just changed — removed outright, or
-        // swapped for a different card in the same snapshot with no
-        // intervening empty one. Either way, remove-on-eject must clear any
-        // previously published Keychain identity immediately, not only
-        // after (if ever) a new card's certs finish reading.
+        // The active card just changed — removed outright, swapped for a
+        // different card in the same snapshot, or re-targeted by the user's
+        // pick. Either way, remove-on-eject must clear any previously published
+        // Keychain identity immediately, not only after (if ever) a new card's
+        // certs finish reading.
         tokenRegistrar?.onCardRemoved()
-        guard let card = pkiCard else { return }
+        // Only PKI cards have certificates to read / identities to publish;
+        // an identity-only active card (passport, vehicle) leaves certs empty.
+        guard let card = active, card.caps.contains(.pki) else { return }
         certReadTask = Task { [weak self] in
             await self?.readCertificates(card: card)
         }
@@ -289,7 +346,7 @@ public final class CardMonitor {
         if !available { return .agentUnavailable }
         if let reason = quiescedReason { return .quiesced(reason) }
         if readers.isEmpty { return .noReader }
-        guard let card = cards.first else { return .readerEmpty }
+        guard let card = activeCard else { return .readerEmpty }
         let state = resolveCardState(
             caps: card.caps, preAuth: card.preAuth, present: true, identityRead: false)
         return .card(state)

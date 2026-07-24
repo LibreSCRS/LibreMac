@@ -23,11 +23,13 @@ struct CatalogCompletenessTests {
     // MARK: - Catalog locations (resolved from this source file)
 
     private static let repoRoot = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent() // CatalogCompletenessTests.swift
-        .deletingLastPathComponent() // LibreMacTests/
-    private static let enCatalog = repoRoot
+        .deletingLastPathComponent()  // CatalogCompletenessTests.swift
+        .deletingLastPathComponent()  // LibreMacTests/
+    private static let enCatalog =
+        repoRoot
         .appendingPathComponent("LibreMac/Resources/i18n/LibreMac_en.ts")
-    private static let srCatalog = repoRoot
+    private static let srCatalog =
+        repoRoot
         .appendingPathComponent("LibreMac/Resources/i18n/LibreMac_sr_RS.ts")
 
     // MARK: - Reference lists
@@ -97,6 +99,13 @@ struct CatalogCompletenessTests {
         "librescrs.pin.keyActivation.issuer",
     ]
 
+    /// The reader-picker ids the multi-reader UI renders.
+    private static let readerPickerIds: Set<String> = [
+        "libremac_reader_picker_title",
+        "libremac_reader_iface_contact",
+        "libremac_reader_iface_contactless",
+    ]
+
     // MARK: - Parsing
 
     /// All `<message id="...">` ids of a qtTrId-style `.ts` catalog, in
@@ -133,6 +142,14 @@ struct CatalogCompletenessTests {
         let missingInSr = Self.credentialIds.subtracting(sr)
         #expect(missingInEn.isEmpty, "missing in en: \(missingInEn.sorted())")
         #expect(missingInSr.isEmpty, "missing in sr: \(missingInSr.sorted())")
+    }
+
+    @Test("every reader-picker id exists in both catalogs")
+    func readerPickerIdsAreComplete() throws {
+        let en = Set(try Self.ids(of: Self.enCatalog))
+        let sr = Set(try Self.ids(of: Self.srCatalog))
+        #expect(Self.readerPickerIds.subtracting(en).isEmpty)
+        #expect(Self.readerPickerIds.subtracting(sr).isEmpty)
     }
 
     @Test("the agent's emitted guidance keys are translated in both catalogs")

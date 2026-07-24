@@ -10915,6 +10915,57 @@
         }
       }
     },
+    "libremac_reader_iface_contact" : {
+      "comment" : "libremac_reader_iface_contact",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{model} — contact"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{model} — контактно"
+          }
+        }
+      }
+    },
+    "libremac_reader_iface_contactless" : {
+      "comment" : "libremac_reader_iface_contactless",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{model} — contactless"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{model} — бесконтактно"
+          }
+        }
+      }
+    },
+    "libremac_reader_picker_title" : {
+      "comment" : "libremac_reader_picker_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reader"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Читач"
+          }
+        }
+      }
+    },
     "libremac_registrar_approve" : {
       "comment" : "libremac_registrar_approve",
       "localizations" : {

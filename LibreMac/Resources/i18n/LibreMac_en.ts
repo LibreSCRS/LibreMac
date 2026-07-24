@@ -422,5 +422,17 @@
         <source>The signing key is activated by the issuer.</source>
         <translation>The signing key is activated by the issuer.</translation>
     </message>
+    <message id="libremac_reader_iface_contact">
+        <source>{model} — contact</source>
+        <translation>{model} — contact</translation>
+    </message>
+    <message id="libremac_reader_iface_contactless">
+        <source>{model} — contactless</source>
+        <translation>{model} — contactless</translation>
+    </message>
+    <message id="libremac_reader_picker_title">
+        <source>Reader</source>
+        <translation>Reader</translation>
+    </message>
 </context>
 </TS>

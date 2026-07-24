@@ -422,5 +422,17 @@
         <source>The signing key is activated by the issuer.</source>
         <translation>Активацију кључа за потписивање обавља издавалац.</translation>
     </message>
+    <message id="libremac_reader_iface_contact">
+        <source>{model} — contact</source>
+        <translation>{model} — контактно</translation>
+    </message>
+    <message id="libremac_reader_iface_contactless">
+        <source>{model} — contactless</source>
+        <translation>{model} — бесконтактно</translation>
+    </message>
+    <message id="libremac_reader_picker_title">
+        <source>Reader</source>
+        <translation>Читач</translation>
+    </message>
 </context>
 </TS>
