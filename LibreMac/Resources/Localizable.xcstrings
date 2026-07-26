@@ -1118,7 +1118,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Субјект"
+            "value" : "Субјекат"
           }
         }
       }
@@ -2495,7 +2495,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Тип документа"
+            "value" : "Врста документа"
           }
         }
       }
@@ -3124,7 +3124,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Метода аутентификације"
+            "value" : "Метод аутентификације"
           }
         }
       }
@@ -3379,7 +3379,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Информације о старатељству"
+            "value" : "Подаци о старатељству"
           }
         }
       }
@@ -3464,7 +3464,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Врста документа"
+            "value" : "Шифра документа"
           }
         }
       }
@@ -3566,7 +3566,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Овлашћења"
+            "value" : "Напомене"
           }
         }
       }
@@ -3583,7 +3583,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Пуно име"
+            "value" : "Име и презиме"
           }
         }
       }
@@ -3600,7 +3600,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Имена"
+            "value" : "Име"
           }
         }
       }
@@ -6609,7 +6609,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Назив осигуравача"
+            "value" : "Осигуравач"
           }
         }
       }
@@ -9414,7 +9414,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Власник"
+            "value" : "Субјекат"
           }
         }
       }
@@ -9499,7 +9499,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Размена кључева"
+            "value" : "Договарање кључа"
           }
         }
       }
