@@ -22,6 +22,25 @@ import Foundation
 /// that: `err` first (exclusive with every success arm), then the
 /// remaining arms by their distinguishing key(s), in the CDDL's declared
 /// order.
+///
+/// Enum-VALUE tolerance (distinct from the map-KEY tolerance above): inside
+/// an otherwise-recognized shape, a closed enum's unrecognized VALUE never
+/// fails the frame either (`ClientCodec.h`'s tolerance table is the
+/// normative policy this mirrors). Numeric wire enums (`ErrorCode`,
+/// `OperationPhase`, `OperationStatus`, `QuiesceReason`, `PreReadAuth`) are
+/// wire-frozen append-only, so a value past this build's last named one is
+/// a FUTURE value, bounded only by the enum's OWN underlying-storage width
+/// (mirroring `ClientCodec.cpp`'s per-enum `static_cast` guards): `phase`,
+/// `status` and `code` are `uint32_t` on the wire and go through
+/// `requireWireEnumValue32` below; `preAuth` and `reason` are `uint8_t` on
+/// the wire and go through `requireWireEnumValue8`. Both helpers reject
+/// only a value too wide for that width to represent losslessly —
+/// genuinely malformed — and each enum's `init(wireValue:)` carries the
+/// (width-bounded) survivor through as `.unknown(UInt32)`. TEXT-token enums
+/// (`CredentialOutcome`, and `err-info`'s `SyncError` name arm) have no
+/// width to bound against, so an unrecognized token DEGRADES AT DECODE
+/// instead, to `.unspecified` / `.communicationError` respectively — see
+/// `parseCredResult` and `parseErrInfo` below.
 
 // MARK: - Errors
 
@@ -92,6 +111,12 @@ public enum AgentRequest: Sendable, Equatable {
     case readIdentity(card: String)
     case getPhoto(card: String)
     case readCertificates(card: String)
+    /// Lightweight token-info read (PKCS#15 TokenInfo or equivalent). Result
+    /// rides the EXISTING op-result-ready kind "Identity" — a single "token"
+    /// group (label/serial_number/manufacturer) — never a new result shape.
+    /// Gated on the `"token-info"` HelloAck feature token, like the
+    /// credentials family above.
+    case readTokenInfo(card: String)
     case sign(card: String, cert: String, inFd: UInt64, opts: SignOptions)
     case getCertDer(reader: String, cert: String)
     case getConfig
@@ -138,6 +163,8 @@ extension AgentRequest {
             pairs = [("t", .text("GetPhoto")), ("card", .text(card))]
         case .readCertificates(let card):
             pairs = [("t", .text("ReadCertificates")), ("card", .text(card))]
+        case .readTokenInfo(let card):
+            pairs = [("t", .text("ReadTokenInfo")), ("card", .text(card))]
         case .sign(let card, let cert, let inFd, let opts):
             pairs = [
                 ("t", .text("Sign")),
@@ -195,6 +222,17 @@ extension AgentRequest {
     }
 }
 
+private func encodeVisualSignatureOptions(_ v: VisualSignatureOptions) -> CBORValue {
+    cborMap([
+        ("page", .int(Int64(v.page))),
+        ("x", .double(v.x)),
+        ("y", .double(v.y)),
+        ("width", .double(v.width)),
+        ("height", .double(v.height)),
+        ("text", .text(v.text)),
+    ])
+}
+
 private func encodeSignOptions(_ o: SignOptions) -> CBORValue {
     var pairs: [(String, CBORValue)] = [
         ("format", .text(o.format)),
@@ -212,6 +250,12 @@ private func encodeSignOptions(_ o: SignOptions) -> CBORValue {
     }
     if let location = o.location {
         pairs.append(("location", .text(location)))
+    }
+    if let tsaUrl = o.tsaUrl {
+        pairs.append(("tsaUrl", .text(tsaUrl)))
+    }
+    if let visualSignature = o.visualSignature {
+        pairs.append(("visualSignature", encodeVisualSignatureOptions(visualSignature)))
     }
     return cborMap(pairs)
 }
@@ -388,10 +432,10 @@ public enum AgentMessages {
             return .configChanged(key: try requireText(m, "key"))
         case "OpProgress":
             let op = try requireUInt64(m, "op")
-            let phaseRaw = try requireUInt64(m, "phase")
-            guard let phase = OperationPhase(rawValue: UInt32(truncatingIfNeeded: phaseRaw)) else {
-                throw .wrongType("phase")
-            }
+            // Enum-VALUE tolerance: an unrecognized phase is a FUTURE value,
+            // not a malformed one — `OperationPhase(wireValue:)` never fails
+            // (see the file doc comment).
+            let phase = OperationPhase(wireValue: try requireWireEnumValue32(m, "phase"))
             let progress = try optionalDouble(m, "progress")
             let indeterminate = try optionalBool(m, "indeterminate")
             let watchdogSecs = try optionalUInt64(m, "watchdogSecs")
@@ -403,22 +447,18 @@ public enum AgentMessages {
             return .opResultReady(op: op, result: try parseOpResult(resultRaw))
         case "OpFinished":
             let op = try requireUInt64(m, "op")
-            let statusRaw = try requireUInt64(m, "status")
-            guard let status = OperationStatus(rawValue: UInt32(truncatingIfNeeded: statusRaw)) else {
-                throw .wrongType("status")
-            }
-            let codeRaw = try requireUInt64(m, "code")
-            guard let code = ErrorCode(rawValue: UInt32(truncatingIfNeeded: codeRaw)) else {
-                throw .wrongType("code")
-            }
+            // Enum-VALUE tolerance: same as `phase` above, for both
+            // `status` and `code`.
+            let status = OperationStatus(wireValue: try requireWireEnumValue32(m, "status"))
+            let code = ErrorCode(wireValue: try requireWireEnumValue32(m, "code"))
             let msgKey = try requireText(m, "msgKey")
             let msgFallback = try requireText(m, "msgFallback")
             return .opFinished(op: op, status: status, code: code, msgKey: msgKey, msgFallback: msgFallback)
         case "AgentQuiesced":
-            let reasonRaw = try requireUInt64(m, "reason")
-            guard let reason = QuiesceReason(rawValue: UInt32(truncatingIfNeeded: reasonRaw)) else {
-                throw .wrongType("reason")
-            }
+            // Enum-VALUE tolerance: same as `phase` above, but `reason` is
+            // `uint8_t` on the wire (see the file doc comment), so this
+            // bounds at `requireWireEnumValue8`, not `...32`.
+            let reason = QuiesceReason(wireValue: try requireWireEnumValue8(m, "reason"))
             return .agentQuiesced(reason: reason)
         default:
             throw .unknownMessage
@@ -432,15 +472,20 @@ private func parseErrInfo(_ v: CBORValue) throws(MessageError) -> ErrInfo {
     let m = try requireMap(v, field: "err")
     let code: ErrInfo.Code
     if let codeRaw = mapGet(m, "code") {
-        guard let raw = numericUInt64(codeRaw), let ec = ErrorCode(rawValue: UInt32(truncatingIfNeeded: raw)) else {
-            throw .wrongType("err.code")
-        }
-        code = .code(ec)
+        // Enum-VALUE tolerance: an unrecognized numeric code is a FUTURE
+        // value, not a malformed one (see the file doc comment). Only a
+        // non-numeric `code` or one too wide for `UInt32` is genuinely
+        // malformed.
+        guard let raw = numericUInt64(codeRaw) else { throw .wrongType("err.code") }
+        guard raw <= UInt64(UInt32.max) else { throw .wrongType("err.code") }
+        code = .code(ErrorCode(wireValue: UInt32(raw)))
     } else if let nameRaw = mapGet(m, "name") {
-        guard case .text(let s) = nameRaw, let se = SyncError(rawValue: s) else {
-            throw .wrongType("err.name")
-        }
-        code = .name(se)
+        guard case .text(let s) = nameRaw else { throw .wrongType("err.name") }
+        // Enum-VALUE tolerance: `SyncError` is a TEXT-token enum, so an
+        // unrecognized token DEGRADES AT DECODE to `.communicationError`
+        // instead of failing this map (and the whole reply) closed — see
+        // `SyncError`'s type doc comment.
+        code = .name(SyncError(rawValue: s) ?? .communicationError)
     } else {
         throw .missingField("err.code|err.name")
     }
@@ -461,10 +506,12 @@ private func parseReaderState(_ v: CBORValue) throws(MessageError) -> ReaderStat
 private func parseCardState(_ v: CBORValue) throws(MessageError) -> CardState {
     let m = try requireMap(v, field: "card")
     let capsRaw = try requireUInt64(m, "caps")
-    let preAuthRaw = try requireUInt64(m, "preAuth")
-    guard let preAuth = PreReadAuth(rawValue: UInt32(truncatingIfNeeded: preAuthRaw)) else {
-        throw .wrongType("preAuth")
-    }
+    // Enum-VALUE tolerance: an unrecognized preAuth value is a FUTURE
+    // unlock method, not a malformed one (see the file doc comment); what
+    // it MEANS is decided by `CardPresence.resolveCardState`, not here.
+    // `preAuth` is `uint8_t` on the wire, so this bounds at
+    // `requireWireEnumValue8`, not `...32`.
+    let preAuth = PreReadAuth(wireValue: try requireWireEnumValue8(m, "preAuth"))
     return CardState(
         handle: try requireText(m, "handle"),
         reader: try requireText(m, "reader"),
@@ -612,15 +659,14 @@ private func parseOpResult(_ v: CBORValue) throws(MessageError) -> OpResult {
     }
 }
 
-/// Parses a `cred-result` shape. `outcome` decodes FAIL-CLOSED
-/// (`CredentialOutcome`'s contract — the `SyncError` precedent); the
-/// optional keys are omitted-when-absent on the wire.
+/// Parses a `cred-result` shape. `outcome` DEGRADES AT DECODE to
+/// `.unspecified` for an unrecognized token (`CredentialOutcome`'s type
+/// doc comment — the `SyncError` precedent); the optional keys are
+/// omitted-when-absent on the wire.
 private func parseCredResult(_ v: CBORValue) throws(MessageError) -> CredentialResult {
     let m = try requireMap(v, field: "result")
     let token = try requireText(m, "outcome")
-    guard let outcome = CredentialOutcome(rawValue: token) else {
-        throw .wrongType("outcome")
-    }
+    let outcome = CredentialOutcome(rawValue: token) ?? .unspecified
     return CredentialResult(
         outcome: outcome,
         retriesLeft: try optionalUInt32(m, "retriesLeft"),
@@ -631,7 +677,9 @@ private func parseCredResult(_ v: CBORValue) throws(MessageError) -> CredentialR
 
 /// Parses one `cred-record` (23 wire keys). The four token-valued enum
 /// fields decode via `init(token:)` — unrecognized tokens degrade to
-/// `.unknown` (see `CredentialKind`), unlike the fail-closed `outcome`.
+/// `.unknown` (see `CredentialKind`), the same decode-time-degrade shape
+/// `outcome` above uses (to `.unspecified` instead, since `.unknown` is
+/// not part of `cred-outcome`'s wire vocabulary).
 private func parseCredRecord(_ v: CBORValue) throws(MessageError) -> CredentialRecord {
     let m = try requireMap(v, field: "cred-record")
     return CredentialRecord(
@@ -719,6 +767,41 @@ private func requireUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(Messa
     guard let raw = mapGet(m, key) else { throw .missingField(key) }
     guard let u = numericUInt64(raw) else { throw .wrongType(key) }
     return u
+}
+
+/// Width-bounded `UInt64` -> `UInt32` conversion for the three numeric wire
+/// enum fields whose C++ storage is `uint32_t` (`phase`, `status`, `code`):
+/// rejects ONLY a value too wide for `UInt32` to represent losslessly — a
+/// genuinely malformed frame (two distinct future values silently aliasing
+/// onto one stored value) — mirroring the C++ codec's `static_cast` width
+/// guard (`ClientCodec.cpp`'s `decodeOperationPhase` / `decodeOperationStatus`
+/// / the `ErrorCode` decoder). Never rejects merely because the value has
+/// no case name yet — that tolerance lives in each enum's
+/// `init(wireValue:)`, called by every caller of this helper (see the file
+/// doc comment). For the two `uint8_t`-storage enums (`preAuth`, `reason`),
+/// see `requireWireEnumValue8` below instead.
+private func requireWireEnumValue32(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt32 {
+    let raw = try requireUInt64(m, key)
+    guard raw <= UInt64(UInt32.max) else { throw .wrongType(key) }
+    return UInt32(raw)
+}
+
+/// Width-bounded `UInt64` -> `UInt32` conversion for the two numeric wire
+/// enum fields whose C++ storage is `uint8_t` (`preAuth`, `reason`): rejects
+/// a value too wide for `UInt8` to represent losslessly, mirroring the
+/// C++ codec's `static_cast` width guard (`ClientCodec.cpp`'s
+/// `decodePreReadAuth` / `decodeQuiesceReason`). The return type is still
+/// `UInt32` (not `UInt8`) purely so the bounded value plugs straight into
+/// `PreReadAuth.init(wireValue:)` / `QuiesceReason.init(wireValue:)`, whose
+/// `.unknown` case carries a `UInt32` for shape-uniformity with the other
+/// three enums — only the ACCEPTED range differs here, not the Swift-side
+/// storage type. Never rejects merely because the value has no case name
+/// yet — that tolerance lives in each enum's `init(wireValue:)`, called by
+/// every caller of this helper (see the file doc comment).
+private func requireWireEnumValue8(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt32 {
+    let raw = try requireUInt64(m, key)
+    guard raw <= UInt64(UInt8.max) else { throw .wrongType(key) }
+    return UInt32(raw)
 }
 
 private func requireBool(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> Bool {

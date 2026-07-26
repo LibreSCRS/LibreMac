@@ -186,6 +186,10 @@
         <source>system asleep</source>
         <translation>system asleep</translation>
     </message>
+    <message id="libremac_quiesce_unknown">
+        <source>for an unspecified reason</source>
+        <translation>for an unspecified reason</translation>
+    </message>
     <message id="libremac_registrar_approve">
         <source>Approve the signing agent in Login Items…</source>
         <translation>Approve the signing agent in Login Items…</translation>

@@ -25,9 +25,9 @@ struct CardPresenceTests {
     func resolveLatches() {
         #expect(resolveCardState(caps: .pki, preAuth: .none, present: false, identityRead: false) == .noCard)
         // Pre-auth required and identity not yet read -> the unlock prompt.
-        #expect(resolveCardState(caps: .identityData, preAuth: .paceCan, present: true, identityRead: false) == .preAuthRequired)
+        #expect(resolveCardState(caps: .identityData, preAuth: .can, present: true, identityRead: false) == .preAuthRequired)
         // Same card, identity already read -> the latch clears.
-        #expect(resolveCardState(caps: .identityData, preAuth: .paceCan, present: true, identityRead: true) == .identityOnly)
+        #expect(resolveCardState(caps: .identityData, preAuth: .can, present: true, identityRead: true) == .identityOnly)
     }
 
     @Test("a present card with no usable capability is an error, not none")
@@ -39,5 +39,10 @@ struct CardPresenceTests {
     @Test("a present hybrid card resolves to hybrid")
     func hybridResolves() {
         #expect(resolveCardState(caps: [.identityData, .pki], preAuth: .none, present: true, identityRead: false) == .hybrid)
+    }
+
+    @Test("an unrecognized (future) preAuth value is treated the same as .none — never strands the card behind a latch it cannot honor")
+    func unrecognizedPreAuthBehavesLikeNone() {
+        #expect(resolveCardState(caps: .identityData, preAuth: .unknown(9), present: true, identityRead: false) == .identityOnly)
     }
 }

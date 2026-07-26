@@ -19,9 +19,11 @@ import Foundation
 // fields, resolved in favor of the wire source of truth (documented at
 // length on `SignOptions`/`CertificateInfo` in
 // `AgentTypes.swift`):
-//   - `Sign.opts` has no `tsa` field (CDDL is explicit: the TSA is
-//     Config1-owned). The optional fields exercised below are
-//     `allowExpired`/`displayName`/`reason`/`location`.
+//   - `Sign.opts`'s optional fields are `allowExpired`/`displayName`/
+//     `reason`/`location`/`tsaUrl`/`visualSignature` — the last two are a
+//     per-request TSA override and PAdES visible-signature appearance,
+//     each gated behind its own feature token (documented on `SignOptions`
+//     itself); both are exercised directly below.
 //   - `CertificateInfo` mirrors the wire's grouped `fields` map, not a
 //     flat `subjectCN`/`issuerCN`/... shape.
 
@@ -74,6 +76,28 @@ struct MessagesRequestEncodeTests {
         #expect(body.contains(0xA3))
         #expect(!body.contains(Data("allowExpired".utf8)))
         #expect(!body.contains(Data("tsa".utf8)))
+    }
+
+    @Test("Sign with tsaUrl + visualSignature carries both keys, the nested map field-for-field")
+    func signRequestWithTsaUrlAndVisualSignatureCarriesBothKeys() {
+        let visual = VisualSignatureOptions(page: 1, x: 10.5, y: 20.25, width: 150.0, height: 60.0, text: "Signed by {cn}")
+        let opts = SignOptions(
+            format: "pades", level: "b-t", packaging: "enveloped",
+            tsaUrl: "https://tsa.example.com/ts", visualSignature: visual)
+        let body = AgentRequest.sign(card: "card/0", cert: "abc123", inFd: 0, opts: opts).encode(req: 21)
+        // Substring checks only (no hand-computed byte-exactness, unlike signRequest
+        // above) -- the canonical encoder re-sorts map keys regardless of Swift
+        // construction order (CanonicalCBOR.swift's own sorted-pairs encode), so a
+        // key/value substring is a reliable, toolchain-verifiable signal without
+        // hand-deriving the full canonical byte layout.
+        #expect(body.contains(Data("tsaUrl".utf8)))
+        #expect(body.contains(Data("https://tsa.example.com/ts".utf8)))
+        #expect(body.contains(Data("visualSignature".utf8)))
+        #expect(body.contains(Data("page".utf8)))
+        #expect(body.contains(Data("width".utf8)))
+        #expect(body.contains(Data("height".utf8)))
+        #expect(body.contains(Data("text".utf8)))
+        #expect(body.contains(Data("Signed by {cn}".utf8)))
     }
 
     @Test("ListCredentials — {t,req,card}, canonical key order t(1) req(3) card(4)")
@@ -199,7 +223,46 @@ struct MessagesReplyDecodeTests {
             env.reply
                 == .state(
                     readers: [ReaderState(handle: "r1", name: "Reader One", hasCard: true, card: "c1")],
-                    cards: [CardState(handle: "c1", reader: "r1", caps: Capabilities(rawValue: 3), preAuth: .paceCan)]
+                    cards: [CardState(handle: "c1", reader: "r1", caps: Capabilities(rawValue: 3), preAuth: .can)]
+                ))
+    }
+
+    @Test("Reply/State — card-state's new cardType/atr keys are unknown map keys to this build and MUST NOT disturb decode")
+    func stateToleratesCardTypeAndAtrExtraKeys() throws {
+        // Same fixture as `state()` above, with the card-state map (a 4-key
+        // 0xA4) extended to a 6-key 0xA6 carrying two keys this Swift mirror
+        // has NO CardState property for: "atr" ("3B7F9600", sorts first —
+        // canonical CBOR orders map keys by encoded length, and "atr" (3
+        // bytes) is shorter than every existing key) and "cardType"
+        // ("SRB-eID", sorts last — 8 bytes, the longest key). Swift already
+        // tolerates unknown map keys inside a known shape (see
+        // `ackWithUnknownExtraKey` above); this proves it specifically for
+        // the exact two keys the agent's wire just grew, without adding a
+        // Swift-side `cardType`/`atr` property anywhere — the decoded
+        // CardState must come out BYTE-FOR-BYTE the same as `state()`'s.
+        let bytes = Data([
+            0xA4, 0x61, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6C, 0x79, 0x63, 0x72, 0x65, 0x71, 0x08, 0x65, 0x63, 0x61,
+            0x72, 0x64, 0x73, 0x81,
+            0xA6,
+            0x63, 0x61, 0x74, 0x72, 0x68, 0x33, 0x42, 0x37, 0x46, 0x39, 0x36, 0x30, 0x30, // atr: "3B7F9600"
+            0x64, 0x63, 0x61, 0x70, 0x73, 0x03, // caps: 3
+            0x66, 0x68, 0x61, 0x6E, 0x64, 0x6C, 0x65, 0x62, 0x63, 0x31, // handle: "c1"
+            0x66, 0x72, 0x65, 0x61, 0x64, 0x65, 0x72, 0x62, 0x72, 0x31, // reader: "r1"
+            0x67, 0x70, 0x72, 0x65, 0x41, 0x75, 0x74, 0x68, 0x02, // preAuth: 2 (.can)
+            0x68, 0x63, 0x61, 0x72, 0x64, 0x54, 0x79, 0x70, 0x65, 0x67, 0x53, 0x52, 0x42, 0x2D, 0x65, 0x49,
+            0x44, // cardType: "SRB-eID"
+            0x67, 0x72, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73, 0x81, 0xA4, 0x64,
+            0x63, 0x61, 0x72, 0x64, 0x62, 0x63, 0x31, 0x64, 0x6E, 0x61, 0x6D, 0x65, 0x6A, 0x52, 0x65, 0x61, 0x64,
+            0x65, 0x72, 0x20, 0x4F, 0x6E, 0x65, 0x66, 0x68, 0x61, 0x6E, 0x64, 0x6C, 0x65, 0x62, 0x72, 0x31, 0x67,
+            0x68, 0x61, 0x73, 0x43, 0x61, 0x72, 0x64, 0xF5,
+        ])
+        let env = try AgentMessages.decodeReply(bytes)
+        #expect(env.req == 8)
+        #expect(
+            env.reply
+                == .state(
+                    readers: [ReaderState(handle: "r1", name: "Reader One", hasCard: true, card: "c1")],
+                    cards: [CardState(handle: "c1", reader: "r1", caps: Capabilities(rawValue: 3), preAuth: .can)]
                 ))
     }
 
@@ -233,6 +296,96 @@ struct MessagesReplyDecodeTests {
         let envB = try AgentMessages.decodeReply(invalidRequest)
         #expect(envB.req == 10)
         #expect(envB.reply == .err(ErrInfo(code: .name(.invalidRequest))))
+    }
+
+    @Test("Reply/err named arm — an unrecognized sync-error token degrades to .communicationError (decode-time tolerance)")
+    func errNameArmDegradesToCommunicationErrorForUnrecognizedToken() throws {
+        // Same fixture as `errNameArm` above, with "UnknownCard" (11 chars)
+        // swapped byte-for-byte for "FutureError" (11 chars) — an
+        // unrecognized `sync-error` token this build has no case for. This
+        // MUST NOT fail the frame.
+        let bytes = Data([
+            0xA3, 0x61, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6C, 0x79, 0x63, 0x65, 0x72, 0x72, 0xA1, 0x64, 0x6E, 0x61,
+            0x6D, 0x65, 0x6B, 0x46, 0x75, 0x74, 0x75, 0x72, 0x65, 0x45, 0x72, 0x72, 0x6F, 0x72, 0x63, 0x72, 0x65,
+            0x71, 0x06,
+        ])
+        let env = try AgentMessages.decodeReply(bytes)
+        #expect(env.req == 6)
+        #expect(env.reply == .err(ErrInfo(code: .name(.communicationError))))
+    }
+
+    @Test("Reply/State — an unrecognized preAuth value decodes through raw, never fails the frame")
+    func statePreAuthFutureValue() throws {
+        // Same fixture as `state` above, with the `preAuth` value byte
+        // changed from 0x02 (`.can`) to 0x09 (unrecognized) — a future
+        // pre-read-unlock method this build has no case for.
+        let bytes = Data([
+            0xA4, 0x61, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6C, 0x79, 0x63, 0x72, 0x65, 0x71, 0x08, 0x65, 0x63, 0x61,
+            0x72, 0x64, 0x73, 0x81, 0xA4, 0x64, 0x63, 0x61, 0x70, 0x73, 0x03, 0x66, 0x68, 0x61, 0x6E, 0x64, 0x6C,
+            0x65, 0x62, 0x63, 0x31, 0x66, 0x72, 0x65, 0x61, 0x64, 0x65, 0x72, 0x62, 0x72, 0x31, 0x67, 0x70, 0x72,
+            0x65, 0x41, 0x75, 0x74, 0x68, 0x09, 0x67, 0x72, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73, 0x81, 0xA4, 0x64,
+            0x63, 0x61, 0x72, 0x64, 0x62, 0x63, 0x31, 0x64, 0x6E, 0x61, 0x6D, 0x65, 0x6A, 0x52, 0x65, 0x61, 0x64,
+            0x65, 0x72, 0x20, 0x4F, 0x6E, 0x65, 0x66, 0x68, 0x61, 0x6E, 0x64, 0x6C, 0x65, 0x62, 0x72, 0x31, 0x67,
+            0x68, 0x61, 0x73, 0x43, 0x61, 0x72, 0x64, 0xF5,
+        ])
+        let env = try AgentMessages.decodeReply(bytes)
+        #expect(env.req == 8)
+        #expect(
+            env.reply
+                == .state(
+                    readers: [ReaderState(handle: "r1", name: "Reader One", hasCard: true, card: "c1")],
+                    cards: [CardState(handle: "c1", reader: "r1", caps: Capabilities(rawValue: 3), preAuth: .unknown(9))]
+                ))
+    }
+
+    @Test("Reply/State — a preAuth value too wide for UInt8 fails closed (genuinely malformed, not merely unrecognized)")
+    func statePreAuthValueTooWideFailsClosed() {
+        // Same fixture as `statePreAuthFutureValue` above, with the
+        // `preAuth` value replaced by the 3-byte canonical encoding (major
+        // type 0, additional info 25) of 256 (2^8) — one past `UInt8.max`.
+        // `preAuth` is `uint8_t` on the wire (unlike `phase`/`status`/`code`,
+        // which are `uint32_t`), so this must fail closed far below
+        // `UInt32.max`. Width-bound rejection: this is genuinely malformed
+        // (two distinct future values would silently alias onto one stored
+        // value), unlike an in-range but unrecognized value.
+        let bytes = Data([
+            0xA4, 0x61, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6C, 0x79, 0x63, 0x72, 0x65, 0x71, 0x08, 0x65, 0x63, 0x61,
+            0x72, 0x64, 0x73, 0x81, 0xA4, 0x64, 0x63, 0x61, 0x70, 0x73, 0x03, 0x66, 0x68, 0x61, 0x6E, 0x64, 0x6C,
+            0x65, 0x62, 0x63, 0x31, 0x66, 0x72, 0x65, 0x61, 0x64, 0x65, 0x72, 0x62, 0x72, 0x31, 0x67, 0x70, 0x72,
+            0x65, 0x41, 0x75, 0x74, 0x68, 0x19, 0x01, 0x00, 0x67, 0x72, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73, 0x81,
+            0xA4, 0x64, 0x63, 0x61, 0x72, 0x64, 0x62, 0x63, 0x31, 0x64, 0x6E, 0x61, 0x6D, 0x65, 0x6A, 0x52, 0x65,
+            0x61, 0x64, 0x65, 0x72, 0x20, 0x4F, 0x6E, 0x65, 0x66, 0x68, 0x61, 0x6E, 0x64, 0x6C, 0x65, 0x62, 0x72,
+            0x31, 0x67, 0x68, 0x61, 0x73, 0x43, 0x61, 0x72, 0x64, 0xF5,
+        ])
+        #expect(throws: MessageError.wrongType("preAuth")) {
+            try AgentMessages.decodeReply(bytes)
+        }
+    }
+
+    @Test("Reply/State — preAuth = 255 (UInt8.max) is the last value that still carries through as .unknown")
+    func statePreAuthBoundaryValueCarriesThrough() throws {
+        // Same fixture as `statePreAuthFutureValue` above, with the
+        // `preAuth` value replaced by the 2-byte canonical encoding (major
+        // type 0, additional info 24) of 255 (`UInt8.max`) — the widest
+        // value the wire's `uint8_t` storage can still represent
+        // losslessly, so unlike the 256 case above this MUST NOT fail the
+        // frame.
+        let bytes = Data([
+            0xA4, 0x61, 0x74, 0x65, 0x52, 0x65, 0x70, 0x6C, 0x79, 0x63, 0x72, 0x65, 0x71, 0x08, 0x65, 0x63, 0x61,
+            0x72, 0x64, 0x73, 0x81, 0xA4, 0x64, 0x63, 0x61, 0x70, 0x73, 0x03, 0x66, 0x68, 0x61, 0x6E, 0x64, 0x6C,
+            0x65, 0x62, 0x63, 0x31, 0x66, 0x72, 0x65, 0x61, 0x64, 0x65, 0x72, 0x62, 0x72, 0x31, 0x67, 0x70, 0x72,
+            0x65, 0x41, 0x75, 0x74, 0x68, 0x18, 0xFF, 0x67, 0x72, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73, 0x81, 0xA4,
+            0x64, 0x63, 0x61, 0x72, 0x64, 0x62, 0x63, 0x31, 0x64, 0x6E, 0x61, 0x6D, 0x65, 0x6A, 0x52, 0x65, 0x61,
+            0x64, 0x65, 0x72, 0x20, 0x4F, 0x6E, 0x65, 0x66, 0x68, 0x61, 0x6E, 0x64, 0x6C, 0x65, 0x62, 0x72, 0x31,
+            0x67, 0x68, 0x61, 0x73, 0x43, 0x61, 0x72, 0x64, 0xF5,
+        ])
+        let env = try AgentMessages.decodeReply(bytes)
+        #expect(
+            env.reply
+                == .state(
+                    readers: [ReaderState(handle: "r1", name: "Reader One", hasCard: true, card: "c1")],
+                    cards: [CardState(handle: "c1", reader: "r1", caps: Capabilities(rawValue: 3), preAuth: .unknown(255))]
+                ))
     }
 }
 
@@ -496,8 +649,11 @@ struct MessagesEventDecodeTests {
         #expect(record.recovery == .unknown)
     }
 
-    @Test("OpResultReady/Credentials — unrecognized outcome token fails closed (SyncError precedent)")
-    func credentialOutcomeFailClosed() {
+    @Test("OpResultReady/Credentials — unrecognized outcome token degrades to .unspecified (decode-time tolerance)")
+    func credentialOutcomeDegradesToUnspecified() throws {
+        // Same fixture as the pre-tolerance fixed test: outcome:"futureOutcome"
+        // (13-char text token, unrecognized by this build's `cred-outcome`
+        // vocabulary) — this MUST NOT fail the frame.
         let bytes = Data([
             0xA3, 0x61, 0x74, 0x6D, 0x4F, 0x70, 0x52, 0x65, 0x73, 0x75, 0x6C, 0x74, 0x52, 0x65, 0x61, 0x64, 0x79,
             0x62, 0x6F, 0x70, 0x11, 0x66, 0x72, 0x65, 0x73, 0x75, 0x6C, 0x74, 0xA3, 0x64, 0x6B, 0x69, 0x6E, 0x64,
@@ -506,9 +662,14 @@ struct MessagesEventDecodeTests {
             0x6F, 0x6D, 0x65, 0x6D, 0x66, 0x75, 0x74, 0x75, 0x72, 0x65, 0x4F, 0x75, 0x74, 0x63, 0x6F, 0x6D, 0x65,
             0x67, 0x72, 0x65, 0x63, 0x6F, 0x72, 0x64, 0x73, 0x80,
         ])
-        #expect(throws: MessageError.wrongType("outcome")) {
-            try AgentMessages.decodeEvent(bytes)
+        let ev = try AgentMessages.decodeEvent(bytes)
+        guard case .opResultReady(let op, .credentials(let payload)) = ev else {
+            Issue.record("expected .opResultReady(.credentials)")
+            return
         }
+        #expect(op == 17)
+        #expect(payload.result.outcome == .unspecified)
+        #expect(payload.result.blocked == false)
     }
 
     @Test("OpResultReady/Credentials — a ManagePin result echo tolerates unknown extra map keys (append-only evolution)")
@@ -548,5 +709,90 @@ struct MessagesEventDecodeTests {
                             result: CredentialResult(outcome: .ok, blocked: false),
                             records: [minimal]))
                 ))
+    }
+
+    // MARK: - Numeric enum-VALUE tolerance (future values decode through raw)
+
+    @Test("OpProgress — an unrecognized phase value decodes through raw, never fails the frame")
+    func opProgressFuturePhaseValue() throws {
+        // Same fixture as `opProgress` above, with the `phase` value byte
+        // changed from 0x05 (`.signing`, one byte) to the two-byte
+        // canonical encoding of 99 (0x18 0x63) — a future phase this build
+        // has no case for.
+        let bytes = Data([
+            0xA4, 0x61, 0x74, 0x6A, 0x4F, 0x70, 0x50, 0x72, 0x6F, 0x67, 0x72, 0x65, 0x73, 0x73, 0x62, 0x6F, 0x70,
+            0x09, 0x65, 0x70, 0x68, 0x61, 0x73, 0x65, 0x18, 0x63, 0x68, 0x70, 0x72, 0x6F, 0x67, 0x72, 0x65, 0x73, 0x73,
+            0xF9, 0x38, 0x00,
+        ])
+        let ev = try AgentMessages.decodeEvent(bytes)
+        #expect(ev == .opProgress(op: 9, phase: .unknown(99), progress: 0.5, indeterminate: nil, watchdogSecs: nil))
+    }
+
+    @Test("OpProgress — a phase value too wide for UInt32 fails closed (genuinely malformed, not merely unrecognized)")
+    func opProgressPhaseValueTooWideFailsClosed() {
+        // Same fixture again, with the `phase` value replaced by the
+        // 9-byte canonical encoding (major type 0, additional info 27) of
+        // 4294967296 (2^32) — one past `UInt32.max`. Width-bound
+        // rejection: this is genuinely malformed (two distinct future
+        // values would silently alias onto one stored value), unlike an
+        // in-range but unrecognized value.
+        let bytes = Data([
+            0xA4, 0x61, 0x74, 0x6A, 0x4F, 0x70, 0x50, 0x72, 0x6F, 0x67, 0x72, 0x65, 0x73, 0x73, 0x62, 0x6F, 0x70,
+            0x09, 0x65, 0x70, 0x68, 0x61, 0x73, 0x65, 0x1B, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x68, 0x70, 0x72, 0x6F, 0x67, 0x72, 0x65, 0x73, 0x73, 0xF9, 0x38, 0x00,
+        ])
+        #expect(throws: MessageError.wrongType("phase")) {
+            try AgentMessages.decodeEvent(bytes)
+        }
+    }
+
+    @Test("OpFinished — unrecognized status and code values both decode through raw, never fail the frame")
+    func opFinishedFutureStatusAndCodeValues() throws {
+        // Same fixture as `opFinished` above, with `code`'s value changed
+        // from 0x00 to the 3-byte canonical encoding of 10000 (0x19 0x27
+        // 0x10) and `status`'s value changed from 0x00 to 0x07 (both
+        // single-byte, in range) — future values this build has no case
+        // for.
+        let bytes = Data([
+            0xA6, 0x61, 0x74, 0x6A, 0x4F, 0x70, 0x46, 0x69, 0x6E, 0x69, 0x73, 0x68, 0x65, 0x64, 0x62, 0x6F, 0x70,
+            0x0C, 0x64, 0x63, 0x6F, 0x64, 0x65, 0x19, 0x27, 0x10, 0x66, 0x6D, 0x73, 0x67, 0x4B, 0x65, 0x79, 0x60,
+            0x66, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x07, 0x6B, 0x6D, 0x73, 0x67, 0x46, 0x61, 0x6C, 0x6C, 0x62,
+            0x61, 0x63, 0x6B, 0x60,
+        ])
+        let ev = try AgentMessages.decodeEvent(bytes)
+        #expect(ev == .opFinished(op: 12, status: .unknown(7), code: .unknown(10000), msgKey: "", msgFallback: ""))
+    }
+
+    @Test("AgentQuiesced — an unrecognized reason value decodes through raw, never fails the frame")
+    func agentQuiescedFutureReasonValue() throws {
+        // Same fixture as `agentQuiesced` above, with the `reason` value
+        // byte changed from 0x01 (`.screenLocked`, one byte) to the
+        // two-byte canonical encoding of 42 (0x18 0x2A) — a future reason
+        // this build has no case for.
+        let bytes = Data([
+            0xA2, 0x61, 0x74, 0x6D, 0x41, 0x67, 0x65, 0x6E, 0x74, 0x51, 0x75, 0x69, 0x65, 0x73, 0x63, 0x65, 0x64,
+            0x66, 0x72, 0x65, 0x61, 0x73, 0x6F, 0x6E, 0x18, 0x2A,
+        ])
+        let ev = try AgentMessages.decodeEvent(bytes)
+        #expect(ev == .agentQuiesced(reason: .unknown(42)))
+    }
+
+    @Test("AgentQuiesced — a reason value too wide for UInt8 fails closed (genuinely malformed, not merely unrecognized)")
+    func agentQuiescedReasonValueTooWideFailsClosed() {
+        // Same fixture as `agentQuiescedFutureReasonValue` above, with the
+        // `reason` value replaced by the 3-byte canonical encoding (major
+        // type 0, additional info 25) of 256 (2^8) — one past `UInt8.max`.
+        // `reason` is `uint8_t` on the wire (unlike `phase`/`status`/`code`,
+        // which are `uint32_t`), so this must fail closed far below
+        // `UInt32.max`. Width-bound rejection: this is genuinely malformed
+        // (two distinct future values would silently alias onto one stored
+        // value), unlike an in-range but unrecognized value.
+        let bytes = Data([
+            0xA2, 0x61, 0x74, 0x6D, 0x41, 0x67, 0x65, 0x6E, 0x74, 0x51, 0x75, 0x69, 0x65, 0x73, 0x63, 0x65, 0x64,
+            0x66, 0x72, 0x65, 0x61, 0x73, 0x6F, 0x6E, 0x19, 0x01, 0x00,
+        ])
+        #expect(throws: MessageError.wrongType("reason")) {
+            try AgentMessages.decodeEvent(bytes)
+        }
     }
 }

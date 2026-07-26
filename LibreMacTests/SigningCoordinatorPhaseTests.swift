@@ -56,6 +56,38 @@ struct SigningCoordinatorPhaseTests {
         await signTask.value
     }
 
+    @Test("an unrecognized (future) phase never regresses the rendered stage")
+    func unrecognizedPhaseHoldsStage() async {
+        let operation = AgentOperation(id: 3, kind: .sign, cancelHandler: {})
+        let client = MockSigningClient(.returnOperation(operation))
+        let coordinator = SigningCoordinator(client: client)
+        let input = makeTempFile()
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("out-\(UUID().uuidString)")
+
+        let signTask = Task {
+            await coordinator.sign(
+                card: "card:0", certId: "cert:0", inputURL: input, destinationURL: output)
+        }
+
+        #expect(await waitUntil { client.signCallCount == 1 })
+        operation.publishPhase(.awaitingConsent, progress: nil)
+        #expect(await waitUntil { coordinator.stage == .awaitingConsent })
+
+        // A future agent reports a phase this build has no case for — the
+        // rendered stage must hold at .awaitingConsent, not regress.
+        operation.publishPhase(.unknown(99), progress: nil)
+        try? await Task.sleep(nanoseconds: 20_000_000)
+        #expect(coordinator.stage == .awaitingConsent)
+
+        operation.resolveFinished((.error, .authFailed, nil, "auth failed"))
+        #expect(await waitUntil {
+            if case .failed = coordinator.stage { return true }
+            return false
+        })
+        await signTask.value
+    }
+
     @Test("a successful sign copies the artifact fd to the destination")
     func successCopiesArtifact() async {
         let operation = AgentOperation(id: 2, kind: .sign, cancelHandler: {})

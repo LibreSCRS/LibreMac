@@ -70,6 +70,12 @@ struct CardStatusView: View {
             return loc("libremac_quiesce_session_inactive", "another user is active")
         case .shutdown:
             return loc("libremac_quiesce_shutdown", "shutting down")
+        case .unknown:
+            // Wire tolerance: nothing branches on QuiesceReason's value;
+            // an unrecognized reason (wire-frozen append-only) is inertly
+            // a "generic quiesce" — generic copy, not a guess at what a
+            // future reason means (see `ClientCodec.h`'s tolerance table).
+            return loc("libremac_quiesce_unknown", "for an unspecified reason")
         }
     }
 

@@ -37,6 +37,13 @@ struct ErrorCopyTests {
         #expect(ErrorCopy.message(for: .none, msgFallback: fallback) == fallback)
     }
 
+    @Test("an unrecognized (future) code falls back to the agent-provided msgFallback, like .none")
+    func unknownCodeFallsBackToMsgFallback() {
+        let fallback = "a future agent's authored message"
+        #expect(ErrorCopy.localizedText(for: .unknown(10000)) == nil)
+        #expect(ErrorCopy.message(for: .unknown(10000), msgFallback: fallback) == fallback)
+    }
+
     @Test("a localized code ignores the fallback and returns non-empty copy")
     func localizedCodeReturnsNonEmpty() {
         let message = ErrorCopy.message(for: .credentialWrong, msgFallback: "")

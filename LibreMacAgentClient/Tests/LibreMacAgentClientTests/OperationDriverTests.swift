@@ -89,4 +89,42 @@ struct OperationDriverTests {
         #expect(status == .ok)
         #expect(code == .none)
     }
+
+    @Test("an unrecognized (future) terminal status is normalized to .error, never surfaced raw")
+    func unrecognizedTerminalStatusNormalizesToError() async {
+        let operation = AgentOperation(id: 4, kind: .readIdentity) {}
+        operation.publishPhase(.reading, progress: nil)
+
+        let driver = OperationDriver()
+        async let driven = driver.driveToFinished(operation, stallTimeout: 1.0)
+        // A future agent's terminal status this build has no case for.
+        operation.resolveFinished((.unknown(7), .none, nil, "a future status"))
+
+        let (status, code, _, msgFallback) = await driven
+        #expect(status == .error)
+        #expect(code == .none)
+        #expect(msgFallback == "a future status")
+    }
+
+    @Test("an unrecognized (future) phase never re-arms the watchdog while held in awaitingConsent")
+    func unrecognizedPhaseHoldsWatchdogExemption() async {
+        let operation = AgentOperation(id: 5, kind: .sign) {}
+        operation.publishPhase(.awaitingConsent, progress: nil)
+
+        let driver = OperationDriver()
+        async let driven = driver.driveToFinished(operation, stallTimeout: 0.15)
+
+        // A future agent reports a phase this build has no case for while
+        // the operator is still mid-consent — the watchdog exemption must
+        // hold (never regress to the unrecognized phase and re-arm).
+        operation.publishPhase(.unknown(99), progress: nil)
+        try? await Task.sleep(nanoseconds: 300_000_000) // 300ms > the 150ms stallTimeout
+
+        operation.resolveFinished((.ok, .none, nil, "done"))
+
+        let (status, code, _, msgFallback) = await driven
+        #expect(status == .ok)
+        #expect(code == .none)
+        #expect(msgFallback == "done")
+    }
 }

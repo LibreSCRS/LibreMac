@@ -41,11 +41,22 @@ public func uiStateFor(_ caps: Capabilities) -> CardUiState {
 ///   - otherwise the coarse `uiStateFor` grouping, with a usable-capability
 ///     `.none` promoted to `.error` (a present card the agent exposes no
 ///     surface for is an error to the user, distinct from "no card at all").
+///
+/// Wire tolerance: this is the mapping layer `PreReadAuth`'s type doc
+/// comment designates for deciding what an unrecognized value MEANS
+/// (`ClientCodec.h`'s tolerance table: "the card-property mapping ... treats
+/// it the same as the default, None"). `Messages.swift` already carries an
+/// unrecognized value through raw as `.unknown(UInt32)` rather than failing
+/// the frame; gating the pre-auth latch on a future unlock method this
+/// build cannot honor would incorrectly strand the card behind a prompt it
+/// can never satisfy, so an unrecognized value is normalized to `.none`
+/// here before the latch check.
 public func resolveCardState(
     caps: Capabilities, preAuth: PreReadAuth, present: Bool, identityRead: Bool
 ) -> CardUiState {
     if !present { return .noCard }
-    if preAuth != .none && !identityRead { return .preAuthRequired }
+    let effectivePreAuth = preAuth.isKnown ? preAuth : .none
+    if effectivePreAuth != .none && !identityRead { return .preAuthRequired }
     let grouped = uiStateFor(caps)
     return grouped == .none ? .error : grouped
 }

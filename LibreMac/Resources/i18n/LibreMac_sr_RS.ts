@@ -186,6 +186,10 @@
         <source>system asleep</source>
         <translation>систем спава</translation>
     </message>
+    <message id="libremac_quiesce_unknown">
+        <source>for an unspecified reason</source>
+        <translation>из непознатог разлога</translation>
+    </message>
     <message id="libremac_registrar_approve">
         <source>Approve the signing agent in Login Items…</source>
         <translation>Одобрите агент за потписивање у ставкама за пријаву…</translation>

@@ -16,42 +16,149 @@ import Foundation
 /// `LibreSCRS::Agent::ErrorCode` (LibreAgent) and the CDDL `error-code`
 /// socket (`librescrs-agent.cddl:43-48`). 20 values, append-only — never
 /// renumber.
-public enum ErrorCode: UInt32, Sendable, Equatable, CaseIterable {
-    case none = 0
-    case cardRemoved = 1
-    case credentialWrong = 2
-    case credentialBlocked = 3
-    case communicationError = 4
-    case parseError = 5
-    case unsupportedCard = 6
-    case authFailed = 7
-    case prompterError = 8
-    case capabilityMissing = 9
-    case watchdogTimeout = 10
-    case keyNotFound = 11
-    case keyAmbiguous = 12
-    case certExpiredBlocked = 13
-    case chainIncomplete = 14
-    case tsaUnreachable = 15
-    case signingEngineError = 16
-    case rateLimited = 17
-    case engineUnavailable = 18
-    case invalidDocument = 19
+///
+/// Wire tolerance: `error-code` is wire-frozen append-only, so a newer agent
+/// may send a code past `invalidDocument` — this build simply does not have
+/// a name for it yet, which is a FUTURE value, not a malformed one. Decode
+/// never fails the frame over it (`ClientCodec.h`'s tolerance table — this
+/// was the ORIGINAL tolerance this wire shipped with). Unlike the
+/// synthesized-`RawRepresentable` enum this used to be — whose
+/// `init?(rawValue:)` returns `nil` for a value with no case, exactly the
+/// fail-closed behavior this type must NOT have — `ErrorCode` carries an
+/// `.unknown(UInt32)` case instead and hand-rolls `init(wireValue:)` /
+/// `wireValue` rather than `RawRepresentable`. `OperationPhase` /
+/// `OperationStatus` / `PreReadAuth` / `QuiesceReason` below follow the
+/// identical shape for the identical reason. The client treats the value as
+/// opaque display/log data and never branches on it — true before this
+/// policy existed and true for `.unknown` codes now.
+public enum ErrorCode: Sendable, Equatable {
+    case none
+    case cardRemoved
+    case credentialWrong
+    case credentialBlocked
+    case communicationError
+    case parseError
+    case unsupportedCard
+    case authFailed
+    case prompterError
+    case capabilityMissing
+    case watchdogTimeout
+    case keyNotFound
+    case keyAmbiguous
+    case certExpiredBlocked
+    case chainIncomplete
+    case tsaUnreachable
+    case signingEngineError
+    case rateLimited
+    case engineUnavailable
+    case invalidDocument
+    /// A code this build does not have a name for yet — carries the raw
+    /// wire value verbatim (see the type doc comment).
+    case unknown(UInt32)
+}
+
+extension ErrorCode {
+    /// Decodes a width-bounded wire value (the bounds check itself lives in
+    /// `Messages.swift`'s `requireWireEnumValue32`, shared with
+    /// `OperationPhase`/`OperationStatus` — the three numeric enums whose
+    /// wire storage is `uint32_t`; `PreReadAuth`/`QuiesceReason` are
+    /// `uint8_t`-bounded instead, via `requireWireEnumValue8`) into a
+    /// `ErrorCode`. Never fails: an unrecognized value becomes
+    /// `.unknown(wireValue)`.
+    public init(wireValue: UInt32) {
+        switch wireValue {
+        case 0: self = .none
+        case 1: self = .cardRemoved
+        case 2: self = .credentialWrong
+        case 3: self = .credentialBlocked
+        case 4: self = .communicationError
+        case 5: self = .parseError
+        case 6: self = .unsupportedCard
+        case 7: self = .authFailed
+        case 8: self = .prompterError
+        case 9: self = .capabilityMissing
+        case 10: self = .watchdogTimeout
+        case 11: self = .keyNotFound
+        case 12: self = .keyAmbiguous
+        case 13: self = .certExpiredBlocked
+        case 14: self = .chainIncomplete
+        case 15: self = .tsaUnreachable
+        case 16: self = .signingEngineError
+        case 17: self = .rateLimited
+        case 18: self = .engineUnavailable
+        case 19: self = .invalidDocument
+        default: self = .unknown(wireValue)
+        }
+    }
+
+    /// Inverse of `init(wireValue:)` — the encode direction, used by test
+    /// fixture construction (the client itself only ever decodes an
+    /// `ErrorCode`, never encodes one onto the wire).
+    public var wireValue: UInt32 {
+        switch self {
+        case .none: return 0
+        case .cardRemoved: return 1
+        case .credentialWrong: return 2
+        case .credentialBlocked: return 3
+        case .communicationError: return 4
+        case .parseError: return 5
+        case .unsupportedCard: return 6
+        case .authFailed: return 7
+        case .prompterError: return 8
+        case .capabilityMissing: return 9
+        case .watchdogTimeout: return 10
+        case .keyNotFound: return 11
+        case .keyAmbiguous: return 12
+        case .certExpiredBlocked: return 13
+        case .chainIncomplete: return 14
+        case .tsaUnreachable: return 15
+        case .signingEngineError: return 16
+        case .rateLimited: return 17
+        case .engineUnavailable: return 18
+        case .invalidDocument: return 19
+        case .unknown(let v): return v
+        }
+    }
+
+    /// `true` for every case except `.unknown` — a future value this build
+    /// does not have a name for yet. See the type doc comment.
+    public var isKnown: Bool {
+        if case .unknown = self { return false }
+        return true
+    }
+}
+
+extension ErrorCode: CaseIterable {
+    /// Hand-rolled (associated-value cases forbid synthesis): the 20 NAMED
+    /// cases only. `.unknown` is not a discrete case to enumerate — it is
+    /// an open-ended family of raw values — so it is deliberately excluded;
+    /// `ErrorCopyTests.taxonomyHasTwentyValues` gates this count.
+    public static var allCases: [ErrorCode] {
+        [
+            .none, .cardRemoved, .credentialWrong, .credentialBlocked, .communicationError,
+            .parseError, .unsupportedCard, .authFailed, .prompterError, .capabilityMissing,
+            .watchdogTimeout, .keyNotFound, .keyAmbiguous, .certExpiredBlocked, .chainIncomplete,
+            .tsaUnreachable, .signingEngineError, .rateLimited, .engineUnavailable, .invalidDocument,
+        ]
+    }
 }
 
 /// Named synchronous-method errors (D-Bus `Error.*` names), carried as the
 /// string `name` arm of a reply's `err` field. Distinct from the numeric
 /// `ErrorCode` — one or the other, never both (`err-info`,
 /// `librescrs-agent.cddl:97,101-105`). The raw value IS the wire string,
-/// mirroring the agent's sync-error names. 17 values.
+/// mirroring the agent's sync-error names. 18 values.
 ///
-/// Version-skew note: this enum decodes FAIL-CLOSED (`SyncError(rawValue:)`
-/// in `parseErrInfo`, no degrade case), so a name this build does not know
-/// makes the whole reply frame undecodable and the pending request
-/// surfaces as a `defaultPropTimeout` (3 s) timeout instead of a typed
-/// error. That is acceptable by construction: the host app and the agent
-/// ship together, so a name-vocabulary skew is a packaging bug to catch,
-/// not a runtime state to tolerate.
+/// Wire tolerance: `sync-error` is a TEXT-token closed enum, unlike the
+/// numeric enums above/below — there is no width to bound an unrecognized
+/// token against, so it DEGRADES AT DECODE (`parseErrInfo` in
+/// `Messages.swift`) to `.communicationError` instead of failing the
+/// `err-info` map (and the whole reply frame) closed. This is the exact
+/// classification an unrecognized D-Bus error name already falls back to
+/// on the other transport, so both transports converge on the same
+/// generic-protocol-error outcome (`ClientCodec.h`'s tolerance table). The
+/// original wire token is not retained on the degrade path — no case here
+/// is a good typed home for arbitrary raw text.
 public enum SyncError: String, Sendable, Equatable, CaseIterable {
     case unknownCard = "UnknownCard"
     case keyNotFound = "KeyNotFound"
@@ -70,50 +177,227 @@ public enum SyncError: String, Sendable, Equatable, CaseIterable {
     case rateLimited = "RateLimited"
     case unknownCredential = "UnknownCredential"
     case invalidRequest = "InvalidRequest"
+    /// `getSignResult` has nothing to serve for the requested op: it never
+    /// reached a retained Sign result (wrong kind, never completed, or the
+    /// recovery grace window elapsed), or the caller does not own it — the
+    /// two are deliberately indistinguishable on the wire (an IDOR-safe agent
+    /// answers a not-mine op exactly like an absent one). Previously served
+    /// ad hoc (a borrowed name); this is the dedicated one.
+    case noResult = "NoResult"
 }
 
 /// `Operation1` progress phase. Mirrors
 /// `LibreSCRS::Agent::Operations::OperationPhase` (LibreAgent) and CDDL
 /// `op-phase` (`librescrs-agent.cddl:39-40`). Append-only.
-public enum OperationPhase: UInt32, Sendable, Equatable, CaseIterable {
-    case created = 0
-    case connecting = 1
-    case awaitingConsent = 2
-    case authenticating = 3
-    case reading = 4
-    case signing = 5
-    case timestamping = 6
-    case done = 7
+///
+/// Wire tolerance: like `ErrorCode` above, a value past `done` is a FUTURE
+/// phase, not a malformed one — carried through as `.unknown(UInt32)`
+/// rather than failing decode. Degradation is a STATEFUL-layer concern,
+/// never this type's or the codec's: `OperationDriver`'s `StallWatch` holds
+/// the last known-good phase for its watchdog-exemption check (never
+/// regressing to an unrecognized value), and `SigningCoordinator.applyPhase`
+/// leaves its rendered stage unchanged on `.unknown` for the identical
+/// reason (`ClientCodec.h`'s tolerance table names `AgentOperation` as the
+/// C++ analog; the CDDL `op-phase` comment names the Swift mirror's
+/// `OperationDriver`).
+public enum OperationPhase: Sendable, Equatable {
+    case created
+    case connecting
+    case awaitingConsent
+    case authenticating
+    case reading
+    case signing
+    case timestamping
+    case done
+    /// A phase this build does not have a name for yet — carries the raw
+    /// wire value verbatim (see the type doc comment).
+    case unknown(UInt32)
+}
+
+extension OperationPhase {
+    /// See `ErrorCode.init(wireValue:)` — identical shape, never fails.
+    public init(wireValue: UInt32) {
+        switch wireValue {
+        case 0: self = .created
+        case 1: self = .connecting
+        case 2: self = .awaitingConsent
+        case 3: self = .authenticating
+        case 4: self = .reading
+        case 5: self = .signing
+        case 6: self = .timestamping
+        case 7: self = .done
+        default: self = .unknown(wireValue)
+        }
+    }
+
+    /// Inverse of `init(wireValue:)` — the encode direction (test fixture
+    /// construction).
+    public var wireValue: UInt32 {
+        switch self {
+        case .created: return 0
+        case .connecting: return 1
+        case .awaitingConsent: return 2
+        case .authenticating: return 3
+        case .reading: return 4
+        case .signing: return 5
+        case .timestamping: return 6
+        case .done: return 7
+        case .unknown(let v): return v
+        }
+    }
+
+    /// `true` for every case except `.unknown`. See `ErrorCode.isKnown`.
+    public var isKnown: Bool {
+        if case .unknown = self { return false }
+        return true
+    }
 }
 
 /// Terminal `Operation1.Finished` status. Mirrors
 /// `LibreSCRS::Agent::Operations::OperationStatus` (LibreAgent) and CDDL
 /// `op-status` (`librescrs-agent.cddl:41`).
-public enum OperationStatus: UInt32, Sendable, Equatable, CaseIterable {
-    case ok = 0
-    case cancelled = 1
-    case error = 2
+///
+/// Wire tolerance: like `OperationPhase` above, a value past `error` is a
+/// FUTURE status carried through as `.unknown(UInt32)`. The stateful layer
+/// that treats an unrecognized terminal status as `Error` is
+/// `OperationDriver.driveToFinished` (`ClientCodec.h`'s tolerance table).
+public enum OperationStatus: Sendable, Equatable {
+    case ok
+    case cancelled
+    case error
+    /// A status this build does not have a name for yet — carries the raw
+    /// wire value verbatim (see the type doc comment).
+    case unknown(UInt32)
+}
+
+extension OperationStatus {
+    /// See `ErrorCode.init(wireValue:)` — identical shape, never fails.
+    public init(wireValue: UInt32) {
+        switch wireValue {
+        case 0: self = .ok
+        case 1: self = .cancelled
+        case 2: self = .error
+        default: self = .unknown(wireValue)
+        }
+    }
+
+    /// Inverse of `init(wireValue:)` — the encode direction (test fixture
+    /// construction).
+    public var wireValue: UInt32 {
+        switch self {
+        case .ok: return 0
+        case .cancelled: return 1
+        case .error: return 2
+        case .unknown(let v): return v
+        }
+    }
+
+    /// `true` for every case except `.unknown`. See `ErrorCode.isKnown`.
+    public var isKnown: Bool {
+        if case .unknown = self { return false }
+        return true
+    }
 }
 
 /// Socket-only lifecycle vocabulary — no upstream core enum, macOS-specific
 /// (system sleep / screen lock / session switch / shutdown quiesce). Mirrors
 /// `LibreSCRS::Darwin::wire::QuiesceReason` (LibreDarwin) and CDDL
 /// `quiesce-reason` (`librescrs-agent.cddl:150`).
-public enum QuiesceReason: UInt32, Sendable, Equatable, CaseIterable {
-    case systemSleep = 0
-    case screenLocked = 1
-    case sessionInactive = 2
-    case shutdown = 3
+///
+/// Wire tolerance: append-only, like `PreReadAuth` below; a value past
+/// `shutdown` is a FUTURE reason carried through as `.unknown(UInt32)`.
+/// Nothing branches on this value today, so an unrecognized reason is
+/// inertly a "generic quiesce" wherever it is rendered (`ClientCodec.h`'s
+/// tolerance table) — no separate mapping layer is needed.
+public enum QuiesceReason: Sendable, Equatable {
+    case systemSleep
+    case screenLocked
+    case sessionInactive
+    case shutdown
+    /// A reason this build does not have a name for yet — carries the raw
+    /// wire value verbatim (see the type doc comment).
+    case unknown(UInt32)
+}
+
+extension QuiesceReason {
+    /// See `ErrorCode.init(wireValue:)` — identical shape, never fails.
+    public init(wireValue: UInt32) {
+        switch wireValue {
+        case 0: self = .systemSleep
+        case 1: self = .screenLocked
+        case 2: self = .sessionInactive
+        case 3: self = .shutdown
+        default: self = .unknown(wireValue)
+        }
+    }
+
+    /// Inverse of `init(wireValue:)` — the encode direction (test fixture
+    /// construction).
+    public var wireValue: UInt32 {
+        switch self {
+        case .systemSleep: return 0
+        case .screenLocked: return 1
+        case .sessionInactive: return 2
+        case .shutdown: return 3
+        case .unknown(let v): return v
+        }
+    }
+
+    /// `true` for every case except `.unknown`. See `ErrorCode.isKnown`.
+    public var isKnown: Bool {
+        if case .unknown = self { return false }
+        return true
+    }
 }
 
 /// Pre-read unlock mechanism for travel-document-style cards. Mirrors
 /// `LibreSCRS::Auth::PreReadAuthMethod` (LibreMiddleware
-/// `include/LibreSCRS/Auth/AuthRequirement.h` — `None`/`BacMrz`/`PaceCan`)
+/// `include/LibreSCRS/Auth/AuthRequirement.h` — `None`/`Mrz`/`Can`)
 /// and CDDL `pre-read-auth` (`librescrs-agent.cddl:38`).
-public enum PreReadAuth: UInt32, Sendable, Equatable, CaseIterable {
-    case none = 0
-    case bacMrz = 1
-    case paceCan = 2
+///
+/// Wire tolerance: append-only; a value past `can` is a FUTURE unlock
+/// method this build does not name yet, carried through as
+/// `.unknown(UInt32)`. The card-property mapping layer
+/// (`CardPresence.resolveCardState` in the LibreMac app target) treats an
+/// unrecognized value the same as the default, `.none` — deciding what an
+/// unrecognized value MEANS is that layer's job, never this type's or the
+/// codec's (`ClientCodec.h`'s tolerance table).
+public enum PreReadAuth: Sendable, Equatable {
+    case none
+    case mrz
+    case can
+    /// A method this build does not have a name for yet — carries the raw
+    /// wire value verbatim (see the type doc comment).
+    case unknown(UInt32)
+}
+
+extension PreReadAuth {
+    /// See `ErrorCode.init(wireValue:)` — identical shape, never fails.
+    public init(wireValue: UInt32) {
+        switch wireValue {
+        case 0: self = .none
+        case 1: self = .mrz
+        case 2: self = .can
+        default: self = .unknown(wireValue)
+        }
+    }
+
+    /// Inverse of `init(wireValue:)` — the encode direction (test fixture
+    /// construction).
+    public var wireValue: UInt32 {
+        switch self {
+        case .none: return 0
+        case .mrz: return 1
+        case .can: return 2
+        case .unknown(let v): return v
+        }
+    }
+
+    /// `true` for every case except `.unknown`. See `ErrorCode.isKnown`.
+    public var isKnown: Bool {
+        if case .unknown = self { return false }
+        return true
+    }
 }
 
 /// Card capability bitmask carried as `CardState.caps` (a raw `uint32` on
@@ -148,10 +432,15 @@ public enum CredentialVerb: String, Sendable, Equatable, CaseIterable {
 /// Outcome of a credential mutation, carried as `cred-result.outcome`.
 /// Mirrors `LibreSCRS::Agent::CredentialOutcome` and CDDL `cred-outcome`
 /// (`librescrs-agent.cddl:215-217`); the raw value IS the camelCase wire
-/// token. Decodes FAIL-CLOSED (`CredentialOutcome(rawValue:)`, no degrade
-/// case — the `SyncError` precedent): the outcome drives the client's
-/// mutation follow-up, so guessing at an unrecognized token is worse than
-/// failing the frame.
+/// token.
+///
+/// Wire tolerance: `cred-outcome` is a TEXT-token closed enum, exactly like
+/// `SyncError` — an unrecognized token DEGRADES AT DECODE
+/// (`parseCredResult` in `Messages.swift`) to `.unspecified` (the value
+/// this wire already uses for "no meaningful outcome") instead of failing
+/// the `cred-result` — and so the whole `op-result-ready` — closed
+/// (`ClientCodec.h`'s tolerance table). The original wire token is not
+/// retained on the degrade path.
 public enum CredentialOutcome: String, Sendable, Equatable, CaseIterable {
     case unspecified = "unspecified"
     case ok = "ok"
@@ -325,17 +614,43 @@ public struct CertificateInfo: Sendable, Equatable {
     }
 }
 
+/// A PAdES visible-signature appearance for `SignOptions.visualSignature`.
+/// Mirrors `LibreSCRS::Darwin::wire::VisualSignatureOpts` and CDDL
+/// `visual-sig-opts` field-for-field — all six are required together (only
+/// the outer `SignOptions.visualSignature` is itself optional). `page` is
+/// 0-based; `x`/`y`/`width`/`height` are PDF user units (float64 on the
+/// wire); `width`/`height` must be positive. Rejected by the agent at
+/// method entry on any `format` other than `"pades"`.
+public struct VisualSignatureOptions: Sendable, Equatable {
+    public let page: UInt64
+    public let x: Double
+    public let y: Double
+    public let width: Double
+    public let height: Double
+    public let text: String
+
+    public init(page: UInt64, x: Double, y: Double, width: Double, height: Double, text: String) {
+        self.page = page
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.text = text
+    }
+}
+
 /// `Card1.Sign` request options. `format`/`level`/`packaging` are required;
 /// the rest are per-sign chrome. Mirrors `LibreSCRS::Darwin::wire::SignOpts`
 /// and CDDL `sign-opts` (`librescrs-agent.cddl:79-80`).
 ///
-/// NOTE: there is NO `tsa` field on `sign-opts`, despite a `{format,level,
-/// packaging,tsa?}` shape being an easy first guess. The CDDL is explicit
-/// that there is NO `tsa` field on `sign-opts` — "the TSA is Config1-owned
-/// (TsaUrls/LastTsaUrl), not a per-sign option"
-/// (`librescrs-agent.cddl:78`) — and the C++ `SignOpts` struct has no `tsa`
-/// member. This type follows the wire structure verbatim: the optional
-/// fields are `allowExpired`, `displayName`, `reason`, `location`.
+/// `tsaUrl` overrides the agent's configured TSA (Config1's `TsaUrls`/
+/// `LastTsaUrl`) for THIS sign only — https + non-empty host, and only
+/// meaningful for the timestamped/long-term family; paired with level
+/// `"b-b"` it is a method-entry rejection, not a silent no-op. `nil` uses
+/// the configured default. `visualSignature` attaches a PAdES visible-
+/// signature appearance; rejected at method entry on any other format. Both
+/// are gated behind their own HelloAck-equivalent feature tokens
+/// (`"tsa-url"` / `"visual-sign"`, `Manager1.Features`/`HelloAck.features`).
 public struct SignOptions: Sendable, Equatable {
     public let format: String
     public let level: String
@@ -344,10 +659,13 @@ public struct SignOptions: Sendable, Equatable {
     public let displayName: String?
     public let reason: String?
     public let location: String?
+    public let tsaUrl: String?
+    public let visualSignature: VisualSignatureOptions?
 
     public init(
         format: String, level: String, packaging: String,
-        allowExpired: Bool? = nil, displayName: String? = nil, reason: String? = nil, location: String? = nil
+        allowExpired: Bool? = nil, displayName: String? = nil, reason: String? = nil, location: String? = nil,
+        tsaUrl: String? = nil, visualSignature: VisualSignatureOptions? = nil
     ) {
         self.format = format
         self.level = level
@@ -356,6 +674,8 @@ public struct SignOptions: Sendable, Equatable {
         self.displayName = displayName
         self.reason = reason
         self.location = location
+        self.tsaUrl = tsaUrl
+        self.visualSignature = visualSignature
     }
 }
 

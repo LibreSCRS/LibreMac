@@ -98,6 +98,17 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
     return DecodedRequest(req: req, request: request)
 }
 
+private func decodeVisualSignatureOptions(_ value: CBORValue?) -> VisualSignatureOptions? {
+    guard case .map(let pairs)? = value else { return nil }
+    return VisualSignatureOptions(
+        page: mwUInt(pairs, "page") ?? 0,
+        x: mwDouble(pairs, "x") ?? 0,
+        y: mwDouble(pairs, "y") ?? 0,
+        width: mwDouble(pairs, "width") ?? 0,
+        height: mwDouble(pairs, "height") ?? 0,
+        text: mwText(pairs, "text") ?? "")
+}
+
 private func decodeSignOptions(_ value: CBORValue?) -> SignOptions {
     guard case .map(let pairs)? = value else { return SignOptions(format: "", level: "", packaging: "") }
     return SignOptions(
@@ -107,7 +118,9 @@ private func decodeSignOptions(_ value: CBORValue?) -> SignOptions {
         allowExpired: mwBool(pairs, "allowExpired"),
         displayName: mwText(pairs, "displayName"),
         reason: mwText(pairs, "reason"),
-        location: mwText(pairs, "location"))
+        location: mwText(pairs, "location"),
+        tsaUrl: mwText(pairs, "tsaUrl"),
+        visualSignature: decodeVisualSignatureOptions(mwGet(pairs, "visualSignature")))
 }
 
 /// The wire `"t"` tag for a decoded request — used by `MockAgentServer` to
@@ -195,7 +208,7 @@ func encodeEvent(_ event: AgentEvent) -> Data {
     case .configChanged(let key):
         pairs = [("t", .text("ConfigChanged")), ("key", .text(key))]
     case .opProgress(let op, let phase, let progress, let indeterminate, let watchdogSecs):
-        pairs = [("t", .text("OpProgress")), ("op", .uint(op)), ("phase", .uint(UInt64(phase.rawValue)))]
+        pairs = [("t", .text("OpProgress")), ("op", .uint(op)), ("phase", .uint(UInt64(phase.wireValue)))]
         if let progress { pairs.append(("progress", .double(progress))) }
         if let indeterminate { pairs.append(("indeterminate", .bool(indeterminate))) }
         if let watchdogSecs { pairs.append(("watchdogSecs", .uint(watchdogSecs))) }
@@ -203,11 +216,11 @@ func encodeEvent(_ event: AgentEvent) -> Data {
         pairs = [("t", .text("OpResultReady")), ("op", .uint(op)), ("result", encodeOpResult(result))]
     case .opFinished(let op, let status, let code, let msgKey, let msgFallback):
         pairs = [
-            ("t", .text("OpFinished")), ("op", .uint(op)), ("status", .uint(UInt64(status.rawValue))),
-            ("code", .uint(UInt64(code.rawValue))), ("msgKey", .text(msgKey)), ("msgFallback", .text(msgFallback)),
+            ("t", .text("OpFinished")), ("op", .uint(op)), ("status", .uint(UInt64(status.wireValue))),
+            ("code", .uint(UInt64(code.wireValue))), ("msgKey", .text(msgKey)), ("msgFallback", .text(msgFallback)),
         ]
     case .agentQuiesced(let reason):
-        pairs = [("t", .text("AgentQuiesced")), ("reason", .uint(UInt64(reason.rawValue)))]
+        pairs = [("t", .text("AgentQuiesced")), ("reason", .uint(UInt64(reason.wireValue)))]
     }
     return mwMap(pairs).encode()
 }
@@ -227,7 +240,7 @@ private func encodeReaderState(_ reader: ReaderState) -> CBORValue {
 private func encodeCardState(_ card: CardState) -> CBORValue {
     mwMap([
         ("handle", .text(card.handle)), ("reader", .text(card.reader)),
-        ("caps", .uint(UInt64(card.caps.rawValue))), ("preAuth", .uint(UInt64(card.preAuth.rawValue))),
+        ("caps", .uint(UInt64(card.caps.rawValue))), ("preAuth", .uint(UInt64(card.preAuth.wireValue))),
     ])
 }
 
@@ -362,7 +375,7 @@ private func encodeOpResult(_ result: OpResult) -> CBORValue {
 private func encodeErrInfo(_ info: ErrInfo) -> CBORValue {
     var pairs: [(String, CBORValue)] = []
     switch info.code {
-    case .code(let code): pairs.append(("code", .uint(UInt64(code.rawValue))))
+    case .code(let code): pairs.append(("code", .uint(UInt64(code.wireValue))))
     case .name(let name): pairs.append(("name", .text(name.rawValue)))
     }
     if let msgKey = info.msgKey {
@@ -409,4 +422,9 @@ private func mwUInt(_ pairs: [(Data, CBORValue)], _ key: String) -> UInt64? {
     case .int(let i) where i >= 0: return UInt64(i)
     default: return nil
     }
+}
+
+private func mwDouble(_ pairs: [(Data, CBORValue)], _ key: String) -> Double? {
+    if case .double(let d)? = mwGet(pairs, key) { return d }
+    return nil
 }

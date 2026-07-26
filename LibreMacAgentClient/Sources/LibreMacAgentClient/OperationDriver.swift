@@ -17,6 +17,22 @@ import Foundation
 /// `.watchdogTimeout` outcome without waiting for the server's own
 /// `OpFinished` (which may never arrive if the agent itself is the one
 /// that is stuck).
+///
+/// Wire-tolerance stateful layer: this is the Swift analog of the C++
+/// `AgentOperation`'s held-phase / normalized-status policy
+/// (`ClientCodec.h`'s tolerance table names it explicitly; the CDDL
+/// `op-phase` comment does too). `Messages.swift` decodes an unrecognized
+/// `OperationPhase`/`OperationStatus` through raw as `.unknown(UInt32)` —
+/// deciding what that MEANS is this type's job, not the codec's:
+///   - `StallWatch.recordPhase` never regresses its watchdog-exemption
+///     check to an unrecognized phase — it holds the last KNOWN-good phase
+///     (initially `.created`) for that computation, so an operator-facing
+///     wait (`.awaitingConsent`/`.authenticating`) is never mistaken for a
+///     "machine" phase merely because a newer agent reports it under a
+///     name this build does not have yet.
+///   - `driveToFinished` normalizes an unrecognized terminal
+///     `OperationStatus` to `.error` before returning it (never surfacing
+///     an unnamed status to the caller).
 public struct OperationDriver: Sendable {
 
     /// Default stall timeout (mirrors the agent's own operation watchdog
@@ -64,11 +80,27 @@ public struct OperationDriver: Sendable {
 
         switch outcome {
         case .finished(let value):
-            return value
+            return Self.normalizeTerminal(value)
         case .stalled:
             await operation.cancel()
             return (.cancelled, .watchdogTimeout, nil, "operation stalled: no phase progress for \(Int(stallTimeout))s")
         }
+    }
+
+    /// Wire tolerance: an `OperationStatus` this build does not have a name
+    /// for yet (a future agent's terminal outcome, wire-frozen append-only)
+    /// is normalized to `.error` here, once, before the terminal value is
+    /// returned to the caller — mirroring the C++ `AgentOperation`'s
+    /// `finalizeTerminal` (see the type doc comment). `code` /
+    /// `msgKey`/`msgFallback` pass through unchanged either way — only the
+    /// status itself is normalized.
+    private static func normalizeTerminal(
+        _ value: (OperationStatus, ErrorCode, String?, String)
+    ) -> (OperationStatus, ErrorCode, String?, String) {
+        guard value.0.isKnown else {
+            return (.error, value.1, value.2, value.3)
+        }
+        return value
     }
 }
 
@@ -84,10 +116,23 @@ private enum DriverOutcome: Sendable {
 private actor StallWatch {
     private var lastChangeAt = Date()
     private var exempt = false
+    /// The last KNOWN-good phase seen (`.created` initially, mirroring the
+    /// C++ `AgentOperation`'s initial `Created`). Wire tolerance: an
+    /// unrecognized phase never updates this — see `recordPhase`.
+    private var heldPhase: OperationPhase = .created
 
     func recordPhase(_ phase: OperationPhase) {
+        // Progress is still "live" even when the phase itself is one this
+        // build does not have a name for yet, so the stall clock always
+        // resets here.
         lastChangeAt = Date()
-        exempt = phase == .awaitingConsent || phase == .authenticating
+        // Wire tolerance: never regress the exemption check to an
+        // unrecognized phase — hold the last known-good one instead (see
+        // the type doc comment and `OperationDriver`'s tolerance note).
+        if phase.isKnown {
+            heldPhase = phase
+        }
+        exempt = heldPhase == .awaitingConsent || heldPhase == .authenticating
     }
 
     func isStalled(timeout: TimeInterval) -> Bool {

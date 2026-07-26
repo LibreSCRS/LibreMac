@@ -82,6 +82,13 @@ public enum ErrorCopy {
         case .invalidDocument:
             return text("libremac_error_invalid_document",
                         "The document you tried to sign is invalid or unreadable. Check the file.")
+        case .unknown:
+            // Wire tolerance: a code this build does not have a name for
+            // yet (wire-frozen append-only `ErrorCode`) is opaque
+            // display/log data, same posture as every code before this
+            // policy existed — defer to the agent's own `msgFallback`,
+            // exactly like `.none`.
+            return nil
         }
     }
 
@@ -113,7 +120,7 @@ public enum ErrorCopy {
         case .unknownCard, .keyNotFound, .userNotLoggedIn, .unknownConfigKey,
              .readOnlyConfig, .invalidConfigValue, .unsupportedProtocol,
              .authFailed, .communicationError, .notSupported,
-             .unsupportedSignatureParameter, .inputTooLarge:
+             .unsupportedSignatureParameter, .inputTooLarge, .noResult:
             return communicationCopy
         }
     }

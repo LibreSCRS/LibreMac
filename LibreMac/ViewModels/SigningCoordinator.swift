@@ -166,6 +166,15 @@ public final class SigningCoordinator {
             stage = .working
         case .done:
             break
+        case .unknown:
+            // Wire tolerance: a phase this build does not have a name for
+            // yet (wire-frozen append-only `OperationPhase`) never
+            // regresses the rendered stage — hold whatever stage is
+            // already showing rather than guessing. This coordinator IS
+            // the "current phase" consumer for the signing UI, so the
+            // hold happens here (mirrors the C++ `AgentOperation`'s
+            // held-phase policy; see `ClientCodec.h`'s tolerance table).
+            break
         }
     }
 
