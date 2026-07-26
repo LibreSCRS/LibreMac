@@ -133,6 +133,7 @@ func requestTag(_ request: AgentRequest) -> String {
     case .readIdentity: return "ReadIdentity"
     case .getPhoto: return "GetPhoto"
     case .readCertificates: return "ReadCertificates"
+    case .readTokenInfo: return "ReadTokenInfo"
     case .sign: return "Sign"
     case .getCertDer: return "GetCertDer"
     case .getConfig: return "GetConfig"

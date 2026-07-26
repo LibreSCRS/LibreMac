@@ -10915,6 +10915,23 @@
         }
       }
     },
+    "libremac_quiesce_unknown" : {
+      "comment" : "libremac_quiesce_unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "for an unspecified reason"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "из непознатог разлога"
+          }
+        }
+      }
+    },
     "libremac_reader_iface_contact" : {
       "comment" : "libremac_reader_iface_contact",
       "localizations" : {

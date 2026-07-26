@@ -80,9 +80,16 @@ struct AgentClientTests {
         let entries = try await configTask
         #expect(entries["tsaUrl"] == .text("https://tsa.example"))
 
-        // The interleaved events were still processed (registry updated),
-        // not merely swallowed.
-        let readers = await client.readers()
+        // The interleaved events were still processed (registry updated), not
+        // merely swallowed. The event applies and the reply resolution are
+        // separate hops onto the client actor, so sampling readers() at the
+        // single instant the reply resolves is racy; poll with a bounded wait
+        // (mirrors SocketConnectionTests' bounded-poll idiom) until they land.
+        var readers = await client.readers()
+        for _ in 0..<200 where Set(readers.map(\.handle)) != Set(["r1", "r2"]) {
+            try await Task.sleep(nanoseconds: 5_000_000) // 5 ms
+            readers = await client.readers()
+        }
         #expect(Set(readers.map(\.handle)) == Set(["r1", "r2"]))
 
         await client.stop()

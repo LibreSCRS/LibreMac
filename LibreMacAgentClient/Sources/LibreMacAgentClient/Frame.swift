@@ -16,8 +16,9 @@ public let kFrameHeaderBytes: Int = 8
 public let kMaxFrameBytes: Int = 1 << 20 // 1 MiB
 
 /// Max ancillary fds accepted on one frame (defence-in-depth). Mirrors the
-/// peer agent's `kMaxFrameFds`.
-public let kMaxFrameFds: Int = 8
+/// peer agent's `kMaxFrameFds` (16 — the reference dbus-daemon's
+/// max_message_unix_fds budget, covering a kMaxBatchDocuments SignBatch leg).
+public let kMaxFrameFds: Int = 16
 
 /// Frame-level protocol violations. Mirrors the peer agent's `FrameError`
 /// minus `WouldBlock`: `.oversize` / `.tooManyFds` /
