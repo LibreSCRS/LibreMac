@@ -48,7 +48,7 @@
     </message>
     <message id="libremac_error_card_removed">
         <source>The card was removed before the operation finished.</source>
-        <translation>Картица је уклоњена пре завршетка операције.</translation>
+        <translation>Картица је извађена пре него што је операција завршена.</translation>
     </message>
     <message id="libremac_error_cert_expired">
         <source>The signing certificate has expired.</source>
@@ -56,19 +56,19 @@
     </message>
     <message id="libremac_error_chain_incomplete">
         <source>The certificate chain could not be completed.</source>
-        <translation>Ланац сертификата није могуће комплетирати.</translation>
+        <translation>Ланац сертификата није могуће употпунити.</translation>
     </message>
     <message id="libremac_error_communication">
         <source>Communication with the card reader failed.</source>
-        <translation>Комуникација са читачем картице није успела.</translation>
+        <translation>Комуникација са читачем картица није успела.</translation>
     </message>
     <message id="libremac_error_credential_blocked">
         <source>The card credential is blocked. Unblock it before retrying.</source>
-        <translation>Акредитив картице је блокиран. Одблокирајте га пре поновног покушаја.</translation>
+        <translation>Акредитив картице је блокиран. Деблокирајте га пре поновног покушаја.</translation>
     </message>
     <message id="libremac_error_credential_wrong">
         <source>The PIN or access code entered was incorrect.</source>
-        <translation>Унети ПИН или приступни код је нетачан.</translation>
+        <translation>Унети ПИН или приступни код није исправан.</translation>
     </message>
     <message id="libremac_error_engine_unavailable">
         <source>The signing engine could not be loaded. Check that LibreSCRS is installed correctly.</source>
@@ -88,11 +88,11 @@
     </message>
     <message id="libremac_error_parse">
         <source>The data read from the card could not be interpreted.</source>
-        <translation>Податке прочитане са картице није могуће протумачити.</translation>
+        <translation>Подаци прочитани са картице не могу да се протумаче.</translation>
     </message>
     <message id="libremac_error_prompter">
         <source>The secure entry prompt could not be shown.</source>
-        <translation>Безбедни упит за унос није могуће приказати.</translation>
+        <translation>Није могуће приказати безбедни упит за унос.</translation>
     </message>
     <message id="libremac_error_rate_limited">
         <source>Too many signing requests. Try again shortly.</source>
@@ -112,7 +112,7 @@
     </message>
     <message id="libremac_error_watchdog_timeout">
         <source>The operation timed out.</source>
-        <translation>Истекло је време за операцију.</translation>
+        <translation>Време за операцију је истекло.</translation>
     </message>
     <message id="libremac_menu_preferences">
         <source>Preferences…</source>
@@ -288,7 +288,7 @@
     </message>
     <message id="libremac_credentials_state_needs_change">
         <source>Change required</source>
-        <translation>Потребна је промена</translation>
+        <translation>Потребна промена</translation>
     </message>
     <message id="libremac_credentials_state_blocked">
         <source>Blocked</source>
@@ -300,7 +300,7 @@
     </message>
     <message id="libremac_credentials_action_unblock">
         <source>Unblock…</source>
-        <translation>Одблокирај…</translation>
+        <translation>Деблокирај…</translation>
     </message>
     <message id="libremac_credentials_action_activate_pin">
         <source>Activate…</source>
@@ -364,7 +364,7 @@
     </message>
     <message id="libremac_credentials_outcome_cardRemoved">
         <source>The card was removed before the operation finished.</source>
-        <translation>Картица је уклоњена пре завршетка операције.</translation>
+        <translation>Картица је извађена пре него што је операција завршена.</translation>
     </message>
     <message id="libremac_credentials_err_unsupported">
         <source>Credential management is not supported on this card.</source>
@@ -388,7 +388,7 @@
     </message>
     <message id="libremac_credentials_unblock_title">
         <source>Unblock PIN</source>
-        <translation>Одблокирање ПИН-а</translation>
+        <translation>Деблокирање ПИН-а</translation>
     </message>
     <message id="libremac_credentials_action_cancel">
         <source>Cancel</source>
@@ -396,15 +396,15 @@
     </message>
     <message id="libremac_credentials_unblock_prompt_notice">
         <source>You will be asked for the PUK in a secure prompt.</source>
-        <translation>ПУК ћете унети у сигурном прозору.</translation>
+        <translation>Биће вам затражен ПУК у безбедном упиту.</translation>
     </message>
     <message id="libremac_credentials_unblock_budget">
         <source>PUK: {count} of {max} unblocks left.</source>
-        <translation>ПУК: преостало {count} од {max} одблокирања.</translation>
+        <translation>ПУК: преостало {count} од {max} деблокирања.</translation>
     </message>
     <message id="libremac_credentials_unblock_budget_nomax">
         <source>PUK: {count} unblocks left.</source>
-        <translation>ПУК: преостало {count} одблокирања.</translation>
+        <translation>ПУК: преостало {count} деблокирања.</translation>
     </message>
     <message id="libremac_credentials_unblock_continue">
         <source>Continue</source>
@@ -424,11 +424,11 @@
     </message>
     <message id="libremac_reader_iface_contact">
         <source>{model} — contact</source>
-        <translation>{model} — контактно</translation>
+        <translation>{model} — контактни</translation>
     </message>
     <message id="libremac_reader_iface_contactless">
         <source>{model} — contactless</source>
-        <translation>{model} — бесконтактно</translation>
+        <translation>{model} — бесконтактни</translation>
     </message>
     <message id="libremac_reader_picker_title">
         <source>Reader</source>
