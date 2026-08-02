@@ -267,9 +267,10 @@ struct CredentialsView: View {
             )
             .font(.callout)
             .foregroundStyle(.red)
-        } else if let result = viewModel.lastOutcome {
-            Label(Self.outcomeText(result, presented: viewModel.presentedKind),
-                  systemImage: Self.outcomeIcon(result.outcome))
+        } else if let result = viewModel.lastOutcome,
+                  case let text = Self.outcomeText(result, presented: viewModel.presentedKind),
+                  !text.isEmpty {
+            Label(text, systemImage: Self.outcomeIcon(result.outcome))
                 .font(.callout)
                 .foregroundStyle(Self.outcomeTint(result.outcome))
         }
@@ -288,7 +289,7 @@ struct CredentialsView: View {
         case .can:
             return loc("libremac_credentials_kind_can", "CAN")
         case .unknown:
-            return loc("libremac_credentials_kind_unknown", "Unknown credential")
+            return loc("libremac_credentials_kind_unknown", "Credential")
         }
     }
 
@@ -297,9 +298,9 @@ struct CredentialsView: View {
         case .unknown:
             return loc("libremac_credentials_state_unknown", "Unknown")
         case .transport:
-            return loc("libremac_credentials_state_transport", "Transport (not activated)")
+            return loc("libremac_credentials_state_transport", "Transport — activation needed")
         case .operational:
-            return loc("libremac_credentials_state_operational", "Ready")
+            return loc("libremac_credentials_state_operational", "Operational")
         case .needsChange:
             return loc("libremac_credentials_state_needs_change", "Change required")
         case .blocked:
@@ -328,42 +329,58 @@ struct CredentialsView: View {
                 placeholders: ["who": kindTitle(presented), "count": String(retries)]
             ).resolve()
         }
-        return outcomeText(result.outcome)
+        return outcomeText(result.outcome, presented: presented)
     }
 
-    private static func outcomeText(_ outcome: CredentialOutcome) -> String {
+    /// Copy is kept word-for-word in step with LibreKDE's `CredentialText`
+    /// table — same wire vocabulary, same sentences, so the two desktop
+    /// clients cannot describe one outcome two ways. `invalidPin`/`blocked`
+    /// name the credential they are about, as KDE's do; the rest are
+    /// credential-independent.
+    private static func outcomeText(
+        _ outcome: CredentialOutcome, presented: CredentialKind
+    ) -> String {
         switch outcome {
         case .unspecified:
             return loc("libremac_credentials_outcome_unspecified",
-                       "The operation finished without a reported result.")
+                       "The operation did not complete.")
         case .ok:
-            return loc("libremac_credentials_outcome_ok",
-                       "The operation completed successfully.")
+            return loc("libremac_credentials_outcome_ok", "Done.")
         case .userCancelled:
-            return loc("libremac_credentials_outcome_userCancelled",
-                       "The operation was cancelled.")
+            // Empty on purpose, as in LibreKDE: a cancel is the user's own
+            // act, so there is nothing to report back. `statusArea` renders
+            // no label for an empty string — hence no catalog key either.
+            return ""
         case .missingFields:
             return loc("libremac_credentials_outcome_missingFields",
-                       "A required entry was missing.")
+                       "A required value was not entered.")
         case .invalidPin:
-            return loc("libremac_credentials_outcome_invalidPin",
-                       "The PIN entered was incorrect.")
+            return attributed("libremac_credentials_outcome_invalidPin",
+                              "The {who} was not correct.", presented)
         case .blocked:
-            return loc("libremac_credentials_outcome_blocked",
-                       "The credential is blocked.")
+            return attributed("libremac_credentials_outcome_blocked",
+                              "The {who} is now blocked.", presented)
         case .pluginError:
             return loc("libremac_credentials_outcome_pluginError",
-                       "The card plugin reported an error.")
+                       "The card reported an error.")
         case .unsupported:
             return loc("libremac_credentials_outcome_unsupported",
-                       "This operation is not supported on this card.")
+                       "This action isn't available on this card.")
         case .keyActivationFailed:
             return loc("libremac_credentials_outcome_keyActivationFailed",
-                       "The signing key could not be activated.")
+                       "The PIN was set, but activating the signing key failed.")
         case .cardRemoved:
             return loc("libremac_credentials_outcome_cardRemoved",
                        "The card was removed before the operation finished.")
         }
+    }
+
+    private static func attributed(
+        _ key: String, _ fallback: String, _ presented: CredentialKind
+    ) -> String {
+        LocalizedText(
+            key: key, defaultText: fallback, placeholders: ["who": kindTitle(presented)]
+        ).resolve()
     }
 
     /// A cancel is the user's own neutral act — informational chrome, not a

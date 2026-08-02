@@ -70,10 +70,10 @@ struct CatalogCompletenessTests {
         "libremac_credentials_retries_max",
         "libremac_credentials_uses_left",
         "libremac_credentials_uses_max",
-        // outcome copy (all ten wire tokens)
+        // Outcome copy — every wire token EXCEPT userCancelled, which
+        // renders no label at all (as in LibreKDE) and so owns no key.
         "libremac_credentials_outcome_unspecified",
         "libremac_credentials_outcome_ok",
-        "libremac_credentials_outcome_userCancelled",
         "libremac_credentials_outcome_missingFields",
         "libremac_credentials_outcome_invalidPin",
         "libremac_credentials_outcome_blocked",
@@ -119,6 +119,21 @@ struct CatalogCompletenessTests {
         }
     }
 
+    /// The `<translation>` body of every `<message id="...">`, keyed by id.
+    private static func translations(of url: URL) throws -> [String: String] {
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let pattern = try NSRegularExpression(
+            pattern: "<message id=\"([^\"]+)\">.*?<translation>(.*?)</translation>",
+            options: [.dotMatchesLineSeparators])
+        let range = NSRange(text.startIndex..., in: text)
+        var out: [String: String] = [:]
+        for match in pattern.matches(in: text, range: range) {
+            let id = String(text[Range(match.range(at: 1), in: text)!])
+            out[id] = String(text[Range(match.range(at: 2), in: text)!])
+        }
+        return out
+    }
+
     // MARK: - Invariants
 
     @Test("en and sr catalogs carry the same id set, without duplicates")
@@ -132,6 +147,26 @@ struct CatalogCompletenessTests {
         let missingInEn = Set(sr).subtracting(en)
         #expect(missingInSr.isEmpty, "ids missing in sr: \(missingInSr.sorted())")
         #expect(missingInEn.isEmpty, "ids missing in en: \(missingInEn.sorted())")
+    }
+
+    /// Two outcome sentences name the credential they are about, matching
+    /// LibreKDE's `CredentialText`. The name arrives as a `{who}`
+    /// placeholder, so a translation that drops it still renders — as a
+    /// sentence that has quietly stopped saying which credential failed.
+    @Test("the attributed outcome strings keep their {who} placeholder in both locales")
+    func attributedOutcomesKeepTheirPlaceholder() throws {
+        let attributed = [
+            "libremac_credentials_outcome_invalidPin",
+            "libremac_credentials_outcome_blocked",
+            "libremac_credentials_outcome_invalidPin_attributed",
+        ]
+        for (locale, url) in [("en", Self.enCatalog), ("sr", Self.srCatalog)] {
+            let table = try Self.translations(of: url)
+            for id in attributed {
+                let value = try #require(table[id], "\(id) absent from \(locale)")
+                #expect(value.contains("{who}"), "\(locale) \(id) lost {who}: \(value)")
+            }
+        }
     }
 
     @Test("every credentials id the UI renders exists in both catalogs")

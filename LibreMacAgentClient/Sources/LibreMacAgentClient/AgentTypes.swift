@@ -358,8 +358,8 @@ extension QuiesceReason {
 /// Wire tolerance: append-only; a value past `can` is a FUTURE unlock
 /// method this build does not name yet, carried through as
 /// `.unknown(UInt32)`. The card-property mapping layer
-/// (`CardPresence.resolveCardState` in the LibreMac app target) treats an
-/// unrecognized value the same as the default, `.none` — deciding what an
+/// (`CardPresence.resolveCardState` in the LibreMac app target) latches on an
+/// unrecognized value as it would on any unlock method — deciding what an
 /// unrecognized value MEANS is that layer's job, never this type's or the
 /// codec's (`ClientCodec.h`'s tolerance table).
 public enum PreReadAuth: Sendable, Equatable {

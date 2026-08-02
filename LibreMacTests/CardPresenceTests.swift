@@ -41,8 +41,13 @@ struct CardPresenceTests {
         #expect(resolveCardState(caps: [.identityData, .pki], preAuth: .none, present: true, identityRead: false) == .hybrid)
     }
 
-    @Test("an unrecognized (future) preAuth value is treated the same as .none — never strands the card behind a latch it cannot honor")
-    func unrecognizedPreAuthBehavesLikeNone() {
-        #expect(resolveCardState(caps: .identityData, preAuth: .unknown(9), present: true, identityRead: false) == .identityOnly)
+    @Test("an unrecognized (future) preAuth value latches like any other unlock method, rather than advertising a card whose identity cannot be read")
+    func unrecognizedPreAuthLatchesLikeAKnownMethod() {
+        #expect(resolveCardState(caps: .identityData, preAuth: .unknown(9), present: true, identityRead: false) == .preAuthRequired)
+        // Indistinguishable from a known method, which is the point.
+        #expect(resolveCardState(caps: .identityData, preAuth: .unknown(9), present: true, identityRead: false)
+                == resolveCardState(caps: .identityData, preAuth: .can, present: true, identityRead: false))
+        // And it clears the same way once the identity has been read.
+        #expect(resolveCardState(caps: .identityData, preAuth: .unknown(9), present: true, identityRead: true) == .identityOnly)
     }
 }

@@ -9799,13 +9799,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unknown credential"
+            "value" : "Credential"
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Непознат акредитив"
+            "value" : "Акредитив"
           }
         }
       }
@@ -9850,13 +9850,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The credential is blocked."
+            "value" : "The {who} is now blocked."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Акредитив је блокиран."
+            "value" : "{who} је сада блокиран."
           }
         }
       }
@@ -9884,13 +9884,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The PIN entered was incorrect."
+            "value" : "The {who} was not correct."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Унети ПИН је нетачан."
+            "value" : "{who} није био исправан."
           }
         }
       }
@@ -9918,13 +9918,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The signing key could not be activated."
+            "value" : "The PIN was set, but activating the signing key failed."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Кључ за потписивање није могуће активирати."
+            "value" : "ПИН је постављен, али активација кључа за потписивање није успела."
           }
         }
       }
@@ -9935,13 +9935,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A required entry was missing."
+            "value" : "A required value was not entered."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Недостаје обавезан унос."
+            "value" : "Обавезна вредност није унета."
           }
         }
       }
@@ -9952,13 +9952,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The operation completed successfully."
+            "value" : "Done."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Операција је успешно завршена."
+            "value" : "Готово."
           }
         }
       }
@@ -9969,13 +9969,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The card plugin reported an error."
+            "value" : "The card reported an error."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Додатак за картицу је пријавио грешку."
+            "value" : "Картица је пријавила грешку."
           }
         }
       }
@@ -9986,13 +9986,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The operation finished without a reported result."
+            "value" : "The operation did not complete."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Операција је завршена без пријављеног резултата."
+            "value" : "Операција није завршена."
           }
         }
       }
@@ -10003,30 +10003,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This operation is not supported on this card."
+            "value" : "This action isn't available on this card."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ова операција није подржана на овој картици."
-          }
-        }
-      }
-    },
-    "libremac_credentials_outcome_userCancelled" : {
-      "comment" : "libremac_credentials_outcome_userCancelled",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The operation was cancelled."
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Операција је отказана."
+            "value" : "Ова радња није доступна на овој картици."
           }
         }
       }
@@ -10105,13 +10088,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ready"
+            "value" : "Operational"
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Спреман"
+            "value" : "Оперативан"
           }
         }
       }
@@ -10122,13 +10105,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Transport (not activated)"
+            "value" : "Transport — activation needed"
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Транспортни (није активиран)"
+            "value" : "Транспортно — потребна активација"
           }
         }
       }

@@ -271,20 +271,20 @@
         <translation>CAN</translation>
     </message>
     <message id="libremac_credentials_kind_unknown">
-        <source>Unknown credential</source>
-        <translation>Unknown credential</translation>
+        <source>Credential</source>
+        <translation>Credential</translation>
     </message>
     <message id="libremac_credentials_state_unknown">
         <source>Unknown</source>
         <translation>Unknown</translation>
     </message>
     <message id="libremac_credentials_state_transport">
-        <source>Transport (not activated)</source>
-        <translation>Transport (not activated)</translation>
+        <source>Transport — activation needed</source>
+        <translation>Transport — activation needed</translation>
     </message>
     <message id="libremac_credentials_state_operational">
-        <source>Ready</source>
-        <translation>Ready</translation>
+        <source>Operational</source>
+        <translation>Operational</translation>
     </message>
     <message id="libremac_credentials_state_needs_change">
         <source>Change required</source>
@@ -327,40 +327,36 @@
         <translation>Uses: {count} of {max}</translation>
     </message>
     <message id="libremac_credentials_outcome_unspecified">
-        <source>The operation finished without a reported result.</source>
-        <translation>The operation finished without a reported result.</translation>
+        <source>The operation did not complete.</source>
+        <translation>The operation did not complete.</translation>
     </message>
     <message id="libremac_credentials_outcome_ok">
-        <source>The operation completed successfully.</source>
-        <translation>The operation completed successfully.</translation>
-    </message>
-    <message id="libremac_credentials_outcome_userCancelled">
-        <source>The operation was cancelled.</source>
-        <translation>The operation was cancelled.</translation>
+        <source>Done.</source>
+        <translation>Done.</translation>
     </message>
     <message id="libremac_credentials_outcome_missingFields">
-        <source>A required entry was missing.</source>
-        <translation>A required entry was missing.</translation>
+        <source>A required value was not entered.</source>
+        <translation>A required value was not entered.</translation>
     </message>
     <message id="libremac_credentials_outcome_invalidPin">
-        <source>The PIN entered was incorrect.</source>
-        <translation>The PIN entered was incorrect.</translation>
+        <source>The {who} was not correct.</source>
+        <translation>The {who} was not correct.</translation>
     </message>
     <message id="libremac_credentials_outcome_blocked">
-        <source>The credential is blocked.</source>
-        <translation>The credential is blocked.</translation>
+        <source>The {who} is now blocked.</source>
+        <translation>The {who} is now blocked.</translation>
     </message>
     <message id="libremac_credentials_outcome_pluginError">
-        <source>The card plugin reported an error.</source>
-        <translation>The card plugin reported an error.</translation>
+        <source>The card reported an error.</source>
+        <translation>The card reported an error.</translation>
     </message>
     <message id="libremac_credentials_outcome_unsupported">
-        <source>This operation is not supported on this card.</source>
-        <translation>This operation is not supported on this card.</translation>
+        <source>This action isn't available on this card.</source>
+        <translation>This action isn't available on this card.</translation>
     </message>
     <message id="libremac_credentials_outcome_keyActivationFailed">
-        <source>The signing key could not be activated.</source>
-        <translation>The signing key could not be activated.</translation>
+        <source>The PIN was set, but activating the signing key failed.</source>
+        <translation>The PIN was set, but activating the signing key failed.</translation>
     </message>
     <message id="libremac_credentials_outcome_cardRemoved">
         <source>The card was removed before the operation finished.</source>
