@@ -14,8 +14,7 @@ import Foundation
 /// Stable agent-side error taxonomy, carried as the numeric `code` arm of a
 /// reply's `err` field and as `OpFinished.code`. Mirrors
 /// `LibreSCRS::Agent::ErrorCode` (LibreAgent) and the CDDL `error-code`
-/// socket (`librescrs-agent.cddl:43-48`). 20 values, append-only — never
-/// renumber.
+/// group. 20 values, append-only — never renumber.
 ///
 /// Wire tolerance: `error-code` is wire-frozen append-only, so a newer agent
 /// may send a code past `invalidDocument` — this build simply does not have
@@ -125,6 +124,36 @@ extension ErrorCode {
     public var isKnown: Bool {
         if case .unknown = self { return false }
         return true
+    }
+
+    /// The name this code carries in the wire contract. The numeric enums
+    /// send only a value, so a name mismatch cannot corrupt a frame — it
+    /// silently attaches the wrong copy to the right number, which is worse
+    /// to debug. Exhaustive on purpose: an added case must name itself here.
+    public var wireName: String {
+        switch self {
+        case .none: return "None"
+        case .cardRemoved: return "CardRemoved"
+        case .credentialWrong: return "CredentialWrong"
+        case .credentialBlocked: return "CredentialBlocked"
+        case .communicationError: return "CommunicationError"
+        case .parseError: return "ParseError"
+        case .unsupportedCard: return "UnsupportedCard"
+        case .authFailed: return "AuthFailed"
+        case .prompterError: return "PrompterError"
+        case .capabilityMissing: return "CapabilityMissing"
+        case .watchdogTimeout: return "WatchdogTimeout"
+        case .keyNotFound: return "KeyNotFound"
+        case .keyAmbiguous: return "KeyAmbiguous"
+        case .certExpiredBlocked: return "CertExpiredBlocked"
+        case .chainIncomplete: return "ChainIncomplete"
+        case .tsaUnreachable: return "TsaUnreachable"
+        case .signingEngineError: return "SigningEngineError"
+        case .rateLimited: return "RateLimited"
+        case .engineUnavailable: return "EngineUnavailable"
+        case .invalidDocument: return "InvalidDocument"
+        case .unknown(let raw): return "unknown(\(raw))"
+        }
     }
 }
 
@@ -251,6 +280,22 @@ extension OperationPhase {
         if case .unknown = self { return false }
         return true
     }
+
+    /// The name this phase carries in the wire contract. See
+    /// `ErrorCode.wireName` for why numeric enums name themselves.
+    public var wireName: String {
+        switch self {
+        case .created: return "Created"
+        case .connecting: return "Connecting"
+        case .awaitingConsent: return "AwaitingConsent"
+        case .authenticating: return "Authenticating"
+        case .reading: return "Reading"
+        case .signing: return "Signing"
+        case .timestamping: return "Timestamping"
+        case .done: return "Done"
+        case .unknown(let raw): return "unknown(\(raw))"
+        }
+    }
 }
 
 /// Terminal `Operation1.Finished` status. Mirrors
@@ -296,6 +341,17 @@ extension OperationStatus {
     public var isKnown: Bool {
         if case .unknown = self { return false }
         return true
+    }
+
+    /// The name this status carries in the wire contract. See
+    /// `ErrorCode.wireName` for why numeric enums name themselves.
+    public var wireName: String {
+        switch self {
+        case .ok: return "Ok"
+        case .cancelled: return "Cancelled"
+        case .error: return "Error"
+        case .unknown(let raw): return "unknown(\(raw))"
+        }
     }
 }
 
@@ -348,6 +404,18 @@ extension QuiesceReason {
         if case .unknown = self { return false }
         return true
     }
+
+    /// The name this reason carries in the wire contract. See
+    /// `ErrorCode.wireName` for why numeric enums name themselves.
+    public var wireName: String {
+        switch self {
+        case .systemSleep: return "SystemSleep"
+        case .screenLocked: return "ScreenLocked"
+        case .sessionInactive: return "SessionInactive"
+        case .shutdown: return "Shutdown"
+        case .unknown(let raw): return "unknown(\(raw))"
+        }
+    }
 }
 
 /// Pre-read unlock mechanism for travel-document-style cards. Mirrors
@@ -398,6 +466,17 @@ extension PreReadAuth {
         if case .unknown = self { return false }
         return true
     }
+
+    /// The name this method carries in the wire contract. See
+    /// `ErrorCode.wireName` for why numeric enums name themselves.
+    public var wireName: String {
+        switch self {
+        case .none: return "None"
+        case .mrz: return "Mrz"
+        case .can: return "Can"
+        case .unknown(let raw): return "unknown(\(raw))"
+        }
+    }
 }
 
 /// Card capability bitmask carried as `CardState.caps` (a raw `uint32` on
@@ -412,10 +491,52 @@ public struct Capabilities: OptionSet, Sendable, Equatable {
         self.rawValue = rawValue
     }
 
-    public static let pki = Capabilities(rawValue: 1 << 0)
-    public static let identityData = Capabilities(rawValue: 1 << 1)
-    public static let emrtdCrypto = Capabilities(rawValue: 1 << 2)
-    public static let pinManagement = Capabilities(rawValue: 1 << 3)
+    /// One case per capability bit. `OptionSet` carries no enumeration of its
+    /// own and Swift reflection does not see static properties, so without
+    /// this a test could only check the bits it was separately told about —
+    /// another hand-kept copy of the very thing it is meant to be verifying.
+    public enum Bit: UInt32, CaseIterable, Sendable {
+        case pki = 0
+        case identityData = 1
+        case emrtdCrypto = 2
+        case pinManagement = 3
+
+        public var wireName: String {
+            switch self {
+            case .pki: return "Pki"
+            case .identityData: return "IdentityData"
+            case .emrtdCrypto: return "EmrtdCrypto"
+            case .pinManagement: return "PinManagement"
+            }
+        }
+    }
+
+    public init(bit: Bit) {
+        self.init(rawValue: 1 << bit.rawValue)
+    }
+
+    public static let pki = Capabilities(bit: .pki)
+    public static let identityData = Capabilities(bit: .identityData)
+    public static let emrtdCrypto = Capabilities(bit: .emrtdCrypto)
+    public static let pinManagement = Capabilities(bit: .pinManagement)
+}
+
+// MARK: - Config wire enum (Config1 seam)
+
+/// The closed set of `Config1` keys a client may WRITE — CDDL
+/// `settable-config-key`. The raw value IS the wire token. Deliberately
+/// narrower than every other config key on the wire: `TslCacheDir` /
+/// `AiaCacheDir` / `PluginDir` are file-only (a wire-settable `PluginDir`
+/// is a `dlopen` code-exec vector) and `LastTsaUrl` is read-only agent
+/// state, so none of the four are constructible here — see
+/// `AgentRequest.resetConfig`'s own doc comment for the wider rule those
+/// four belong to.
+public enum SettableConfigKey: String, Sendable, Equatable, CaseIterable {
+    case defaultLevel = "DefaultLevel"
+    case defaultReason = "DefaultReason"
+    case defaultLocation = "DefaultLocation"
+    case tsaUrls = "TsaUrls"
+    case tslSources = "TslSources"
 }
 
 // MARK: - Credential wire enums (Credentials1 seam)

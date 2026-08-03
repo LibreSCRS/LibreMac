@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+name: Contract freshness
+
+# Reports, never blocks. This check compares the vendored contract against the
+# upstream branch, so it can go red for a change made in another repository by
+# someone else -- and a gate that fails for reasons the author cannot fix is a
+# gate people learn to ignore. The blocking half pins instead.
+#
+# It runs on push as well as on a schedule: GitHub disables scheduled workflows
+# after 60 days of repository inactivity, and a schedule that has quietly
+# stopped looks exactly like one that keeps passing.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare the vendored contract against upstream
+        id: compare
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          vendored=LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract/wire-vocabulary.json
+          gh api repos/LibreSCRS/LibreAgent/contents/wire/wire-vocabulary.json \
+            --jq '.content' | base64 -d > /tmp/upstream.json
+          if cmp -s "$vendored" /tmp/upstream.json; then
+            echo "stale=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check the recorded revision matches the build pin
+        id: pin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          recorded=$(tr -d '[:space:]' < LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract/wire-vocabulary.provenance)
+          gh api repos/LibreSCRS/LibreDarwin/contents/cmake/FindOrUseLibreAgent.cmake \
+            --jq '.content' | base64 -d > /tmp/FindOrUseLibreAgent.cmake
+          pinned=$(grep -Eo 'GIT_TAG[[:space:]]+[0-9a-f]{40}' /tmp/FindOrUseLibreAgent.cmake | awk '{print $2}')
+          if [ "$recorded" = "$pinned" ]; then
+            echo "split=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "split=yes" >> "$GITHUB_OUTPUT"
+            echo "recorded=$recorded pinned=$pinned"
+          fi
+
+      - name: Report
+        if: steps.compare.outputs.stale == 'yes' || steps.pin.outputs.split == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          title="Wire contract has moved ahead of the vendored copy"
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')
+          body="The published wire vocabulary no longer matches the copy in this repository, or the recorded revision and the build pin disagree. Raise both together: refresh the vendored manifest, update the recorded revision, and move the dependency pin in the same change."
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

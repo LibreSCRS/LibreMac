@@ -53,7 +53,12 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
     case "GetConfig":
         request = .getConfig
     case "SetConfig":
-        request = .setConfig(key: mwText(pairs, "key") ?? "", value: mwGet(pairs, "value") ?? .null)
+        // An unrecognized key fails closed, like ManagePin's verb below —
+        // `settable-config-key` is a closed wire vocabulary.
+        guard let key = SettableConfigKey(rawValue: mwText(pairs, "key") ?? "") else {
+            throw MockWireError.malformed
+        }
+        request = .setConfig(key: key, value: mwGet(pairs, "value") ?? .null)
     case "ResetConfig":
         request = .resetConfig(key: mwText(pairs, "key") ?? "")
     case "CancelOp":

@@ -22,7 +22,8 @@ let package = Package(
             name: "LibreMacAgentClientTests",
             dependencies: ["LibreMacAgentClient"],
             resources: [
-                .copy("Fixtures")
+                .copy("Fixtures"),
+                .copy("Contract"),
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
