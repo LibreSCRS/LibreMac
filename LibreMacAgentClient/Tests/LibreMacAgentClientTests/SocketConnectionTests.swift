@@ -164,7 +164,15 @@ struct SocketConnectionTests {
     @Test("close() is idempotent")
     func closeIsIdempotent() async throws {
         let (fdA, fdB) = makeSocketPair()
-        close(fdB) // nothing on the other end; irrelevant to this test
+        // The peer stays OPEN for the whole test, and that is load-bearing.
+        // Closing it first gives the connection two competing terminal events:
+        // the read source sees EOF and finishes the stream with `.peerClosed`,
+        // while `close()` finishes it cleanly with no error. Whichever runs
+        // first wins, so the assertion below would hold only by luck — it was
+        // observed failing on roughly one run in twenty. Leaving the peer alive
+        // makes the local close the only way this stream can end, which is
+        // exactly the property this test is about.
+        defer { close(fdB) }
         let connection = SocketConnection(connectedDescriptor: fdA)
 
         connection.close()
