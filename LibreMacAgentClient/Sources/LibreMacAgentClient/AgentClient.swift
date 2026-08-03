@@ -285,13 +285,14 @@ public actor AgentClient {
         agentFeatures = features
     }
 
+    /// Checks the reply's shape only. The registry is deliberately NOT seeded
+    /// here — `resolvePendingReply` seeds it as the `State` frame is
+    /// dispatched, so that the snapshot and the events around it apply in wire
+    /// order. See the note there.
     private func performGetState(on connection: SocketConnection) async throws {
         let (reply, fds) = try await callExpectingSuccess(.getState, on: connection)
         closeFds(fds)
-        guard case .state(let readers, let cards) = reply else { throw AgentClientError.unexpectedReply }
-        readersByHandle = Dictionary(uniqueKeysWithValues: readers.map { ($0.handle, $0) })
-        cardsByHandle = Dictionary(uniqueKeysWithValues: cards.map { ($0.handle, $0) })
-        publishRegistrySnapshot()
+        guard case .state = reply else { throw AgentClientError.unexpectedReply }
     }
 
     // MARK: - Death sweep (whole-tree drop; the step ordering is the contract)
@@ -325,6 +326,15 @@ public actor AgentClient {
             slot.timeoutTask?.cancel()
             slot.continuation.resume(throwing: AgentClientError.connectionLost)
         }
+    }
+
+    /// Replaces the registry with the authoritative `State` snapshot. Called
+    /// only from the frame-dispatch path, so it is ordered against every event
+    /// apply by the wire.
+    private func seedRegistry(readers: [ReaderState], cards: [CardState]) {
+        readersByHandle = Dictionary(uniqueKeysWithValues: readers.map { ($0.handle, $0) })
+        cardsByHandle = Dictionary(uniqueKeysWithValues: cards.map { ($0.handle, $0) })
+        publishRegistrySnapshot()
     }
 
     private func publishRegistrySnapshot() {
@@ -447,6 +457,16 @@ public actor AgentClient {
             // the connection that carried it is gone) — drop it.
             closeFds(fds)
             return
+        }
+        // A `State` snapshot IS a registry mutation, so it is applied here,
+        // where the frame is dispatched, alongside every event apply — and
+        // therefore in wire order. Applying it where the awaiting task resumes
+        // instead would apply it whenever the actor next admits that task, and
+        // an actor promises no ordering between a resumed task and the frame
+        // pump; events that arrived after this snapshot on the wire could
+        // already be in the registry, and the assignment would discard them.
+        if case .state(let readers, let cards) = reply {
+            seedRegistry(readers: readers, cards: cards)
         }
         slot.timeoutTask?.cancel()
         slot.continuation.resume(returning: (reply, fds))

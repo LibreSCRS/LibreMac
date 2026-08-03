@@ -81,18 +81,58 @@ struct AgentClientTests {
         #expect(entries["tsaUrl"] == .text("https://tsa.example"))
 
         // The interleaved events were still processed (registry updated), not
-        // merely swallowed. The event applies and the reply resolution are
-        // separate hops onto the client actor, so sampling readers() at the
-        // single instant the reply resolves is racy; poll with a bounded wait
-        // (mirrors SocketConnectionTests' bounded-poll idiom) until they land.
-        var readers = await client.readers()
-        for _ in 0..<200 where Set(readers.map(\.handle)) != Set(["r1", "r2"]) {
-            try await Task.sleep(nanoseconds: 5_000_000) // 5 ms
-            readers = await client.readers()
-        }
+        // merely swallowed. Every event is applied as its frame is dispatched,
+        // and these three were dispatched ahead of the reply just awaited —
+        // so they have already landed, with no waiting of any kind.
+        let readers = await client.readers()
         #expect(Set(readers.map(\.handle)) == Set(["r1", "r2"]))
 
         await client.stop()
+    }
+
+    @Test("the GetState snapshot never discards events that arrived behind it on the wire")
+    func stateSnapshotDoesNotClobberLaterEvents() async throws {
+        // The agent may emit ReaderAdded the instant after it answers
+        // GetState. The reply and the event are then adjacent on the wire,
+        // in that order, and the registry must end up reflecting BOTH — the
+        // snapshot first, the event on top of it.
+        //
+        // Whether that holds is a scheduling question, so one pass proves
+        // little: repeat, and let the odds do the work. Each pass is a fresh
+        // client over a fresh socketpair.
+        for pass in 0..<40 {
+            let mock = MockAgentServer()
+            let client = makeTestClient(mock: mock)
+            await client.start()
+            var iterator = mock.requests.makeAsyncIterator()
+
+            let hello = try #require(await iterator.next())
+            mock.sendReply(.helloAck(agentVer: "1.0.0-test", features: []), req: hello.req)
+
+            let getState = try #require(await iterator.next())
+            guard case .getState = getState.request else {
+                Issue.record("expected GetState second, got \(getState.request)")
+                return
+            }
+            // Empty snapshot, then the event immediately behind it — the
+            // tightest window there is between the two.
+            mock.sendReply(.state(readers: [], cards: []), req: getState.req)
+            mock.sendEvent(.readerAdded(ReaderState(handle: "r1", name: "Reader 1", hasCard: false)))
+
+            // A round trip that must be dispatched after the event: once its
+            // reply resolves, the event ahead of it has already been applied.
+            // No polling — wire order is the property under test, and a poll
+            // would paper over losing it.
+            async let configTask = client.getConfig()
+            let configReq = try #require(await iterator.next())
+            mock.sendReply(.config(entries: [:]), req: configReq.req)
+            _ = try await configTask
+
+            let readers = await client.readers()
+            #expect(readers.map(\.handle) == ["r1"], "pass \(pass): the snapshot overwrote the event behind it")
+
+            await client.stop()
+        }
     }
 
     // MARK: - Registry population + mutation + snapshot stream
