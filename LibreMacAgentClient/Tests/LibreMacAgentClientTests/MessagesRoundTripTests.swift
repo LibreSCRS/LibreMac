@@ -62,7 +62,7 @@ struct MessagesRequestEncodeTests {
             0x6C, 0x61, 0x6C, 0x6C, 0x6F, 0x77, 0x45, 0x78, 0x70, 0x69, 0x72, 0x65, 0x64, 0xF5,
         ])
         let opts = SignOptions(
-            format: "pades", level: "b-lt", packaging: "enveloped",
+            format: .pades, level: .bLT, packaging: .enveloped,
             allowExpired: true, displayName: "Doc", reason: "why", location: "Belgrade")
         let body = AgentRequest.sign(card: "card/0", cert: "abc123", inFd: 0, opts: opts).encode(req: 7)
         #expect(body == expected)
@@ -70,7 +70,7 @@ struct MessagesRequestEncodeTests {
 
     @Test("request byte-exactness: minimal Sign (no optional opts) carries opts as a 3-key map only")
     func signRequestMinimalOptsHasNoExtraKeys() {
-        let opts = SignOptions(format: "auto", level: "b-b", packaging: "auto")
+        let opts = SignOptions(format: .auto, level: .bB, packaging: .auto)
         let body = AgentRequest.sign(card: "card/0", cert: "abc123", inFd: 2, opts: opts).encode(req: 8)
         // opts = {format,level,packaging} => map(3) header 0xA3, and no allowExpired/displayName/reason/location bytes.
         #expect(body.contains(0xA3))
@@ -78,11 +78,37 @@ struct MessagesRequestEncodeTests {
         #expect(!body.contains(Data("tsa".utf8)))
     }
 
+    @Test("sign opts carry the lowercase wire tokens, never a case name")
+    func signOptsCarryWireTokensNotCaseNames() {
+        let opts = SignOptions(format: .cades, level: .bB, packaging: .detached)
+        let body = AgentRequest.sign(card: "card/0", cert: "abc123", inFd: 0, opts: opts).encode(req: 90)
+        #expect(body.contains(Data("cades".utf8)))
+        #expect(body.contains(Data("b-b".utf8)))
+        #expect(!body.contains(Data("CAdES".utf8)))
+        #expect(!body.contains(Data("B-B".utf8)))
+    }
+
+    @Test("the agent-decides sentinel is spelled with the token this wire defines")
+    func autoLevelIsSentAsTheAutoToken() {
+        let opts = SignOptions(format: .cades, level: .auto, packaging: .detached)
+        let body = AgentRequest.sign(card: "card/0", cert: "abc123", inFd: 0, opts: opts).encode(req: 93)
+        // This wire's sign-opts REQUIRES the field, so the deferral is spelled
+        // with the sentinel rather than by omission.
+        #expect(body.contains(Data("auto".utf8)))
+    }
+
+    @Test("every request-vocabulary token is lowercase, as the agent's closed sets require")
+    func requestVocabularyIsLowercase() {
+        for f in SignatureFormat.allCases { #expect(f.rawValue == f.rawValue.lowercased()) }
+        for l in SignatureLevel.allCases { #expect(l.rawValue == l.rawValue.lowercased()) }
+        for p in Packaging.allCases { #expect(p.rawValue == p.rawValue.lowercased()) }
+    }
+
     @Test("Sign with tsaUrl + visualSignature carries both keys, the nested map field-for-field")
     func signRequestWithTsaUrlAndVisualSignatureCarriesBothKeys() {
         let visual = VisualSignatureOptions(page: 1, x: 10.5, y: 20.25, width: 150.0, height: 60.0, text: "Signed by {cn}")
         let opts = SignOptions(
-            format: "pades", level: "b-t", packaging: "enveloped",
+            format: .pades, level: .bT, packaging: .enveloped,
             tsaUrl: "https://tsa.example.com/ts", visualSignature: visual)
         let body = AgentRequest.sign(card: "card/0", cert: "abc123", inFd: 0, opts: opts).encode(req: 21)
         // Substring checks only (no hand-computed byte-exactness, unlike signRequest

@@ -11017,6 +11017,23 @@
         }
       }
     },
+    "libremac_sign_chain_incomplete" : {
+      "comment" : "libremac_sign_chain_incomplete",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The validation chain could not be completed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ланац провере ваљаности није могуће употпунити."
+          }
+        }
+      }
+    },
     "libremac_sign_confirm" : {
       "comment" : "libremac_sign_confirm",
       "localizations" : {
@@ -11047,6 +11064,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Потписано — сачувано у {name}"
+          }
+        }
+      }
+    },
+    "libremac_sign_done_level" : {
+      "comment" : "libremac_sign_done_level",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed at {level}."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписано на нивоу {level}."
           }
         }
       }

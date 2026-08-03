@@ -36,9 +36,15 @@ struct SignDemoView: View {
                 .foregroundStyle(.orange)
             case .working:
                 ProgressView(loc("libremac_sign_working", "Signing…"))
-            case .done(let destination):
+            case let .done(destination, meta):
                 Label(doneSummary(destination), systemImage: "checkmark.seal.fill")
                     .foregroundStyle(.green)
+                Text(levelText("libremac_sign_done_level",
+                                "Signed at {level}.", meta.level.uppercased()))
+                if !meta.chainComplete {
+                    Text(loc("libremac_sign_chain_incomplete",
+                             "The validation chain could not be completed."))
+                }
                 Button(loc("libremac_sign_another", "Sign another file")) {
                     coordinator.reset()
                 }
@@ -107,6 +113,20 @@ struct SignDemoView: View {
             key: "libremac_sign_done",
             defaultText: "Signed — saved to {name}",
             placeholders: ["name": destination.lastPathComponent]
+        ).resolve()
+    }
+
+    /// The `{level}`-substituted sign-outcome sentence. Named-brace
+    /// placeholder through `LocalizedText`, same shape as
+    /// `CredentialsView.attributed` — never `%@` with
+    /// `replacingOccurrences`: `CatalogCompletenessTests` guards named
+    /// placeholders across both locales, so a positional token would bypass
+    /// that gate. Single-purpose, like its `CredentialsView` siblings
+    /// (`countText`, `rangeText`): the `{level}` key is this call's whole
+    /// job, not a general substitution facility.
+    private func levelText(_ key: String, _ fallback: String, _ level: String) -> String {
+        LocalizedText(
+            key: key, defaultText: fallback, placeholders: ["level": level]
         ).resolve()
     }
 

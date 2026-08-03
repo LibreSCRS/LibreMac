@@ -202,6 +202,10 @@
         <source>Sign a file…</source>
         <translation>Потпиши датотеку…</translation>
     </message>
+    <message id="libremac_sign_chain_incomplete">
+        <source>The validation chain could not be completed.</source>
+        <translation>Ланац провере ваљаности није могуће употпунити.</translation>
+    </message>
     <message id="libremac_sign_confirm">
         <source>Confirm the signature in the card dialog…</source>
         <translation>Потврдите потпис у дијалогу картице…</translation>
@@ -209,6 +213,10 @@
     <message id="libremac_sign_done">
         <source>Signed — saved to {name}</source>
         <translation>Потписано — сачувано у {name}</translation>
+    </message>
+    <message id="libremac_sign_done_level">
+        <source>Signed at {level}.</source>
+        <translation>Потписано на нивоу {level}.</translation>
     </message>
     <message id="libremac_sign_input_unreadable">
         <source>The selected file could not be opened for signing.</source>

@@ -242,9 +242,9 @@ private func encodeVisualSignatureOptions(_ v: VisualSignatureOptions) -> CBORVa
 
 private func encodeSignOptions(_ o: SignOptions) -> CBORValue {
     var pairs: [(String, CBORValue)] = [
-        ("format", .text(o.format)),
-        ("level", .text(o.level)),
-        ("packaging", .text(o.packaging)),
+        ("format", .text(o.format.rawValue)),
+        ("level", .text(o.level.rawValue)),
+        ("packaging", .text(o.packaging.rawValue)),
     ]
     if let allowExpired = o.allowExpired {
         pairs.append(("allowExpired", .bool(allowExpired)))

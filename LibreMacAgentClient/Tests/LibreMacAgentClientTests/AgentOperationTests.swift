@@ -53,7 +53,7 @@ struct AgentOperationTests {
         defer { try? input.close() }
         async let opTask = client.sign(
             card: "c1", certId: "cert1", input: input,
-            options: SignOptions(format: "pdf", level: "B-B", packaging: "enveloped"))
+            options: SignOptions(format: .pades, level: .bB, packaging: .enveloped))
         let startReq = try #require(await iterator.next())
         guard case .sign = startReq.request else {
             Issue.record("expected Sign, got \(startReq.request)")
@@ -74,7 +74,7 @@ struct AgentOperationTests {
         #expect(op == 42)
 
         let signResult = SignResult(
-            artifact: 0, meta: SignMeta(format: "pdf", level: "B-B", tsaUsed: false, chainComplete: true))
+            artifact: 0, meta: SignMeta(format: "pades", level: "b-b", tsaUsed: false, chainComplete: true))
         mock.sendReply(.signRecovery(signResult), req: recoveryReq.req)
 
         let (status, code, _, _) = await operation.finished()

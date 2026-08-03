@@ -760,6 +760,37 @@ public struct VisualSignatureOptions: Sendable, Equatable {
     }
 }
 
+/// Signature container format a client may REQUEST. Raw values ARE the wire
+/// tokens: the agent's closed set — enforced by
+/// `SignatureParams::isKnownFormat` — is lowercase-only, which is why this is
+/// an enum and not a free string. `auto` asks the agent to sniff the format
+/// from the document's leading bytes; it is the deferral sentinel the
+/// client sends, not itself a member of `isKnownFormat`'s set. Request-only:
+/// `SignMeta.format` reports a resolved format and stays a `String`, so an
+/// unknown future token degrades at decode instead of failing the frame.
+public enum SignatureFormat: String, Sendable, CaseIterable {
+    case pades, cades, xades, jades, asice, auto
+}
+
+/// eIDAS AdES conformance level a client may REQUEST, enforced agent-side as
+/// a closed set by `SignatureParams::isKnownLevel`. `auto` is the deferral
+/// sentinel the client sends for the frontend to resolve against the agent's
+/// configured `DefaultLevel`, including that value's upgrade to b-t when a
+/// timestamp authority is configured. Request-only, same reasoning as above.
+public enum SignatureLevel: String, Sendable, CaseIterable {
+    case bB = "b-b", bT = "b-t", bLT = "b-lt", bLTA = "b-lta", auto
+}
+
+/// Signature packaging relative to the signed document, enforced agent-side
+/// as a closed set by `SignatureParams::isKnownPackaging`. `enveloping` is
+/// deliberately absent: it exists nowhere below the C++ agent client — not
+/// in `isKnownPackaging`, not in LibreMiddleware's `PackagingMode`, not in
+/// the signing engine itself. `auto` is the deferral sentinel that resolves
+/// per format.
+public enum Packaging: String, Sendable, CaseIterable {
+    case enveloped, detached, auto
+}
+
 /// `Card1.Sign` request options. `format`/`level`/`packaging` are required;
 /// the rest are per-sign chrome. Mirrors `LibreSCRS::Darwin::wire::SignOpts`
 /// and CDDL `sign-opts` (`librescrs-agent.cddl:79-80`).
@@ -773,18 +804,33 @@ public struct VisualSignatureOptions: Sendable, Equatable {
 /// are gated behind their own HelloAck-equivalent feature tokens
 /// (`"tsa-url"` / `"visual-sign"`, `Manager1.Features`/`HelloAck.features`).
 public struct SignOptions: Sendable, Equatable {
-    public let format: String
-    public let level: String
-    public let packaging: String
+    public let format: SignatureFormat
+    public let level: SignatureLevel
+    public let packaging: Packaging
+    /// Consent to sign with an expired certificate — honored only at the
+    /// baseline level: the agent proceeds on expired + `.bB` + this consent,
+    /// but blocks on expired + the qualified family (`.bT`/`.bLT`/`.bLTA`)
+    /// regardless of it. An agent that resolves `.auto` to a qualified level
+    /// therefore voids this consent — a caller who wants it honored must send
+    /// an explicit `.bB`, never `.auto`.
     public let allowExpired: Bool?
     public let displayName: String?
     public let reason: String?
     public let location: String?
+    /// See the type doc above for the general `tsaUrl` contract. Pairing
+    /// `tsaUrl` with `.auto` counts toward the agent's own "is a timestamp
+    /// authority available" decision: against a current agent, a per-request
+    /// `tsaUrl` lifts a defaulted `b-b` to `b-t` the same way a configured
+    /// `TsaUrls` would, so the pairing is accepted. Only against an agent
+    /// that predates that frontend fix does this per-request value not
+    /// count, so `.auto` can still resolve to `b-b` and the pairing is then
+    /// rejected — exactly as `tsaUrl` alongside an EXPLICIT `"b-b"` still is,
+    /// on every agent version.
     public let tsaUrl: String?
     public let visualSignature: VisualSignatureOptions?
 
     public init(
-        format: String, level: String, packaging: String,
+        format: SignatureFormat, level: SignatureLevel, packaging: Packaging,
         allowExpired: Bool? = nil, displayName: String? = nil, reason: String? = nil, location: String? = nil,
         tsaUrl: String? = nil, visualSignature: VisualSignatureOptions? = nil
     ) {

@@ -109,7 +109,7 @@ struct SigningCoordinatorPhaseTests {
         }
 
         #expect(await waitUntil { client.signCallCount == 1 })
-        let meta = SignMeta(format: "CAdES", level: "B-B", tsaUsed: false, chainComplete: true)
+        let meta = SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true)
         operation.publishResult(.sign(SignResult(artifact: 0, meta: meta)), fds: [artifactFd])
         operation.resolveFinished((.ok, .none, nil, "signed"))
 

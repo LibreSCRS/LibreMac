@@ -169,6 +169,37 @@ struct CatalogCompletenessTests {
         }
     }
 
+    /// Named `{placeholder}` tokens a translation string carries, e.g.
+    /// `{who}` / `{count}` / `{level}`.
+    private static func placeholders(in text: String) throws -> Set<String> {
+        let pattern = try NSRegularExpression(pattern: "\\{([a-zA-Z_][a-zA-Z0-9_]*)\\}")
+        let range = NSRange(text.startIndex..., in: text)
+        return Set(
+            pattern.matches(in: text, range: range).map { match in
+                String(text[Range(match.range(at: 1), in: text)!])
+            })
+    }
+
+    /// Generic sibling of `attributedOutcomesKeepTheirPlaceholder` above:
+    /// rather than hand-picking ids, this checks every id BOTH catalogs
+    /// carry — a translation that drops (or renames) a `{placeholder}` still
+    /// parses as valid `.ts` XML, so nothing else here would catch it before
+    /// it silently stops filling in at render time.
+    @Test("every shared id keeps the same named placeholders in both locales")
+    func placeholdersMatchAcrossLocales() throws {
+        let en = try Self.translations(of: Self.enCatalog)
+        let sr = try Self.translations(of: Self.srCatalog)
+        let sharedIds = Set(en.keys).intersection(sr.keys)
+        #expect(!sharedIds.isEmpty)
+        for id in sharedIds.sorted() {
+            let enPlaceholders = try Self.placeholders(in: en[id] ?? "")
+            let srPlaceholders = try Self.placeholders(in: sr[id] ?? "")
+            #expect(
+                enPlaceholders == srPlaceholders,
+                "\(id): en has \(enPlaceholders.sorted()), sr has \(srPlaceholders.sorted())")
+        }
+    }
+
     @Test("every credentials id the UI renders exists in both catalogs")
     func credentialIdsAreComplete() throws {
         let en = Set(try Self.ids(of: Self.enCatalog))

@@ -202,6 +202,10 @@
         <source>Sign a file…</source>
         <translation>Sign a file…</translation>
     </message>
+    <message id="libremac_sign_chain_incomplete">
+        <source>The validation chain could not be completed.</source>
+        <translation>The validation chain could not be completed.</translation>
+    </message>
     <message id="libremac_sign_confirm">
         <source>Confirm the signature in the card dialog…</source>
         <translation>Confirm the signature in the card dialog…</translation>
@@ -209,6 +213,10 @@
     <message id="libremac_sign_done">
         <source>Signed — saved to {name}</source>
         <translation>Signed — saved to {name}</translation>
+    </message>
+    <message id="libremac_sign_done_level">
+        <source>Signed at {level}.</source>
+        <translation>Signed at {level}.</translation>
     </message>
     <message id="libremac_sign_input_unreadable">
         <source>The selected file could not be opened for signing.</source>

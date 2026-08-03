@@ -47,7 +47,7 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
             card: mwText(pairs, "card") ?? "",
             cert: mwText(pairs, "cert") ?? "",
             inFd: mwUInt(pairs, "in") ?? 0,
-            opts: decodeSignOptions(mwGet(pairs, "opts")))
+            opts: try decodeSignOptions(mwGet(pairs, "opts")))
     case "GetCertDer":
         request = .getCertDer(reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "")
     case "GetConfig":
@@ -114,12 +114,28 @@ private func decodeVisualSignatureOptions(_ value: CBORValue?) -> VisualSignatur
         text: mwText(pairs, "text") ?? "")
 }
 
-private func decodeSignOptions(_ value: CBORValue?) -> SignOptions {
-    guard case .map(let pairs)? = value else { return SignOptions(format: "", level: "", packaging: "") }
+private func decodeSignOptions(_ value: CBORValue?) throws -> SignOptions {
+    guard case .map(let pairs)? = value else {
+        return SignOptions(format: .auto, level: .auto, packaging: .auto)
+    }
+    // Unlike the missing-map fallback above (a client that sent no `opts` map
+    // at all), a present field carrying a token outside the closed set is
+    // garbage, not deferral — folding it into `.auto` would make "the client
+    // deferred" and "the client sent garbage" indistinguishable on this mock.
+    // Fail closed instead, like `ManagePin`'s verb above.
+    guard let format = SignatureFormat(rawValue: mwText(pairs, "format") ?? "auto") else {
+        throw MockWireError.malformed
+    }
+    guard let level = SignatureLevel(rawValue: mwText(pairs, "level") ?? "auto") else {
+        throw MockWireError.malformed
+    }
+    guard let packaging = Packaging(rawValue: mwText(pairs, "packaging") ?? "auto") else {
+        throw MockWireError.malformed
+    }
     return SignOptions(
-        format: mwText(pairs, "format") ?? "",
-        level: mwText(pairs, "level") ?? "",
-        packaging: mwText(pairs, "packaging") ?? "",
+        format: format,
+        level: level,
+        packaging: packaging,
         allowExpired: mwBool(pairs, "allowExpired"),
         displayName: mwText(pairs, "displayName"),
         reason: mwText(pairs, "reason"),

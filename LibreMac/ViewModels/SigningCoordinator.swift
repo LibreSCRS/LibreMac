@@ -40,8 +40,12 @@ public final class SigningCoordinator {
         case awaitingConsent
         /// The card / TSA is doing the cryptographic work.
         case working
-        /// Signed; payload is where the artifact was written.
-        case done(destination: URL)
+        /// Signed; payload is where the artifact was written, plus what the
+        /// agent actually produced. The level is not necessarily the level
+        /// requested: a request that defers resolves against the agent's
+        /// configured DefaultLevel, so this is the only honest answer to
+        /// "what did I just sign with".
+        case done(destination: URL, meta: SignMeta)
         /// Failed; payload is the resolved, user-facing message.
         case failed(message: String)
     }
@@ -55,10 +59,12 @@ public final class SigningCoordinator {
     }
 
     /// Default per-sign options. A generic file sign defaults to a detached
-    /// CAdES baseline signature; the TSA is owned by agent configuration, not a
-    /// per-sign option (see `SignOptions`).
+    /// CAdES container. The level and the TSA are both owned by agent
+    /// configuration, not by this client: pinning a level here would override
+    /// whatever the deployment is set up to produce — silently, and at a lower
+    /// conformance level.
     public static let defaultOptions = SignOptions(
-        format: "CAdES", level: "B-B", packaging: "detached")
+        format: .cades, level: .auto, packaging: .detached)
 
     /// Returns the coordinator to `idle` so the UI can start another sign.
     public func reset() {
@@ -129,6 +135,10 @@ public final class SigningCoordinator {
                 "The signature completed but no signed file was returned."))
             return
         }
+        // The level shown is whatever the agent actually resolved, never a
+        // value this client chose: a request that deferred resolves against
+        // the agent's configured default.
+        let meta = signResult.meta
         defer { try? artifact.close() }
 
         do {
@@ -140,7 +150,7 @@ public final class SigningCoordinator {
             return
         }
 
-        stage = .done(destination: destinationURL)
+        stage = .done(destination: destinationURL, meta: meta)
         Logger.signing.info(
             "Signed \(inputURL.lastPathComponent, privacy: .public) -> \(destinationURL.lastPathComponent, privacy: .public)")
     }
