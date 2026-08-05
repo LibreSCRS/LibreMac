@@ -68,6 +68,29 @@ struct SignDemoView: View {
               let certId = monitor.signingCertId
         else { return }
         Task { @MainActor in
+            // A menu-bar-only (accessory) app is not the active application,
+            // so it is promoted for the duration of the file panels. Promoted
+            // ONCE around both, not per panel: flapping back to `.accessory`
+            // between the input and the destination panel runs the transition
+            // twice, and restoring `.accessory` also hides any window the app
+            // already had open — a user with the credentials window up watched
+            // it vanish when a pick was cancelled.
+            let previousPolicy = NSApp.activationPolicy()
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate()
+            defer {
+                // Restoring `.accessory` hides every ordinary window the app
+                // has open, so it is restored only when none is left — a user
+                // who opened the credentials window and then cancelled a pick
+                // watched that window disappear with it.
+                let hasOrdinaryWindow = NSApp.windows.contains {
+                    $0.isVisible && !($0 is NSPanel) && $0.canBecomeMain
+                }
+                if !hasOrdinaryWindow {
+                    NSApp.setActivationPolicy(previousPolicy)
+                }
+            }
+
             // The menu bar menu must fully dismiss before a modal file panel
             // runs; presenting it during menu teardown makes the panel drop
             // the selection and return cancel. Yield a run-loop turn first.
@@ -96,16 +119,10 @@ struct SignDemoView: View {
         return runPanel(panel) ? panel.url : nil
     }
 
-    /// A menu-bar-only (accessory) app is not the active application, so a
-    /// sandbox file panel run as-is is dismissed before the user can act on
-    /// it. Promote to a regular, active application for the duration of the
-    /// panel, then restore the accessory policy.
+    /// Runs the panel. The caller promotes the app to `.regular` around the
+    /// whole pick sequence — see `startSign()`.
     private func runPanel(_ panel: NSSavePanel) -> Bool {
-        let previousPolicy = NSApp.activationPolicy()
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
-        defer { NSApp.setActivationPolicy(previousPolicy) }
-        return panel.runModal() == .OK
+        panel.runModal() == .OK
     }
 
     private func doneSummary(_ destination: URL) -> String {
