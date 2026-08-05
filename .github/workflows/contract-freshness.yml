@@ -50,7 +50,11 @@ jobs:
           recorded=$(tr -d '[:space:]' < LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract/wire-vocabulary.provenance)
           gh api repos/LibreSCRS/LibreDarwin/contents/cmake/FindOrUseLibreAgent.cmake \
             --jq '.content' | base64 -d > /tmp/FindOrUseLibreAgent.cmake
-          pinned=$(grep -Eo 'GIT_TAG[[:space:]]+[0-9a-f]{40}' /tmp/FindOrUseLibreAgent.cmake | awk '{print $2}')
+          # `|| true`: the step runs under `bash -e`, and a no-match from grep
+          # exits 1. Without this the step DIES here instead of reporting --
+          # and "no 40-hex SHA pinned" is precisely the split this check exists
+          # to report, so the one case it must handle was the one that killed it.
+          pinned=$(grep -Eo 'GIT_TAG[[:space:]]+[0-9a-f]{40}' /tmp/FindOrUseLibreAgent.cmake | awk '{print $2}' || true)
           if [ "$recorded" = "$pinned" ]; then
             echo "split=no" >> "$GITHUB_OUTPUT"
           else
