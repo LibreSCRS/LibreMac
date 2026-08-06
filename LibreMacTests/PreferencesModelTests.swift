@@ -230,6 +230,25 @@ struct PreferencesModelTests {
         #expect(model.defaultReason == "changed elsewhere")
     }
 
+    /// A write the client stopped waiting for, that the agent then applied,
+    /// arrives back as a change signal. The row must not show the new value
+    /// and a failure message about it at the same time.
+    @Test("a change signal for a row clears that row's stale error")
+    func changeSignalClearsTheRowError() async {
+        let fake = FakeConfigClient(entries: ["TsaUrls": .array([])])
+        let model = PreferencesModel(client: fake)
+        await model.load()
+        fake.failNextWrite = .notAuthorized
+        await model.save(.tsaUrls, .array([.text("https://tsa.example/")]))
+        #expect(model.rowError[.tsaUrls] != nil)
+
+        fake.entries["TsaUrls"] = .array([.text("https://tsa.example/")])
+        await model.apply(changedKey: "TsaUrls")
+
+        #expect(model.tsaUrls == ["https://tsa.example/"])
+        #expect(model.rowError[.tsaUrls] == nil, "the value and a denial of it cannot both be true")
+    }
+
     @Test("an external change never overwrites the row the user is editing")
     func refreshDoesNotClobberAnEdit() async {
         let fake = FakeConfigClient(entries: ["DefaultReason": .text("Approval")])

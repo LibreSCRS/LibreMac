@@ -150,6 +150,14 @@ final class PreferencesModel {
     func apply(changedKey: String) async {
         guard let entries = try? await client.getConfig() else { return }
         assign(entries.filter { $0.key == changedKey }, skippingEdited: true)
+        // The agent has just told us this key's current value, which settles
+        // whatever the row was complaining about. Leaving the complaint up
+        // next to the value it denies is how a write that the client gave up
+        // waiting for — but the agent went on to apply — ends up displayed as
+        // a failure beside its own result.
+        if let key = SettableConfigKey(rawValue: changedKey) {
+            rowError[key] = nil
+        }
     }
 
     // MARK: - Assignment

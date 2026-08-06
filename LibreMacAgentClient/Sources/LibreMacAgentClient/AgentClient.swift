@@ -69,6 +69,14 @@ public actor AgentClient {
     public static let defaultPropTimeout: TimeInterval = 3.0
     public static let defaultDiscoveryTimeout: TimeInterval = 1.0
     public static let defaultOpStallTimeout: TimeInterval = 35.0
+    /// For requests the agent may hold while it asks a human. A configuration
+    /// write can be gated on the device owner authenticating, and that dialog
+    /// has no timeout of its own, so the three-second property timeout gives
+    /// up long before the person has answered — reporting a failure for a
+    /// change the agent then applies anyway. This is only a backstop against
+    /// an agent that is alive and silent: a dead one fails every pending
+    /// request immediately through connection loss, not through this timer.
+    public static let defaultConfirmableTimeout: TimeInterval = 300.0
     public static let defaultInitialBackoff: TimeInterval = 1.0
     public static let defaultMaxBackoff: TimeInterval = 30.0
 
@@ -679,7 +687,9 @@ public actor AgentClient {
     /// rather than being reinterpreted here.
     public func setConfig(_ key: SettableConfigKey, value: CBORValue) async throws {
         guard let connection else { throw AgentClientError.notConnected }
-        let (_, fds) = try await callExpectingSuccess(.setConfig(key: key, value: value), on: connection)
+        let (_, fds) = try await callExpectingSuccess(
+            .setConfig(key: key, value: value), on: connection,
+            timeout: AgentClient.defaultConfirmableTimeout)
         closeFds(fds)
     }
 
@@ -689,7 +699,9 @@ public actor AgentClient {
     /// the agent has never heard of.
     public func resetConfig(_ key: SettableConfigKey) async throws {
         guard let connection else { throw AgentClientError.notConnected }
-        let (_, fds) = try await callExpectingSuccess(.resetConfig(key: key.rawValue), on: connection)
+        let (_, fds) = try await callExpectingSuccess(
+            .resetConfig(key: key.rawValue), on: connection,
+            timeout: AgentClient.defaultConfirmableTimeout)
         closeFds(fds)
     }
 }
