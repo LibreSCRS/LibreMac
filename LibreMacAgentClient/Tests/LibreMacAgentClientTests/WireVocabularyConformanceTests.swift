@@ -154,6 +154,56 @@ private func expectMirrorsContract<T: WireNumericMirror>(
     #expect(Set(SettableConfigKey.allCases.map(\.rawValue)) == Set(try #require(vocab.tokens)))
 }
 
+// The three sign-option vocabularies need their own shape. What the contract
+// publishes is the RESOLVED form of each -- what a signature can actually be --
+// while the mirrors here are the REQUEST form, so each mirror carries exactly
+// one member the contract does not publish: `auto`, the deferral sentinel that
+// asks the agent to resolve the value from its own configuration. The contract
+// draws the same line (`requested-level = sign-level / "auto"`, and `sign-meta`
+// reports only resolved forms), and says why the requested forms are not
+// published: a rule that names another rule is not a closed list of literals,
+// and spelling the members out a second time would reintroduce the hand-copied
+// vocabulary this manifest exists to remove.
+//
+// So the asymmetry is asserted in BOTH directions instead of filtered away. A
+// contract that later published `auto` as a resolved value -- meaning a result
+// could carry it -- would fail here rather than be absorbed silently, which is
+// the whole reason these tests exist.
+
+private let deferralSentinel = "auto"
+
+private func expectRequestFormMirrorsContract<T: CaseIterable & RawRepresentable>(
+    _ type: T.Type, _ rule: String, sourceLocation: SourceLocation = #_sourceLocation
+) throws where T.RawValue == String {
+    let vocab = try #require(
+        try loadManifest().vocabularies[rule],
+        "the manifest carries no vocabulary '\(rule)'", sourceLocation: sourceLocation)
+    let published = Set(try #require(vocab.tokens, sourceLocation: sourceLocation))
+    let declared = Set(T.allCases.map(\.rawValue))
+
+    #expect(!published.contains(deferralSentinel),
+            "\(rule): the contract now publishes '\(deferralSentinel)' as a resolved value, so it can reach a result -- this mirror's request-only reading of it no longer holds",
+            sourceLocation: sourceLocation)
+    #expect(declared.contains(deferralSentinel),
+            "\(rule): the mirror lost its deferral sentinel, so a caller can no longer ask the agent to choose",
+            sourceLocation: sourceLocation)
+    #expect(declared.subtracting([deferralSentinel]) == published,
+            "\(rule): the mirror's resolved members do not match the contract",
+            sourceLocation: sourceLocation)
+}
+
+@Test func signatureFormatMirrorsTheContract() throws {
+    try expectRequestFormMirrorsContract(SignatureFormat.self, "sign-format")
+}
+
+@Test func signatureLevelMirrorsTheContract() throws {
+    try expectRequestFormMirrorsContract(SignatureLevel.self, "sign-level")
+}
+
+@Test func packagingMirrorsTheContract() throws {
+    try expectRequestFormMirrorsContract(Packaging.self, "packaging-mode")
+}
+
 // The remaining numeric mirrors. Discovery is all-or-nothing, so the manifest
 // carries these from its first commit -- there is no staged half where they are
 // absent.
