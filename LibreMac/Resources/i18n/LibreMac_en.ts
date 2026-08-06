@@ -122,14 +122,6 @@
         <source>Quit LibreMac</source>
         <translation>Quit LibreMac</translation>
     </message>
-    <message id="libremac_prefs_placeholder">
-        <source>No configurable settings in this release.</source>
-        <translation>No configurable settings in this release.</translation>
-    </message>
-    <message id="libremac_prefs_section_general">
-        <source>General</source>
-        <translation>General</translation>
-    </message>
     <message id="libremac_presence_agent_unavailable">
         <source>The signing agent is not running</source>
         <translation>The signing agent is not running</translation>
@@ -437,6 +429,92 @@
     <message id="libremac_reader_picker_title">
         <source>Reader</source>
         <translation>Reader</translation>
+    </message>
+    <message id="libremac_settings_err_save_failed">
+        <source>The change was not saved.</source>
+        <translation>The change was not saved.</translation>
+    </message>
+    <message id="libremac_settings_err_not_authorized">
+        <source>You are not allowed to change this setting.</source>
+        <translation>You are not allowed to change this setting.</translation>
+    </message>
+    <message id="libremac_settings_err_invalid_value">
+        <source>The agent rejected this value.</source>
+        <translation>The agent rejected this value.</translation>
+    </message>
+    <message id="libremac_settings_err_read_only">
+        <source>This setting is read-only and cannot be changed here.</source>
+        <translation>This setting is read-only and cannot be changed here.</translation>
+    </message>
+    <message id="libremac_settings_err_unknown_key">
+        <source>This agent does not have this setting.</source>
+        <translation>This agent does not have this setting.</translation>
+    </message>
+    <message id="libremac_settings_language_system">
+        <source>System</source>
+        <translation>System</translation>
+    </message>
+    <message id="libremac_settings_browse">
+        <source>Browse…</source>
+        <translation>Browse…</translation>
+    </message>
+    <message id="libremac_settings_agent_unavailable">
+        <source>These settings belong to the signing agent, which is not reachable.</source>
+        <translation>These settings belong to the signing agent, which is not reachable.</translation>
+    </message>
+    <message id="libremac_settings_restore_default">
+        <source>Restore default</source>
+        <translation>Restore default</translation>
+    </message>
+    <message id="libremac_settings_default_reason">
+        <source>Default reason:</source>
+        <translation>Default reason:</translation>
+    </message>
+    <message id="libremac_settings_default_location">
+        <source>Default location:</source>
+        <translation>Default location:</translation>
+    </message>
+    <message id="libremac_settings_advisory_timestamping_applies">
+        <source>A timestamping authority is configured, so signatures are timestamped even though this level does not require it.</source>
+        <translation>A timestamping authority is configured, so signatures are timestamped even though this level does not require it.</translation>
+    </message>
+    <!-- When the trust pane lands, reword libremac_settings_advisory_no_tsa
+         to point at that pane instead of the configuration file. -->
+    <message id="libremac_settings_advisory_no_tsa">
+        <source>No timestamping authority is configured, so this level cannot be produced. Add one in the agent's configuration file.</source>
+        <translation>No timestamping authority is configured, so this level cannot be produced. Add one in the agent's configuration file.</translation>
+    </message>
+    <message id="libremac_settings_tab_advanced">
+        <source>Advanced</source>
+        <translation>Advanced</translation>
+    </message>
+    <message id="libremac_settings_plugin_dir">
+        <source>Plugin folder:</source>
+        <translation>Plugin folder:</translation>
+    </message>
+    <message id="libremac_settings_aia_cache_dir">
+        <source>Certificate cache folder:</source>
+        <translation>Certificate cache folder:</translation>
+    </message>
+    <message id="libremac_settings_path_unset">
+        <source>Not set</source>
+        <translation>Not set</translation>
+    </message>
+    <message id="libremac_settings_agent_owned_paths">
+        <source>These are set in the agent's configuration file and cannot be changed from here.</source>
+        <translation>These are set in the agent's configuration file and cannot be changed from here.</translation>
+    </message>
+    <message id="libremac_settings_agent_unavailable_title">
+        <source>Signing agent not reachable</source>
+        <translation>Signing agent not reachable</translation>
+    </message>
+    <message id="libremac_settings_output_footer">
+        <source>Leave empty to save each signed file beside the one it was made from.</source>
+        <translation>Leave empty to save each signed file beside the one it was made from.</translation>
+    </message>
+    <message id="libremac_settings_signing_footer">
+        <source>Used for every signature unless a request asks for something else.</source>
+        <translation>Used for every signature unless a request asks for something else.</translation>
     </message>
 </context>
 </TS>

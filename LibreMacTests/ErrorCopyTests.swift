@@ -11,7 +11,10 @@ import Testing
 import LibreMacAgentClient
 @testable import LibreMac
 
+// `message(for:msgFallback:)` resolves through the host's localization
+// object, which is main-actor isolated, so the whole suite runs there.
 @Suite("ErrorCopy")
+@MainActor
 struct ErrorCopyTests {
 
     @Test("every non-none code has localized copy; none has not")

@@ -106,6 +106,49 @@ struct CatalogCompletenessTests {
         "libremac_reader_iface_contactless",
     ]
 
+    /// The refusal sentences the settings window renders when the agent
+    /// declines a write. Listed because the id-set invariant alone stays
+    /// green if a key is dropped from BOTH catalogs — which would leave the
+    /// window quietly showing its English fallback in Serbian.
+    private static let settingsIds: Set<String> = [
+        "libremac_settings_err_save_failed",
+        "libremac_settings_err_not_authorized",
+        "libremac_settings_err_invalid_value",
+        "libremac_settings_err_read_only",
+        "libremac_settings_err_unknown_key",
+        "libremac_settings_language_system",
+        "libremac_settings_browse",
+        "libremac_settings_agent_unavailable",
+        "libremac_settings_restore_default",
+        "libremac_settings_default_reason",
+        "libremac_settings_default_location",
+        "libremac_settings_advisory_timestamping_applies",
+        "libremac_settings_advisory_no_tsa",
+        "libremac_settings_tab_advanced",
+        "libremac_settings_plugin_dir",
+        "libremac_settings_aia_cache_dir",
+        "libremac_settings_path_unset",
+        "libremac_settings_agent_owned_paths",
+        "libremac_settings_agent_unavailable_title",
+        "libremac_settings_output_footer",
+        "libremac_settings_signing_footer",
+    ]
+
+    /// Ids the settings window renders but does NOT own — they come from the
+    /// desktop client's catalogue through the merged one. Listed here only so
+    /// the set has a home; the assertion that they still resolve to Serbian
+    /// lives with the localization tests, since this gate reads this repo's
+    /// catalogues and cannot see them.
+    static let borrowedSettingsIds: [(String, String)] = [
+        ("lc-settings-tab-general", "General"),
+        ("lc-settings-tab-signing", "Signing"),
+        ("lc-settings-language", "Language:"),
+        ("lc-settings-default-output", "Default output folder:"),
+        ("lc-settings-output-placeholder", "Same as input file"),
+        ("lc-settings-default-level", "Default level:"),
+        ("lc-settings-cache-dir", "Cache folder:"),
+    ]
+
     // MARK: - Parsing
 
     /// All `<message id="...">` ids of a qtTrId-style `.ts` catalog, in
@@ -216,6 +259,14 @@ struct CatalogCompletenessTests {
         let sr = Set(try Self.ids(of: Self.srCatalog))
         #expect(Self.readerPickerIds.subtracting(en).isEmpty)
         #expect(Self.readerPickerIds.subtracting(sr).isEmpty)
+    }
+
+    @Test("every settings refusal id exists in both catalogs")
+    func settingsIdsAreComplete() throws {
+        let en = Set(try Self.ids(of: Self.enCatalog))
+        let sr = Set(try Self.ids(of: Self.srCatalog))
+        #expect(Self.settingsIds.subtracting(en).isEmpty)
+        #expect(Self.settingsIds.subtracting(sr).isEmpty)
     }
 
     @Test("the agent's emitted guidance keys are translated in both catalogs")

@@ -128,9 +128,10 @@ public enum ErrorCopy {
     /// Resolved user-facing message for a terminal operation outcome. Uses the
     /// client-localized copy when this code has one; otherwise the agent's
     /// authored `msgFallback` (which is non-empty by the operation contract).
+    @MainActor
     public static func message(for code: ErrorCode, msgFallback: String) -> String {
         if let localized = localizedText(for: code) {
-            return localized.resolve()
+            return AppLocalization.shared.resolve(localized)
         }
         return msgFallback
     }

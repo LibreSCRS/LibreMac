@@ -7,7 +7,6 @@
 // a fake `CardMonitor` without changing this view.
 
 import LibreMacAgentClient
-import LibreMacShared
 import SwiftUI
 
 struct CardStatusView: View {
@@ -28,6 +27,7 @@ struct CardStatusView: View {
 
     // MARK: - Presence presentation
 
+    @MainActor
     private static func title(for presence: Presence) -> String {
         switch presence {
         case .agentUnavailable:
@@ -43,6 +43,7 @@ struct CardStatusView: View {
         }
     }
 
+    @MainActor
     private static func cardTitle(_ state: CardUiState) -> String {
         switch state {
         case .noCard, .none:
@@ -60,6 +61,7 @@ struct CardStatusView: View {
         }
     }
 
+    @MainActor
     private static func quiesceTitle(_ reason: QuiesceReason) -> String {
         switch reason {
         case .systemSleep:
@@ -79,12 +81,11 @@ struct CardStatusView: View {
         }
     }
 
+    @MainActor
     private static func certificateSummary(_ count: Int) -> String {
-        LocalizedText(
-            key: "libremac_presence_certs_ready",
-            defaultText: "{count} certificate(s) ready",
-            placeholders: ["count": String(count)]
-        ).resolve()
+        AppLocalization.shared.loc(
+            "libremac_presence_certs_ready", "{count} certificate(s) ready",
+            placeholders: ["count": String(count)])
     }
 
     private static func icon(for presence: Presence) -> String {
@@ -118,7 +119,12 @@ struct CardStatusView: View {
         }
     }
 
+    /// Static context cannot reach the environment. This is the SAME object
+    /// the environment carries — the app injects `AppLocalization.shared` and
+    /// nothing else — so the two paths cannot disagree at runtime. Injecting
+    /// a different instance would split the window's language in half.
+    @MainActor
     private static func loc(_ key: String, _ fallback: String) -> String {
-        LocalizedText(key: key, defaultText: fallback).resolve()
+        AppLocalization.shared.loc(key, fallback)
     }
 }

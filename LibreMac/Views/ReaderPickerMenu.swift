@@ -8,11 +8,11 @@
 // click, so a removed selection re-lands on the deterministic fallback.
 
 import LibreMacAgentClient
-import LibreMacShared
 import SwiftUI
 
 struct ReaderPickerMenu: View {
     @Environment(CardMonitor.self) var monitor
+    @Environment(AppLocalization.self) private var localization
 
     var body: some View {
         if monitor.readersWithCards.count >= 2 {
@@ -33,6 +33,6 @@ struct ReaderPickerMenu: View {
     }
 
     private func loc(_ key: String, _ fallback: String) -> String {
-        LocalizedText(key: key, defaultText: fallback).resolve()
+        localization.loc(key, fallback)
     }
 }

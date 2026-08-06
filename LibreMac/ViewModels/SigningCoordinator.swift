@@ -11,7 +11,6 @@
 import Darwin
 import Foundation
 import LibreMacAgentClient
-import LibreMacShared
 import Observation
 import os
 
@@ -231,6 +230,6 @@ public final class SigningCoordinator {
     }
 
     private static func localized(_ key: String, _ fallback: String) -> String {
-        LocalizedText(key: key, defaultText: fallback).resolve()
+        AppLocalization.shared.loc(key, fallback)
     }
 }

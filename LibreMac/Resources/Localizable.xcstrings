@@ -10983,6 +10983,363 @@
         }
       }
     },
+    "libremac_settings_advisory_no_tsa" : {
+      "comment" : "libremac_settings_advisory_no_tsa",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No timestamping authority is configured, so this level cannot be produced. Add one in the agent's configuration file."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниједан ауторитет за временски жиг није подешен, па овај ниво не може да се произведе. Додајте га у конфигурационој датотеци агента."
+          }
+        }
+      }
+    },
+    "libremac_settings_advisory_timestamping_applies" : {
+      "comment" : "libremac_settings_advisory_timestamping_applies",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A timestamping authority is configured, so signatures are timestamped even though this level does not require it."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ауторитет за временски жиг је подешен, па се потписи временски жигошу иако овај ниво то не захтева."
+          }
+        }
+      }
+    },
+    "libremac_settings_agent_owned_paths" : {
+      "comment" : "libremac_settings_agent_owned_paths",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These are set in the agent's configuration file and cannot be changed from here."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ово се подешава у конфигурационој датотеци агента и не може да се мења одавде."
+          }
+        }
+      }
+    },
+    "libremac_settings_agent_unavailable" : {
+      "comment" : "libremac_settings_agent_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These settings belong to the signing agent, which is not reachable."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова подешавања припадају агенту за потписивање, који није доступан."
+          }
+        }
+      }
+    },
+    "libremac_settings_agent_unavailable_title" : {
+      "comment" : "libremac_settings_agent_unavailable_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing agent not reachable"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Агент за потписивање није доступан"
+          }
+        }
+      }
+    },
+    "libremac_settings_aia_cache_dir" : {
+      "comment" : "libremac_settings_aia_cache_dir",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificate cache folder:"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фасцикла кеша сертификата:"
+          }
+        }
+      }
+    },
+    "libremac_settings_browse" : {
+      "comment" : "libremac_settings_browse",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Browse…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прегледај…"
+          }
+        }
+      }
+    },
+    "libremac_settings_default_location" : {
+      "comment" : "libremac_settings_default_location",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default location:"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подразумевано место:"
+          }
+        }
+      }
+    },
+    "libremac_settings_default_reason" : {
+      "comment" : "libremac_settings_default_reason",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default reason:"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подразумевани разлог:"
+          }
+        }
+      }
+    },
+    "libremac_settings_err_invalid_value" : {
+      "comment" : "libremac_settings_err_invalid_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent rejected this value."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Агент је одбио ову вредност."
+          }
+        }
+      }
+    },
+    "libremac_settings_err_not_authorized" : {
+      "comment" : "libremac_settings_err_not_authorized",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You are not allowed to change this setting."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Није вам дозвољено да мењате ово подешавање."
+          }
+        }
+      }
+    },
+    "libremac_settings_err_read_only" : {
+      "comment" : "libremac_settings_err_read_only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This setting is read-only and cannot be changed here."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ово подешавање је само за читање и не може се мењати овде."
+          }
+        }
+      }
+    },
+    "libremac_settings_err_save_failed" : {
+      "comment" : "libremac_settings_err_save_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The change was not saved."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Измена није сачувана."
+          }
+        }
+      }
+    },
+    "libremac_settings_err_unknown_key" : {
+      "comment" : "libremac_settings_err_unknown_key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This agent does not have this setting."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Овај агент нема ово подешавање."
+          }
+        }
+      }
+    },
+    "libremac_settings_language_system" : {
+      "comment" : "libremac_settings_language_system",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Систем"
+          }
+        }
+      }
+    },
+    "libremac_settings_output_footer" : {
+      "comment" : "libremac_settings_output_footer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave empty to save each signed file beside the one it was made from."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оставите празно да се сваки потписан фајл сачува поред оног од ког је настао."
+          }
+        }
+      }
+    },
+    "libremac_settings_path_unset" : {
+      "comment" : "libremac_settings_path_unset",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not set"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Није подешено"
+          }
+        }
+      }
+    },
+    "libremac_settings_plugin_dir" : {
+      "comment" : "libremac_settings_plugin_dir",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plugin folder:"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фасцикла додатака:"
+          }
+        }
+      }
+    },
+    "libremac_settings_restore_default" : {
+      "comment" : "libremac_settings_restore_default",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore default"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Врати подразумевано"
+          }
+        }
+      }
+    },
+    "libremac_settings_signing_footer" : {
+      "comment" : "libremac_settings_signing_footer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used for every signature unless a request asks for something else."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Користи се за сваки потпис осим ако захтев не тражи нешто друго."
+          }
+        }
+      }
+    },
+    "libremac_settings_tab_advanced" : {
+      "comment" : "libremac_settings_tab_advanced",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Напредно"
+          }
+        }
+      }
+    },
     "libremac_sign_another" : {
       "comment" : "libremac_sign_another",
       "localizations" : {

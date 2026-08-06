@@ -132,6 +132,16 @@ public actor AgentClient {
     private let quiescenceContinuation: AsyncStream<QuiesceReason>.Continuation
     public nonisolated let quiescence: AsyncStream<QuiesceReason>
 
+    // MARK: - Configuration changes
+
+    /// Surfaces the name of each configuration key the agent reports as
+    /// changed, so an open settings surface refreshes instead of displaying a
+    /// value that is no longer true. The change may come from another client,
+    /// a hand-edited configuration file, or the agent's own bookkeeping, so
+    /// this is the only signal a client gets that its snapshot went stale.
+    private let configChangesContinuation: AsyncStream<String>.Continuation
+    public nonisolated let configChanges: AsyncStream<String>
+
     // MARK: - Capability display (Hello/HelloAck)
 
     private var agentVersion: String?
@@ -182,6 +192,9 @@ public actor AgentClient {
         let (quiescenceStream, quiescenceContinuation) = AsyncStream<QuiesceReason>.makeStream()
         self.quiescence = quiescenceStream
         self.quiescenceContinuation = quiescenceContinuation
+        let (configStream, configContinuation) = AsyncStream<String>.makeStream()
+        self.configChanges = configStream
+        self.configChangesContinuation = configContinuation
     }
 
     deinit {
@@ -189,6 +202,7 @@ public actor AgentClient {
         registryContinuation.finish()
         availabilityContinuation.finish()
         quiescenceContinuation.finish()
+        configChangesContinuation.finish()
     }
 
     // MARK: - Lifecycle
@@ -377,8 +391,11 @@ public actor AgentClient {
             closeFds(fds)
             cardsByHandle.removeValue(forKey: handle)
             publishRegistrySnapshot()
-        case .propertyChanged, .configChanged:
+        case .propertyChanged:
             closeFds(fds)
+        case .configChanged(let key):
+            closeFds(fds)
+            configChangesContinuation.yield(key)
         case .agentQuiesced(let reason):
             closeFds(fds)
             quiescenceContinuation.yield(reason)
@@ -648,13 +665,31 @@ public actor AgentClient {
         return der
     }
 
-    /// Config **set** is intentionally not exposed here (YAGNI for this
-    /// package's current consumers) — read-only.
     public func getConfig() async throws -> [String: CBORValue] {
         guard let connection else { throw AgentClientError.notConnected }
         let (reply, fds) = try await callExpectingSuccess(.getConfig, on: connection)
         closeFds(fds)
         guard case .config(let entries) = reply else { throw AgentClientError.unexpectedReply }
         return entries
+    }
+
+    /// Writes one key. The agent is the authority on what it will accept: a
+    /// value this method sends happily can still come back refused, and that
+    /// refusal surfaces as `serverError` carrying the agent's own reason
+    /// rather than being reinterpreted here.
+    public func setConfig(_ key: SettableConfigKey, value: CBORValue) async throws {
+        guard let connection else { throw AgentClientError.notConnected }
+        let (_, fds) = try await callExpectingSuccess(.setConfig(key: key, value: value), on: connection)
+        closeFds(fds)
+    }
+
+    /// Restores one key to the agent's built-in default. The wire case carries
+    /// an untyped key while its `SetConfig` sibling is typed; this method takes
+    /// the typed key and converts, so no caller in this package can name a key
+    /// the agent has never heard of.
+    public func resetConfig(_ key: SettableConfigKey) async throws {
+        guard let connection else { throw AgentClientError.notConnected }
+        let (_, fds) = try await callExpectingSuccess(.resetConfig(key: key.rawValue), on: connection)
+        closeFds(fds)
     }
 }

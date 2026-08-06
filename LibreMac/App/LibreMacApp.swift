@@ -3,7 +3,6 @@
 
 import AppKit
 import LibreMacAgentClient
-import LibreMacShared
 import SwiftUI
 import os
 
@@ -24,6 +23,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `monitor` consumes them, so the credentials events come from
     /// `monitor`'s forwarding taps instead.
     let credentials: CredentialsViewModel
+    /// Owned here, not by the settings window, because the window is opened
+    /// and closed repeatedly and the change stream it follows cannot survive
+    /// that: an `AsyncStream` terminates when its consuming task is
+    /// cancelled, so a window that iterated it would kill the signal for the
+    /// rest of the process the first time it was closed. Same reason the
+    /// credentials model is fed through a forwarding tap rather than the
+    /// client's own unicast streams.
+    let preferences: PreferencesModel
     let registrar: AgentRegistrar
     /// Publishes the signing card's Keychain identities to `ctkd`. Driven by
     /// `monitor` on card presence/removal (see `CardMonitor`'s "Token
@@ -43,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.signing = SigningCoordinator(client: client)
         self.credentials = CredentialsViewModel(
             client: CredentialsClientAdapter(client: client, monitor: monitor))
+        self.preferences = PreferencesModel(client: client)
         self.registrar = AgentRegistrar.system()
         super.init()
     }
@@ -60,6 +68,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // then bring the client up; both are independent async flows.
         Task { await registrar.activate() }
         Task { await client.start() }
+        // The one and only consumer of the configuration-change stream, for
+        // the life of the process. The agent broadcasts every accepted
+        // write, including its own, so whatever is on screen follows changes
+        // it did not make.
+        Task { [preferences] in
+            for await key in client.configChanges {
+                await preferences.apply(changedKey: key)
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -75,45 +92,66 @@ struct LibreMacApp: App {
 
     var body: some Scene {
         MenuBarExtra("LibreMac", systemImage: menuBarIcon) {
-            CardStatusView()
-                .environment(appDelegate.monitor)
-                .padding(.horizontal, 12).padding(.top, 8)
-
-            ReaderPickerMenu()
-                .environment(appDelegate.monitor)
-
-            if appDelegate.registrar.state == .requiresApproval {
-                Divider()
-                Button(loc("libremac_registrar_approve", "Approve the signing agent in Login Items…")) {
-                    appDelegate.registrar.openLoginItemsSettings()
-                }
-            }
-
-            if appDelegate.monitor.canSign {
-                Divider()
-                SignDemoView(coordinator: appDelegate.signing)
-                    .environment(appDelegate.monitor)
-            }
-
-            CredentialsMenuItem()
-                .environment(appDelegate.monitor)
-
-            Divider()
-            SettingsLink { Text(loc("libremac_menu_preferences", "Preferences…")) }
-            Button(loc("libremac_menu_quit", "Quit LibreMac")) {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q")
+            menuContent
+                .environment(AppLocalization.shared)
+                .id(localeKey)
         }
         .menuBarExtraStyle(.menu)
 
         Window(loc("libremac_credentials_title", "Card Credentials"), id: "credentials") {
             CredentialsView(viewModel: appDelegate.credentials)
                 .environment(appDelegate.monitor)
+                .environment(AppLocalization.shared)
+                .id(localeKey)
         }
         .defaultSize(width: 520, height: 360)
 
-        Settings { PreferencesView() }
+        Settings {
+            PreferencesView(model: appDelegate.preferences)
+                .environment(AppLocalization.shared)
+                .id(localeKey)
+        }
+    }
+
+    /// A backstop, not the mechanism: strings resolve through an observable
+    /// object, so a view that renders one is redrawn on a language change by
+    /// observation alone. This re-key additionally rebuilds anything that
+    /// captured a resolved string rather than re-resolving it. `.id` is a
+    /// View modifier — it cannot be applied to a Scene — so the key goes on
+    /// the contents, not on `MenuBarExtra` / `Window` / `Settings`.
+    private var localeKey: String { AppLocalization.shared.locale ?? "system" }
+
+    @ViewBuilder
+    private var menuContent: some View {
+        CardStatusView()
+            .environment(appDelegate.monitor)
+            .padding(.horizontal, 12).padding(.top, 8)
+
+        ReaderPickerMenu()
+            .environment(appDelegate.monitor)
+
+        if appDelegate.registrar.state == .requiresApproval {
+            Divider()
+            Button(loc("libremac_registrar_approve", "Approve the signing agent in Login Items…")) {
+                appDelegate.registrar.openLoginItemsSettings()
+            }
+        }
+
+        if appDelegate.monitor.canSign {
+            Divider()
+            SignDemoView(coordinator: appDelegate.signing)
+                .environment(appDelegate.monitor)
+        }
+
+        CredentialsMenuItem()
+            .environment(appDelegate.monitor)
+
+        Divider()
+        SettingsLink { Text(loc("libremac_menu_preferences", "Preferences…")) }
+        Button(loc("libremac_menu_quit", "Quit LibreMac")) {
+            NSApplication.shared.terminate(nil)
+        }
+        .keyboardShortcut("q")
     }
 
     private var menuBarIcon: String {
@@ -134,8 +172,11 @@ struct LibreMacApp: App {
         }
     }
 
+    /// The `App` value is above every scene, so it cannot read what the
+    /// scenes' contents are handed. It uses the same object directly — the
+    /// one instance this app ever creates.
     private func loc(_ key: String, _ fallback: String) -> String {
-        LocalizedText(key: key, defaultText: fallback).resolve()
+        AppLocalization.shared.loc(key, fallback)
     }
 }
 
@@ -147,6 +188,7 @@ struct LibreMacApp: App {
 /// `Presence` grouping deliberately ignores that bit.
 private struct CredentialsMenuItem: View {
     @Environment(CardMonitor.self) var monitor
+    @Environment(AppLocalization.self) private var localization
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -164,6 +206,6 @@ private struct CredentialsMenuItem: View {
     }
 
     private func loc(_ key: String, _ fallback: String) -> String {
-        LocalizedText(key: key, defaultText: fallback).resolve()
+        localization.loc(key, fallback)
     }
 }

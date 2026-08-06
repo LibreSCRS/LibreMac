@@ -11,7 +11,6 @@
 // collects the PINs/PUKs in its own secure dialog.
 
 import LibreMacAgentClient
-import LibreMacShared
 import SwiftUI
 
 struct CredentialsView: View {
@@ -148,7 +147,7 @@ struct CredentialsView: View {
     }
 
     private func guidanceLine(key: String, fallback: String?) -> some View {
-        Text(LocalizedText(key: key, defaultText: fallback ?? "").resolve())
+        Text(Self.loc(key, fallback ?? ""))
             .font(.caption)
             .foregroundStyle(.secondary)
     }
@@ -262,7 +261,7 @@ struct CredentialsView: View {
     private var statusArea: some View {
         if let error = viewModel.entryError {
             Label(
-                ErrorCopy.localizedText(for: error).resolve(),
+                AppLocalization.shared.resolve(ErrorCopy.localizedText(for: error)),
                 systemImage: "exclamationmark.triangle.fill"
             )
             .font(.callout)
@@ -323,11 +322,10 @@ struct CredentialsView: View {
 
     private static func outcomeText(_ result: CredentialResult, presented: CredentialKind) -> String {
         if result.outcome == .invalidPin, let retries = result.retriesLeft {
-            return LocalizedText(
-                key: "libremac_credentials_outcome_invalidPin_attributed",
-                defaultText: "The {who} was not correct — {count} attempt(s) left.",
-                placeholders: ["who": kindTitle(presented), "count": String(retries)]
-            ).resolve()
+            return loc(
+                "libremac_credentials_outcome_invalidPin_attributed",
+                "The {who} was not correct — {count} attempt(s) left.",
+                placeholders: ["who": kindTitle(presented), "count": String(retries)])
         }
         return outcomeText(result.outcome, presented: presented)
     }
@@ -378,9 +376,7 @@ struct CredentialsView: View {
     private static func attributed(
         _ key: String, _ fallback: String, _ presented: CredentialKind
     ) -> String {
-        LocalizedText(
-            key: key, defaultText: fallback, placeholders: ["who": kindTitle(presented)]
-        ).resolve()
+        loc(key, fallback, placeholders: ["who": kindTitle(presented)])
     }
 
     /// A cancel is the user's own neutral act — informational chrome, not a
@@ -408,21 +404,22 @@ struct CredentialsView: View {
     }
 
     private static func countText(_ key: String, _ fallback: String, _ count: UInt32) -> String {
-        LocalizedText(
-            key: key, defaultText: fallback, placeholders: ["count": String(count)]
-        ).resolve()
+        loc(key, fallback, placeholders: ["count": String(count)])
     }
 
     private static func rangeText(
         _ key: String, _ fallback: String, _ count: UInt32, _ max: UInt32
     ) -> String {
-        LocalizedText(
-            key: key, defaultText: fallback,
-            placeholders: ["count": String(count), "max": String(max)]
-        ).resolve()
+        loc(key, fallback, placeholders: ["count": String(count), "max": String(max)])
     }
 
-    private static func loc(_ key: String, _ fallback: String) -> String {
-        LocalizedText(key: key, defaultText: fallback).resolve()
+    /// Static context cannot reach the environment. This is the SAME object
+    /// the environment carries — the app injects `AppLocalization.shared` and
+    /// nothing else — so the two paths cannot disagree at runtime. Injecting
+    /// a different instance would split the window's language in half.
+    @MainActor
+    private static func loc(_ key: String, _ fallback: String,
+                            placeholders: [String: String] = [:]) -> String {
+        AppLocalization.shared.loc(key, fallback, placeholders: placeholders)
     }
 }

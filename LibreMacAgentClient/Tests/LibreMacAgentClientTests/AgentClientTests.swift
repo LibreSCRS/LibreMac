@@ -464,4 +464,82 @@ struct AgentClientTests {
 
         await client.stop()
     }
+
+    @Test("a config-changed event reaches consumers as the changed key")
+    func configChangedIsDelivered() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        _ = await startAndHandshake(mock, client)
+
+        var keys = client.configChanges.makeAsyncIterator()
+        mock.sendEvent(.configChanged(key: "DefaultReason"))
+
+        let key = await keys.next()
+        #expect(key == "DefaultReason")
+
+        await client.stop()
+    }
+
+    // MARK: - Configuration writes
+
+    @Test("setConfig sends the typed key and the value verbatim")
+    func setConfigSendsKeyAndValue() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        var iterator = await startAndHandshake(mock, client)
+
+        async let write: Void = client.setConfig(.defaultReason, value: .text("Approval"))
+
+        let sent = try #require(await iterator.next())
+        guard case .setConfig(let key, let value) = sent.request else {
+            Issue.record("expected SetConfig, got \(sent.request)")
+            return
+        }
+        #expect(key == .defaultReason)
+        #expect(value == .text("Approval"))
+
+        mock.sendReply(.ack, req: sent.req)
+        try await write
+        await client.stop()
+    }
+
+    @Test("resetConfig names the key it was given")
+    func resetConfigNamesTheKey() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        var iterator = await startAndHandshake(mock, client)
+
+        async let reset: Void = client.resetConfig(.tsaUrls)
+
+        let sent = try #require(await iterator.next())
+        guard case .resetConfig(let key) = sent.request else {
+            Issue.record("expected ResetConfig, got \(sent.request)")
+            return
+        }
+        #expect(key == "TsaUrls")
+
+        mock.sendReply(.ack, req: sent.req)
+        try await reset
+        await client.stop()
+    }
+
+    @Test("a refused write surfaces the agent's own error, not a generic failure")
+    func refusedWriteSurfacesAgentError() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        var iterator = await startAndHandshake(mock, client)
+
+        async let write: Void = client.setConfig(.tslSources, value: .array([]))
+        let sent = try #require(await iterator.next())
+        mock.sendReply(.err(ErrInfo(code: .name(.notAuthorized))), req: sent.req)
+
+        do {
+            try await write
+            Issue.record("expected serverError")
+        } catch AgentClientError.serverError(let info) {
+            #expect(info.code == .name(.notAuthorized))
+        }
+
+        await client.stop()
+    }
 }

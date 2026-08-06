@@ -16,7 +16,6 @@
 
 import Foundation
 import LibreMacAgentClient
-import LibreMacShared
 import Observation
 import os
 
@@ -218,8 +217,8 @@ public final class CardMonitor {
         )
     }
 
-    private nonisolated static func ifaceLabel(_ key: String, _ fallback: String, _ model: String) -> String {
-        LocalizedText(key: key, defaultText: fallback, placeholders: ["model": model]).resolve()
+    private static func ifaceLabel(_ key: String, _ fallback: String, _ model: String) -> String {
+        AppLocalization.shared.loc(key, fallback, placeholders: ["model": model])
     }
 
     private func apply(available value: Bool, features: Set<String>) {

@@ -122,14 +122,6 @@
         <source>Quit LibreMac</source>
         <translation>Изађи из LibreMac-а</translation>
     </message>
-    <message id="libremac_prefs_placeholder">
-        <source>No configurable settings in this release.</source>
-        <translation>У овом издању нема подешавања.</translation>
-    </message>
-    <message id="libremac_prefs_section_general">
-        <source>General</source>
-        <translation>Опште</translation>
-    </message>
     <message id="libremac_presence_agent_unavailable">
         <source>The signing agent is not running</source>
         <translation>Агент за потписивање није покренут</translation>
@@ -437,6 +429,92 @@
     <message id="libremac_reader_picker_title">
         <source>Reader</source>
         <translation>Читач</translation>
+    </message>
+    <message id="libremac_settings_err_save_failed">
+        <source>The change was not saved.</source>
+        <translation>Измена није сачувана.</translation>
+    </message>
+    <message id="libremac_settings_err_not_authorized">
+        <source>You are not allowed to change this setting.</source>
+        <translation>Није вам дозвољено да мењате ово подешавање.</translation>
+    </message>
+    <message id="libremac_settings_err_invalid_value">
+        <source>The agent rejected this value.</source>
+        <translation>Агент је одбио ову вредност.</translation>
+    </message>
+    <message id="libremac_settings_err_read_only">
+        <source>This setting is read-only and cannot be changed here.</source>
+        <translation>Ово подешавање је само за читање и не може се мењати овде.</translation>
+    </message>
+    <message id="libremac_settings_err_unknown_key">
+        <source>This agent does not have this setting.</source>
+        <translation>Овај агент нема ово подешавање.</translation>
+    </message>
+    <message id="libremac_settings_language_system">
+        <source>System</source>
+        <translation>Систем</translation>
+    </message>
+    <message id="libremac_settings_browse">
+        <source>Browse…</source>
+        <translation>Прегледај…</translation>
+    </message>
+    <message id="libremac_settings_agent_unavailable">
+        <source>These settings belong to the signing agent, which is not reachable.</source>
+        <translation>Ова подешавања припадају агенту за потписивање, који није доступан.</translation>
+    </message>
+    <message id="libremac_settings_restore_default">
+        <source>Restore default</source>
+        <translation>Врати подразумевано</translation>
+    </message>
+    <message id="libremac_settings_default_reason">
+        <source>Default reason:</source>
+        <translation>Подразумевани разлог:</translation>
+    </message>
+    <message id="libremac_settings_default_location">
+        <source>Default location:</source>
+        <translation>Подразумевано место:</translation>
+    </message>
+    <message id="libremac_settings_advisory_timestamping_applies">
+        <source>A timestamping authority is configured, so signatures are timestamped even though this level does not require it.</source>
+        <translation>Ауторитет за временски жиг је подешен, па се потписи временски жигошу иако овај ниво то не захтева.</translation>
+    </message>
+    <!-- When the trust pane lands, reword libremac_settings_advisory_no_tsa
+         to point at that pane instead of the configuration file. -->
+    <message id="libremac_settings_advisory_no_tsa">
+        <source>No timestamping authority is configured, so this level cannot be produced. Add one in the agent's configuration file.</source>
+        <translation>Ниједан ауторитет за временски жиг није подешен, па овај ниво не може да се произведе. Додајте га у конфигурационој датотеци агента.</translation>
+    </message>
+    <message id="libremac_settings_tab_advanced">
+        <source>Advanced</source>
+        <translation>Напредно</translation>
+    </message>
+    <message id="libremac_settings_plugin_dir">
+        <source>Plugin folder:</source>
+        <translation>Фасцикла додатака:</translation>
+    </message>
+    <message id="libremac_settings_aia_cache_dir">
+        <source>Certificate cache folder:</source>
+        <translation>Фасцикла кеша сертификата:</translation>
+    </message>
+    <message id="libremac_settings_path_unset">
+        <source>Not set</source>
+        <translation>Није подешено</translation>
+    </message>
+    <message id="libremac_settings_agent_owned_paths">
+        <source>These are set in the agent's configuration file and cannot be changed from here.</source>
+        <translation>Ово се подешава у конфигурационој датотеци агента и не може да се мења одавде.</translation>
+    </message>
+    <message id="libremac_settings_agent_unavailable_title">
+        <source>Signing agent not reachable</source>
+        <translation>Агент за потписивање није доступан</translation>
+    </message>
+    <message id="libremac_settings_output_footer">
+        <source>Leave empty to save each signed file beside the one it was made from.</source>
+        <translation>Оставите празно да се сваки потписан фајл сачува поред оног од ког је настао.</translation>
+    </message>
+    <message id="libremac_settings_signing_footer">
+        <source>Used for every signature unless a request asks for something else.</source>
+        <translation>Користи се за сваки потпис осим ако захтев не тражи нешто друго.</translation>
     </message>
 </context>
 </TS>
