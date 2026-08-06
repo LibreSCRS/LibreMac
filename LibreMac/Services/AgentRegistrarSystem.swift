@@ -58,7 +58,8 @@ extension AgentRegistrar {
         appGroupId: String = AppGroupConstants.appGroupId,
         bundleVersion: String = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
     ) -> AgentRegistrar {
-        AgentRegistrar(
+        let versionKey = "org.librescrs.LibreMac.registeredBundleVersion"
+        return AgentRegistrar(
             services: [
                 SMAppServiceAgent(plistName: AppGroupConstants.AgentService.launchdPlistName),
                 SMAppServiceAgent(plistName: AppGroupConstants.AgentService.prompterPlistName),
@@ -91,13 +92,16 @@ extension AgentRegistrar {
                 // the EX_CONFIG wedge seen on the ad-hoc dev machine was
                 // compounded by stale BTM registrations, not this gate alone.
                 let defaults = UserDefaults(suiteName: appGroupId) ?? .standard
-                let key = "org.librescrs.LibreMac.registeredBundleVersion"
-                let previous = defaults.string(forKey: key)
-                if previous != bundleVersion {
-                    defaults.set(bundleVersion, forKey: key)
-                    return true
-                }
-                return false
+                return defaults.string(forKey: versionKey) != bundleVersion
+            },
+            recycleCompleted: {
+                // Recorded only HERE, after every service survived the
+                // recycle — recording inside `needsRecycle` would let a
+                // register() failure leave a matching stored version, so the
+                // next launch would skip the recycle and the stale launch
+                // constraint would persist until the next version bump.
+                let defaults = UserDefaults(suiteName: appGroupId) ?? .standard
+                defaults.set(bundleVersion, forKey: versionKey)
             },
             openSettings: {
                 SMAppService.openSystemSettingsLoginItems()

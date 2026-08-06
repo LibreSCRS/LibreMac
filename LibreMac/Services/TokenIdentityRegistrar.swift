@@ -17,7 +17,9 @@
 import CryptoKit
 import CryptoTokenKit
 import Foundation
+import LibreMacShared
 import Security
+import os
 
 /// A signing certificate eligible for Keychain publication, as reported by
 /// the card-presence pipeline.
@@ -66,8 +68,15 @@ public final class DriverConfigStore: TokenConfigStore {
     }
 
     private var cfg: TKTokenDriver.Configuration? {
-        let all = TKTokenDriver.Configuration.driverConfigurations
-        return all[classID] ?? all.values.first
+        guard let cfg = TKTokenDriver.Configuration.driverConfigurations[classID] else {
+            // No entry for `classID` means the driver class is misconfigured
+            // (typo'd/renamed id, or the appex is not registered). Fail
+            // loudly and publish nothing — publishing under whatever other
+            // configuration happens to exist would mask the misconfiguration.
+            Logger.card.fault("no driver configuration for class \(self.classID, privacy: .public); token publication skipped")
+            return nil
+        }
+        return cfg
     }
 
     public func addToken(instanceID: String, items: [Any]) {

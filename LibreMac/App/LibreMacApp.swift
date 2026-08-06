@@ -80,9 +80,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Close the socket and cancel the supervisor deterministically —
-        // deinit alone would leave the connection open until process exit.
-        Task { await client.stop() }
+        // Close the socket and cancel the supervisor BEFORE the process
+        // exits: this runs on the main thread and exit follows its return,
+        // so a fire-and-forget Task might never get scheduled. Block here,
+        // bounded, until stop() completes — the detached task runs the
+        // (non-main) actor hop on the cooperative pool, which the blocked
+        // main thread does not starve; the timeout is the backstop for a
+        // wedged agent connection, where kernel cleanup on exit suffices.
+        let done = DispatchSemaphore(value: 0)
+        let client = self.client
+        Task.detached {
+            await client.stop()
+            done.signal()
+        }
+        _ = done.wait(timeout: .now() + 2.0)
     }
 }
 

@@ -54,17 +54,35 @@ final class FakeLaunchAgent: LaunchAgentRegistering, @unchecked Sendable {
 
 struct RegistrarTestError: Error {}
 
+/// Thread-safe call counter for the `recycleCompleted` callback.
+final class CallCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func record() {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+    }
+    var callCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+}
+
 @Suite("AgentRegistrar")
 @MainActor
 struct AgentRegistrarTests {
 
     private func makeRegistrar(
-        services: [FakeLaunchAgent], recycle: Bool
+        services: [FakeLaunchAgent], recycle: Bool,
+        recycleCompleted: @escaping @Sendable () -> Void = {}
     ) -> AgentRegistrar {
         AgentRegistrar(
             services: services,
             materializeContainer: {},
             needsRecycle: { recycle },
+            recycleCompleted: recycleCompleted,
             openSettings: {})
     }
 
@@ -121,5 +139,48 @@ struct AgentRegistrarTests {
         } else {
             Issue.record("expected .failed, got \(registrar.state)")
         }
+    }
+
+    @Test("a successful recycle records its completion exactly once")
+    func successfulRecycleRecordsCompletion() async {
+        let agent = FakeLaunchAgent(label: "agent", status: .enabled)
+        let completions = CallCounter()
+        let registrar = makeRegistrar(
+            services: [agent], recycle: true, recycleCompleted: { completions.record() })
+
+        await registrar.activate()
+
+        #expect(completions.callCount == 1)
+        #expect(registrar.state == .registered)
+    }
+
+    @Test("a failed recycle does not record completion, so the next launch recycles again")
+    func failedRecycleDoesNotRecordCompletion() async {
+        let agent = FakeLaunchAgent(
+            label: "agent", status: .enabled, registerError: RegistrarTestError())
+        let completions = CallCounter()
+        let registrar = makeRegistrar(
+            services: [agent], recycle: true, recycleCompleted: { completions.record() })
+
+        await registrar.activate()
+
+        #expect(completions.callCount == 0)
+        if case .failed = registrar.state {
+            // expected
+        } else {
+            Issue.record("expected .failed, got \(registrar.state)")
+        }
+    }
+
+    @Test("a non-recycle activation never reports a recycle completion")
+    func nonRecycleActivationDoesNotRecordCompletion() async {
+        let agent = FakeLaunchAgent(label: "agent", status: .enabled)
+        let completions = CallCounter()
+        let registrar = makeRegistrar(
+            services: [agent], recycle: false, recycleCompleted: { completions.record() })
+
+        await registrar.activate()
+
+        #expect(completions.callCount == 0)
     }
 }

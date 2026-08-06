@@ -71,6 +71,7 @@ public final class AgentRegistrar {
     private let services: [LaunchAgentRegistering]
     private let materializeContainer: @Sendable () async -> Void
     private let needsRecycle: @Sendable () -> Bool
+    private let recycleCompleted: @Sendable () -> Void
     private let openSettings: @Sendable () -> Void
 
     /// Designated initializer — every collaborator injected (constructor DI,
@@ -83,16 +84,23 @@ public final class AgentRegistrar {
     ///   - needsRecycle: `true` when the bundled binary changed or a prior
     ///     spawn failed `EX_CONFIG` — triggers a full unregister()+register()
     ///     rather than a no-op register().
+    ///   - recycleCompleted: called once EVERY service survived the recycle —
+    ///     the only point at which the trigger's bookkeeping (e.g. a persisted
+    ///     bundle version) may be updated. Recording earlier would make the
+    ///     next launch see a matching version after a failed recycle and never
+    ///     refresh the stale launch constraint until the next version bump.
     ///   - openSettings: opens System Settings › Login Items (the approval UX).
     public init(
         services: [LaunchAgentRegistering],
         materializeContainer: @escaping @Sendable () async -> Void,
         needsRecycle: @escaping @Sendable () -> Bool,
+        recycleCompleted: @escaping @Sendable () -> Void = {},
         openSettings: @escaping @Sendable () -> Void
     ) {
         self.services = services
         self.materializeContainer = materializeContainer
         self.needsRecycle = needsRecycle
+        self.recycleCompleted = recycleCompleted
         self.openSettings = openSettings
     }
 
@@ -112,6 +120,9 @@ public final class AgentRegistrar {
                 state = .failed("\(service.label): \(error.localizedDescription)")
                 return
             }
+        }
+        if recycle {
+            recycleCompleted()
         }
         state = aggregateState()
     }
