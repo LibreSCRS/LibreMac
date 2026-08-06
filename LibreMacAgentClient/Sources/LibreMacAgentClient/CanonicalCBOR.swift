@@ -340,7 +340,11 @@ private struct CBORParser {
     }
 
     mutating func requireBytes(_ n: Int) throws(CBORError) -> ArraySlice<UInt8> {
-        guard index + n <= bytes.count else { throw .truncated }
+        // Overflow-safe form of `index + n <= bytes.count`: a hostile length
+        // header can declare `n` up to Int.max, where `index + n` would trap
+        // instead of failing closed. `index <= bytes.count` is a parser
+        // invariant and `n >= 0` (lengthArgument), so the subtraction is safe.
+        guard n <= bytes.count - index else { throw .truncated }
         defer { index += n }
         return bytes[index..<(index + n)]
     }

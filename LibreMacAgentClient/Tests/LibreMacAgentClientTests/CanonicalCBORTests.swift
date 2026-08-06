@@ -250,6 +250,35 @@ struct CanonicalCBORStrictnessTests {
         }
     }
 
+    @Test("byte string declaring an Int.max length fails closed instead of trapping")
+    func byteStringIntMaxLength() {
+        // bstr, ai=27, 8-byte argument 0x7FFF_FFFF_FFFF_FFFF (Int64.max):
+        // `index + n` would overflow Int if computed naively.
+        let bytes = Data([0x5B, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+        #expect(throws: CBORError.truncated) {
+            try CBORValue.decode(bytes)
+        }
+    }
+
+    @Test("text string declaring an Int.max length fails closed instead of trapping")
+    func textStringIntMaxLength() {
+        // tstr, ai=27, 8-byte argument Int64.max.
+        let bytes = Data([0x7B, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+        #expect(throws: CBORError.truncated) {
+            try CBORValue.decode(bytes)
+        }
+    }
+
+    @Test("nested byte string declaring an Int.max length fails closed instead of trapping")
+    func nestedByteStringIntMaxLength() {
+        // Array of one element wrapping the hostile bstr, so the overflow
+        // candidate `index` is deeper into the buffer than the top-level case.
+        let bytes = Data([0x81, 0x5B, 0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+        #expect(throws: CBORError.truncated) {
+            try CBORValue.decode(bytes)
+        }
+    }
+
     @Test("invalid UTF-8 text string is rejected")
     func invalidUTF8() {
         let bytes = Data([0x61, 0xFF]) // tstr, length 1, byte 0xFF is not valid UTF-8

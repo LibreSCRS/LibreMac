@@ -18,6 +18,49 @@ public enum SocketConnectionError: Error, Sendable, Equatable {
     case connectFailed(Int32)
 }
 
+/// Blocking AF_UNIX `SOCK_STREAM` connect shared by `SocketConnection` and
+/// `TokenAgentClient` — the ONE place the `sun_path` capacity check, the
+/// `socket()`/`sockaddr_un`-fill/`connect()` sequence, and the
+/// close-on-failure live. Returns the connected fd still in its default
+/// blocking mode with no options set: each caller configures non-blocking /
+/// `SO_NOSIGPIPE` / deadlines to its own needs afterwards (a local AF_UNIX
+/// `connect()` never stalls the way a network handshake can, so connecting
+/// on a blocking fd is fine for both).
+func connectUnixSocket(path: String) throws(SocketConnectionError) -> Int32 {
+    let pathBytes = Array(path.utf8)
+    let sunPathCapacity = MemoryLayout.size(ofValue: sockaddr_un().sun_path)
+    guard pathBytes.count < sunPathCapacity else {
+        throw .pathTooLong
+    }
+
+    let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
+    guard fd >= 0 else {
+        throw .socketCreationFailed(errno)
+    }
+
+    var addr = sockaddr_un()
+    addr.sun_family = sa_family_t(AF_UNIX)
+    withUnsafeMutableBytes(of: &addr.sun_path) { raw in
+        let base = raw.baseAddress!.assumingMemoryBound(to: UInt8.self)
+        base.initialize(repeating: 0, count: sunPathCapacity)
+        for (index, byte) in pathBytes.enumerated() {
+            base[index] = byte
+        }
+    }
+
+    let connectResult = withUnsafePointer(to: &addr) { addrPtr -> Int32 in
+        addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
+            Darwin.connect(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+        }
+    }
+    guard connectResult == 0 else {
+        let failure = errno
+        Darwin.close(fd)
+        throw .connectFailed(failure)
+    }
+    return fd
+}
+
 /// A non-blocking AF_UNIX `SOCK_STREAM` connection to the LibreMac agent,
 /// framing traffic with `Frame`/`FrameReassembler` and passing fds via
 /// SCM_RIGHTS. Mirrors the peer agent's dispatch_source client transport
@@ -37,12 +80,13 @@ public enum SocketConnectionError: Error, Sendable, Equatable {
 /// independently thread-safe and need no additional guard.
 ///
 /// ## fd ownership
-/// - Outbound: `send(body:fds:)` takes ownership of `fds`. They are
-///   duplicated into the peer via the frame's first `sendmsg` and closed
-///   locally once the whole frame has been written (or when the connection
-///   tears down with the frame still queued) — never closed early, so a
-///   frame killed mid-write cannot outlive the descriptors it was still
-///   using.
+/// - Outbound: `send(body:fds:)` takes ownership of `fds` ONLY when it
+///   returns normally; on a throw, ownership stays with the caller (see
+///   its doc comment). Once owned, they are duplicated into the peer via
+///   the frame's first `sendmsg` and closed locally once the whole frame
+///   has been written (or when the connection tears down with the frame
+///   still queued) — never closed early, so a frame killed mid-write
+///   cannot outlive the descriptors it was still using.
 /// - Inbound: fds delivered on a `Frame` from `frames` become the
 ///   consumer's responsibility to close. `SocketConnection` itself only
 ///   closes fds that were received but never attributed to a completed
@@ -93,44 +137,11 @@ public final class SocketConnection: @unchecked Sendable {
 
     // MARK: - Construction
 
-    /// Opens a non-blocking AF_UNIX `SOCK_STREAM` connection to `path`.
-    /// `connect()` itself runs with a blocking fd (a local AF_UNIX connect
-    /// never stalls the way a network handshake can); the fd is switched to
-    /// non-blocking once connected, before any frame traffic is possible.
+    /// Opens a non-blocking AF_UNIX `SOCK_STREAM` connection to `path`
+    /// (via `connectUnixSocket(path:)`); the fd is switched to non-blocking
+    /// once connected, before any frame traffic is possible.
     public static func connect(path: String) throws(SocketConnectionError) -> SocketConnection {
-        let pathBytes = Array(path.utf8)
-        let sunPathCapacity = MemoryLayout.size(ofValue: sockaddr_un().sun_path)
-        guard pathBytes.count < sunPathCapacity else {
-            throw .pathTooLong
-        }
-
-        let fd = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else {
-            throw .socketCreationFailed(errno)
-        }
-
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        withUnsafeMutableBytes(of: &addr.sun_path) { raw in
-            let base = raw.baseAddress!.assumingMemoryBound(to: UInt8.self)
-            base.initialize(repeating: 0, count: sunPathCapacity)
-            for (index, byte) in pathBytes.enumerated() {
-                base[index] = byte
-            }
-        }
-
-        let connectResult = withUnsafePointer(to: &addr) { addrPtr -> Int32 in
-            addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                Darwin.connect(fd, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard connectResult == 0 else {
-            let failure = errno
-            Darwin.close(fd)
-            throw .connectFailed(failure)
-        }
-
-        return SocketConnection(connectedDescriptor: fd)
+        SocketConnection(connectedDescriptor: try connectUnixSocket(path: path))
     }
 
     /// Wraps an already-connected fd. Internal (not part of the public
@@ -180,8 +191,11 @@ public final class SocketConnection: @unchecked Sendable {
     /// `body`/`fds` against the frame caps synchronously — mirroring
     /// `Frame.encodeHeader` — before ever touching `queue`, so a
     /// caller-side size bug is reported immediately rather than silently
-    /// dropped. The actual write is asynchronous; IO-level failures surface
-    /// through `frames` throwing `.io`, not through this call.
+    /// dropped. On a throw, NOTHING was enqueued and ownership of `fds`
+    /// stays with the caller (none closed here) — the caller must close
+    /// them itself, as `AgentClient.call` does. The actual write is
+    /// asynchronous; IO-level failures surface through `frames` throwing
+    /// `.io`, not through this call.
     public func send(body: Data, fds: [Int32] = []) throws(FrameError) {
         let header = try Frame.encodeHeader(bodyLength: body.count, fdCount: fds.count)
         let framed = [UInt8](header) + [UInt8](body)

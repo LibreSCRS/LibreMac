@@ -15,36 +15,40 @@ public final class TokenAgentClient: TokenTransport {
     private let reassembler = FrameReassembler()
     private var pending: [Frame] = []
 
+    /// Upper bound on any single blocking `read`/`write` (SO_RCVTIMEO /
+    /// SO_SNDTIMEO). Any inbound traffic re-arms it, so it is the
+    /// blocking-seam analog of `OperationDriver.opStallTimeout`'s
+    /// no-progress watchdog — but generous where that one is exempt: an
+    /// operator-facing wait (PIN entry happens agent-side) sends this seam
+    /// no phase events to exempt it with, so the bound must outlast a slow
+    /// operator while still surfacing a hung agent as
+    /// `TokenTransportError.ioFailed` instead of wedging the ctkd thread
+    /// forever.
+    public static let defaultIoTimeout: TimeInterval = 120.0
+
     /// Wraps an already-connected fd and takes ownership of it: the fd is
     /// closed on `deinit`. Also suppresses `SIGPIPE` on the fd (see
-    /// `setNoSigPipe`) before any `write` can reach it.
-    public init(connectedFd: Int32) {
+    /// `setNoSigPipe`) before any `write` can reach it, and bounds every
+    /// blocking read/write with `ioTimeout` (see `defaultIoTimeout`).
+    public init(connectedFd: Int32, ioTimeout: TimeInterval = TokenAgentClient.defaultIoTimeout) {
         self.fd = connectedFd
         self.ownsFd = true
         Self.setNoSigPipe(connectedFd)
+        Self.setIoDeadline(connectedFd, seconds: ioTimeout)
     }
 
+    /// Connects via the shared `connectUnixSocket(path:)` helper (the one
+    /// AF_UNIX connect sequence in this package), folding every connect-time
+    /// failure into `TokenTransportError.connectFailed` — this seam has no
+    /// use for the finer-grained `SocketConnectionError` split.
     public convenience init(socketPath: String = AgentSocketPath.resolve()) throws {
-        let pathBytes = Array(socketPath.utf8)
-        let sunPathCapacity = MemoryLayout.size(ofValue: sockaddr_un().sun_path)
-        guard pathBytes.count < sunPathCapacity else { throw TokenTransportError.connectFailed }
-
-        let s = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard s >= 0 else { throw TokenTransportError.connectFailed }
-        Self.setNoSigPipe(s)
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        _ = socketPath.withCString { src in
-            withUnsafeMutablePointer(to: &addr.sun_path) { dst in
-                dst.withMemoryRebound(to: CChar.self, capacity: 104) { strncpy($0, src, 103) }
-            }
+        let fd: Int32
+        do {
+            fd = try connectUnixSocket(path: socketPath)
+        } catch {
+            throw TokenTransportError.connectFailed
         }
-        let len = socklen_t(MemoryLayout<sockaddr_un>.size)
-        let ok = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(s, $0, len) == 0 }
-        }
-        guard ok else { close(s); throw TokenTransportError.connectFailed }
-        self.init(connectedFd: s)
+        self.init(connectedFd: fd)
     }
 
     deinit { if ownsFd, fd >= 0 { close(fd) } }
@@ -71,6 +75,9 @@ public final class TokenAgentClient: TokenTransport {
             if n == 0 { throw TokenTransportError.closed }
             if n < 0 {
                 if errno == EINTR { continue }
+                // EAGAIN/EWOULDBLOCK here means the SO_RCVTIMEO deadline
+                // expired (the fd is otherwise blocking): a hung agent
+                // surfaces as ioFailed rather than wedging the ctkd thread.
                 throw TokenTransportError.ioFailed
             }
             // `FrameReassembler.pump` is sticky-poisoned: once it throws, every
@@ -108,5 +115,15 @@ public final class TokenAgentClient: TokenTransport {
     private static func setNoSigPipe(_ fd: Int32) {
         var on: Int32 = 1
         _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+    }
+
+    /// Bounds every blocking `read`/`write` on `fd` (SO_RCVTIMEO /
+    /// SO_SNDTIMEO): expiry returns -1 with EAGAIN/EWOULDBLOCK, which the
+    /// IO loops map to `TokenTransportError.ioFailed`.
+    private static func setIoDeadline(_ fd: Int32, seconds: TimeInterval) {
+        let whole = Int(seconds)
+        var tv = timeval(tv_sec: whole, tv_usec: Int32((seconds - TimeInterval(whole)) * 1_000_000))
+        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+        _ = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
     }
 }

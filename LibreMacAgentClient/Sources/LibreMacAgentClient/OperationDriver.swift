@@ -114,7 +114,10 @@ private enum DriverOutcome: Sendable {
 /// lock: `recordPhase`/`isStalled` are called from independent tasks and
 /// neither is hot enough to need anything faster.
 private actor StallWatch {
-    private var lastChangeAt = Date()
+    /// Monotonic (`ContinuousClock`) — a wall-clock (`Date`) measurement
+    /// here would let an NTP step or manual clock change spuriously fire
+    /// (or suppress) the watchdog that cancels a live operation.
+    private var lastChangeAt = ContinuousClock.now
     private var exempt = false
     /// The last KNOWN-good phase seen (`.created` initially, mirroring the
     /// C++ `AgentOperation`'s initial `Created`). Wire tolerance: an
@@ -125,7 +128,7 @@ private actor StallWatch {
         // Progress is still "live" even when the phase itself is one this
         // build does not have a name for yet, so the stall clock always
         // resets here.
-        lastChangeAt = Date()
+        lastChangeAt = ContinuousClock.now
         // Wire tolerance: never regress the exemption check to an
         // unrecognized phase — hold the last known-good one instead (see
         // the type doc comment and `OperationDriver`'s tolerance note).
@@ -137,7 +140,7 @@ private actor StallWatch {
 
     func isStalled(timeout: TimeInterval) -> Bool {
         guard !exempt else { return false }
-        return Date().timeIntervalSince(lastChangeAt) >= timeout
+        return ContinuousClock.now - lastChangeAt >= .seconds(timeout)
     }
 }
 

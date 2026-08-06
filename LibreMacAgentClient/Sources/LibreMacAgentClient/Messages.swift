@@ -847,7 +847,16 @@ private func optionalUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(Mess
     return u
 }
 
+/// Width-bounded optional `UInt32` for the counter/length fields
+/// (`retriesLeft`, `usesLeft`, `minLength`, ...): a present value too wide
+/// for `UInt32` to represent losslessly is a genuinely malformed frame and
+/// rejected as `.wrongType` — the same width-guard posture as
+/// `requireWireEnumValue32` above, never a silent truncation to a wrong
+/// small counter. The bitmask-valued fields (`caps`, `keyUsageBits`,
+/// `trustStatus`) do not come through here — they keep
+/// `UInt32(truncatingIfNeeded:)` at their call sites.
 private func optionalUInt32(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt32? {
     guard let u = try optionalUInt64(m, key) else { return nil }
-    return UInt32(truncatingIfNeeded: u)
+    guard u <= UInt64(UInt32.max) else { throw .wrongType(key) }
+    return UInt32(u)
 }

@@ -29,4 +29,13 @@ struct TokenAgentClientTests {
         #expect(n == Data([0xAA]))
         #expect(e == Data([0x01, 0x00, 0x01]))
     }
+
+    @Test("a peer that never replies surfaces ioFailed instead of hanging forever")
+    func silentPeerSurfacesIoFailed() {
+        let server = MockAgentServer() // no onRequest script: requests are read but never answered
+        let client = TokenAgentClient(connectedFd: server.connectedFd(), ioTimeout: 0.2)
+        #expect(throws: TokenTransportError.ioFailed) {
+            _ = try client.send(.getState)
+        }
+    }
 }

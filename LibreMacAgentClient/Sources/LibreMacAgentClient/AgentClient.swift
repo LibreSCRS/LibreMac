@@ -3,6 +3,14 @@
 
 import Darwin
 import Foundation
+import os
+
+/// Diagnostics for the inbound frame-dispatch path. Same subsystem and
+/// category as the host's `Logger.agent` (LibreMacShared) so the lines land
+/// together in Console; the strings are repeated here because this package
+/// deliberately stands alone. Interpolates `MessageError` descriptions only
+/// (tag/field names) — never frame payload contents.
+private let frameDispatchLogger = os.Logger(subsystem: "org.librescrs.LibreMac", category: "agent")
 
 /// Errors an `AgentClient` call can throw. Distinct from the wire-layer
 /// `FrameError`/`MessageError` — this is the client's OWN taxonomy for
@@ -366,18 +374,35 @@ public actor AgentClient {
     // MARK: - Frame dispatch
 
     private func handle(frame: Frame) {
-        if let envelope = try? AgentMessages.decodeReply(frame.body) {
+        // An unknown `t` is tolerated append-only evolution (new event/reply
+        // kinds are expected over time) and dropped silently; a RECOGNIZED
+        // shape that fails mid-decode is a protocol regression and must be
+        // logged — otherwise a malformed reply is indistinguishable from a
+        // lost one and the correlated request dies as a generic timeout.
+        // Either way the frame (and any fds it carried) is dropped rather
+        // than crashing the connection.
+        do {
+            let envelope = try AgentMessages.decodeReply(frame.body)
             resolvePendingReply(envelope.req, with: envelope.reply, fds: frame.fds)
             return
-        }
-        if let event = try? AgentMessages.decodeEvent(frame.body) {
-            handleEvent(event, fds: frame.fds)
+        } catch .unknownMessage {
+            // Not a `Reply` — try the event decoder below.
+        } catch {
+            frameDispatchLogger.error(
+                "dropping undecodable reply frame: \(String(describing: error), privacy: .public)")
+            closeFds(frame.fds)
             return
         }
-        // Neither a recognized reply nor a recognized event: drop the
-        // frame (and any fds it carried) rather than crash the connection
-        // over a message we don't understand yet (append-only evolution —
-        // new event/reply kinds are expected over time).
+        do {
+            let event = try AgentMessages.decodeEvent(frame.body)
+            handleEvent(event, fds: frame.fds)
+            return
+        } catch .unknownMessage {
+            // Unknown event tag: tolerated evolution — drop silently.
+        } catch {
+            frameDispatchLogger.error(
+                "dropping undecodable event frame: \(String(describing: error), privacy: .public)")
+        }
         closeFds(frame.fds)
     }
 
@@ -516,6 +541,9 @@ public actor AgentClient {
             do {
                 try connection.send(body: body, fds: fds)
             } catch {
+                // `send` throwing means nothing was enqueued and fd
+                // ownership stayed here (its documented throw-path
+                // contract) — closing them is this caller's job.
                 closeFds(fds)
                 failPendingReply(reqId, with: AgentClientError.communicationError)
             }
