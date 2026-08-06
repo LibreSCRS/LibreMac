@@ -516,5 +516,49 @@
         <source>Used for every signature unless a request asks for something else.</source>
         <translation>Користи се за сваки потпис осим ако захтев не тражи нешто друго.</translation>
     </message>
+    <message id="libremac_settings_action_cancel">
+        <source>Cancel</source>
+        <translation>Откажи</translation>
+    </message>
+    <message id="libremac_settings_action_add">
+        <source>Add</source>
+        <translation>Додај</translation>
+    </message>
+    <message id="libremac_settings_trust_remove">
+        <source>Remove</source>
+        <translation>Уклони</translation>
+    </message>
+    <message id="libremac_settings_trust_clear">
+        <source>Remove all</source>
+        <translation>Уклони све</translation>
+    </message>
+    <message id="libremac_settings_trust_clear_title">
+        <source>Remove every entry?</source>
+        <translation>Уклонити све ставке?</translation>
+    </message>
+    <message id="libremac_settings_trust_clear_confirm">
+        <source>Remove all</source>
+        <translation>Уклони све</translation>
+    </message>
+    <message id="libremac_settings_trust_clear_msg">
+        <source>This removes all {count} entries. You will be asked to confirm the change itself as well.</source>
+        <translation>Ово уклања свих {count} ставки. Бићете питани и да потврдите саму измену.</translation>
+    </message>
+    <message id="libremac_settings_trust_eager">
+        <source>Fetched up front</source>
+        <translation>Преузима се унапред</translation>
+    </message>
+    <message id="libremac_settings_trust_no_tsa">
+        <source>No authority configured — signatures are not timestamped.</source>
+        <translation>Ниједан ауторитет није подешен — потписи се не жигошу.</translation>
+    </message>
+    <message id="libremac_settings_trust_no_lists">
+        <source>No trusted list configured — signatures cannot be validated against one.</source>
+        <translation>Ниједна листа поверења није подешена — потписи не могу да се провере према њој.</translation>
+    </message>
+    <message id="libremac_settings_last_tsa">
+        <source>Last used</source>
+        <translation>Последње коришћено</translation>
+    </message>
 </context>
 </TS>

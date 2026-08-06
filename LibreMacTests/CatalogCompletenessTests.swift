@@ -132,6 +132,17 @@ struct CatalogCompletenessTests {
         "libremac_settings_agent_unavailable_title",
         "libremac_settings_output_footer",
         "libremac_settings_signing_footer",
+        "libremac_settings_action_cancel",
+        "libremac_settings_action_add",
+        "libremac_settings_trust_remove",
+        "libremac_settings_trust_clear",
+        "libremac_settings_trust_clear_title",
+        "libremac_settings_trust_clear_confirm",
+        "libremac_settings_trust_clear_msg",
+        "libremac_settings_trust_eager",
+        "libremac_settings_trust_no_tsa",
+        "libremac_settings_trust_no_lists",
+        "libremac_settings_last_tsa",
     ]
 
     /// Ids the settings window renders but does NOT own — they come from the
@@ -147,6 +158,13 @@ struct CatalogCompletenessTests {
         ("lc-settings-output-placeholder", "Same as input file"),
         ("lc-settings-default-level", "Default level:"),
         ("lc-settings-cache-dir", "Cache folder:"),
+        ("lc-settings-tab-trust", "Trust"),
+        ("lc-settings-tsa-servers", "Timestamping authorities"),
+        ("lc-settings-tl-servers", "Trusted lists"),
+        ("lc-settings-tl-add-item", "Add…"),
+        ("lc-settings-tl-add-title", "Add a trusted list"),
+        ("lc-settings-tl-type", "List of lists"),
+        ("lc-settings-invalid-url-msg", "Enter a full http or https address."),
     ]
 
     // MARK: - Parsing

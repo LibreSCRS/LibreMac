@@ -25,11 +25,12 @@ struct PreferencesView: View {
 
     /// The keys this window actually draws a control for.
     static let settableKeysWithControls: Set<SettableConfigKey> =
-        [.defaultLevel, .defaultReason, .defaultLocation]
+        [.defaultLevel, .defaultReason, .defaultLocation, .tsaUrls, .tslSources]
 
-    /// Keys deliberately not drawn yet: the trust-tier pair ships with the
-    /// trust pane, once the agent-side gate exists. Empty this when they land.
-    static let deferredSettableKeys: Set<SettableConfigKey> = [.tsaUrls, .tslSources]
+    /// Keys deliberately not drawn. Empty, and the guard keeps it honest: a
+    /// key listed here as well as drawn fails the build, so a deferral cannot
+    /// outlive the deferring.
+    static let deferredSettableKeys: Set<SettableConfigKey> = []
 
     var body: some View {
         TabView {
@@ -37,6 +38,8 @@ struct PreferencesView: View {
                 .tabItem { Text(localization.loc("lc-settings-tab-general", "General")) }
             SigningPane(model: model)
                 .tabItem { Text(localization.loc("lc-settings-tab-signing", "Signing")) }
+            TrustPane(model: model)
+                .tabItem { Text(localization.loc("lc-settings-tab-trust", "Trust")) }
             AdvancedPane(model: model)
                 .tabItem {
                     Text(localization.loc("libremac_settings_tab_advanced", "Advanced"))

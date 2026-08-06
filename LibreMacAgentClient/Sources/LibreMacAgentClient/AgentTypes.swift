@@ -539,6 +539,60 @@ public enum SettableConfigKey: String, Sendable, Equatable, CaseIterable {
     case tslSources = "TslSources"
 }
 
+/// One configured trusted-list source, the element type of the `TslSources`
+/// config value. Mirrors `LibreSCRS::Agent::Config::TslSource`, which the
+/// agent builds from exactly these three map keys.
+///
+/// `isLotl` marks a list-of-trusted-lists (a list whose entries are
+/// themselves lists); `eager` asks the agent to fetch it up front rather
+/// than on first need.
+public struct TslSource: Sendable, Equatable {
+    public var url: String
+    public var isLotl: Bool
+    public var eager: Bool
+
+    public init(url: String, isLotl: Bool = false, eager: Bool = false) {
+        self.url = url
+        self.isLotl = isLotl
+        self.eager = eager
+    }
+
+    /// Decodes one wire map. A source without a `url` is not a source, so it
+    /// yields nil rather than an entry the user cannot act on; the two flags
+    /// default to false exactly as the agent's own decode does, so a map
+    /// written by an older agent still reads.
+    public init?(cbor: CBORValue) {
+        guard case .map(let pairs) = cbor else { return nil }
+        func value(_ key: String) -> CBORValue? {
+            let wanted = Data(key.utf8)
+            for (k, v) in pairs where k == wanted { return v }
+            return nil
+        }
+        func flag(_ key: String) -> Bool {
+            if case .bool(let b)? = value(key) { return b }
+            return false
+        }
+        guard case .text(let url)? = value("url"), !url.isEmpty else { return nil }
+        self.url = url
+        self.isLotl = flag("isLotl")
+        self.eager = flag("eager")
+    }
+
+    /// The wire map. Both flags are always written: unlike the display fields
+    /// on the prompter wire, absence here is not distinguishable from false
+    /// by a reader, and a round-trip that silently drops a set flag would
+    /// change what the agent trusts.
+    public var cbor: CBORValue {
+        // Order is irrelevant here: the encoder sorts map keys canonically on
+        // the way out, which is what the agent requires.
+        .map([
+            (Data("url".utf8), .text(url)),
+            (Data("isLotl".utf8), .bool(isLotl)),
+            (Data("eager".utf8), .bool(eager)),
+        ])
+    }
+}
+
 // MARK: - Credential wire enums (Credentials1 seam)
 
 /// Client-side verb vocabulary for `ManagePin` — the closed CDDL

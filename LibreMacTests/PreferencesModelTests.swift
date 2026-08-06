@@ -6,6 +6,7 @@
 // than a stale value rendered as live, and a refused write leaves the row
 // exactly as the agent still has it.
 
+import Foundation
 import LibreMacAgentClient
 import Testing
 
@@ -286,6 +287,79 @@ struct PreferencesModelTests {
         #expect(fake.resetKeys == [.defaultReason])
         #expect(model.defaultReason.isEmpty, "the key is gone, so the row shows nothing")
         #expect(model.rowError[.defaultReason] == nil)
+    }
+
+    /// The scalar rollback bug again, in the row that loses the most: a list
+    /// row whose snapshot could only be a string would "restore" an empty
+    /// list over every entry the user had.
+    @Test("a refused list write restores the whole previous list")
+    func refusedListWriteRestoresTheList() async {
+        let fake = FakeConfigClient(entries: [
+            "TsaUrls": .array([.text("https://one.example/"), .text("https://two.example/")])
+        ])
+        let model = PreferencesModel(client: fake)
+        await model.load()
+        fake.failNextWrite = .notAuthorized
+
+        await model.save(.tsaUrls, .array([.text("https://three.example/")]))
+
+        #expect(model.tsaUrls == ["https://one.example/", "https://two.example/"])
+        #expect(model.rowError[.tsaUrls] != nil)
+    }
+
+    @Test("a refused trusted-list write restores the whole previous list")
+    func refusedSourcesWriteRestoresTheList() async {
+        let existing = TslSource(url: "https://lotl.example/", isLotl: true, eager: false)
+        let fake = FakeConfigClient(entries: ["TslSources": .array([existing.cbor])])
+        let model = PreferencesModel(client: fake)
+        await model.load()
+        #expect(model.tslSources == [existing])
+        fake.failNextWrite = .readOnlyConfig
+
+        await model.save(.tslSources, .array([TslSource(url: "https://other.example/").cbor]))
+
+        #expect(model.tslSources == [existing])
+    }
+
+    @Test("an accepted list write leaves the new list showing")
+    func acceptedListWriteShowsTheNewList() async {
+        let fake = FakeConfigClient(entries: ["TsaUrls": .array([.text("https://one.example/")])])
+        let model = PreferencesModel(client: fake)
+        await model.load()
+
+        await model.save(.tsaUrls, .array([.text("https://one.example/"), .text("https://two.example/")]))
+
+        #expect(model.tsaUrls == ["https://one.example/", "https://two.example/"])
+        #expect(model.rowError[.tsaUrls] == nil)
+    }
+
+    /// Resetting a list key means discarding every entry, so the row has to
+    /// end up empty rather than holding whatever a string-shaped reset would
+    /// have put there.
+    @Test("resetting a list key empties it")
+    func resettingAListEmptiesIt() async {
+        let fake = FakeConfigClient(entries: ["TsaUrls": .array([.text("https://one.example/")])])
+        let model = PreferencesModel(client: fake)
+        await model.load()
+
+        await model.reset(.tsaUrls)
+
+        #expect(model.tsaUrls.isEmpty)
+        #expect(fake.resetKeys == [.tsaUrls])
+    }
+
+    /// The agent persisted these, so one unreadable entry must not take the
+    /// rest of the list with it.
+    @Test("a source the agent wrote without a url is dropped, the rest survive")
+    func sourceWithoutAUrlIsDropped() async {
+        let good = TslSource(url: "https://good.example/")
+        let headless = CBORValue.map([(Data("eager".utf8), .bool(true))])
+        let model = PreferencesModel(
+            client: FakeConfigClient(entries: ["TslSources": .array([headless, good.cbor])]))
+
+        await model.load()
+
+        #expect(model.tslSources == [good])
     }
 
     @Test("a list value populates the read-only servers row")

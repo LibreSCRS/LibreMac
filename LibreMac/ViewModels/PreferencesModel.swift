@@ -35,6 +35,10 @@ final class PreferencesModel {
     var defaultReason = ""
     var defaultLocation = ""
     var tsaUrls: [String] = []
+    var tslSources: [TslSource] = []
+    /// The authority the agent actually used last. Read-only agent state, so
+    /// it is shown rather than offered for editing.
+    var lastTsaUrl = ""
     var pluginDir = ""
     var tslCacheDir = ""
     var aiaCacheDir = ""
@@ -50,7 +54,7 @@ final class PreferencesModel {
     /// not the row's current contents — is what a refused write puts back:
     /// by the time a write is refused the row already shows the new value,
     /// so reading it then would "restore" exactly what the agent rejected.
-    private var valueBeforeEditing: [SettableConfigKey: String] = [:]
+    private var valueBeforeEditing: [SettableConfigKey: RowValue] = [:]
 
     init(client: ConfigTransport) { self.client = client }
 
@@ -73,9 +77,14 @@ final class PreferencesModel {
     /// write would announce a configuration change to every other client
     /// each time a field merely lost focus.
     func commitIfChanged(_ key: SettableConfigKey) async {
+        // Text rows only: the list rows are edited by add and remove, each of
+        // which is its own deliberate write rather than something typed and
+        // later committed.
         let current = snapshotOfRow(key)
-        guard let before = valueBeforeEditing[key], before != current else { return }
-        await save(key, .text(current))
+        guard let before = valueBeforeEditing[key], before != current,
+            case .text(let typed) = current
+        else { return }
+        await save(key, .text(typed))
         valueBeforeEditing[key] = snapshotOfRow(key)
     }
 
@@ -103,7 +112,7 @@ final class PreferencesModel {
     /// value read at that point is already the new one.
     func save(_ key: SettableConfigKey, _ value: CBORValue) async {
         let previous = valueBeforeEditing[key] ?? snapshotOfRow(key)
-        if case .text(let text) = value { restoreRow(key, to: text) }
+        if let optimistic = Self.rowValue(of: value) { restoreRow(key, to: optimistic) }
         do {
             try await client.setConfig(key, value: value)
             rowError[key] = nil
@@ -123,10 +132,12 @@ final class PreferencesModel {
             let entries = try await client.getConfig()
             // Only this row. An agent that no longer publishes the key has
             // no default to show, which is an empty row, not a stale one.
-            if case .text(let restored)? = entries[key.rawValue] {
+            if let restored = entries[key.rawValue].flatMap(Self.rowValue(of:)) {
                 restoreRow(key, to: restored)
             } else {
-                restoreRow(key, to: "")
+                // The agent no longer publishes the key, so its default is
+                // nothing: an empty row, never a stale one.
+                restoreRow(key, to: Self.emptyRow(for: key))
             }
         } catch {
             rowError[key] = message(for: error)
@@ -163,10 +174,17 @@ final class PreferencesModel {
         put(nil, text("PluginDir"), into: &pluginDir)
         put(nil, text("TslCacheDir"), into: &tslCacheDir)
         put(nil, text("AiaCacheDir"), into: &aiaCacheDir)
-        if case .array(let items)? = entries["TsaUrls"] {
+        put(nil, text("LastTsaUrl"), into: &lastTsaUrl)
+        if case .array(let items)? = entries["TsaUrls"], !skippingEdited || !editing.contains(.tsaUrls) {
             tsaUrls = items.compactMap {
                 if case .text(let value) = $0 { return value } else { return nil }
             }
+        }
+        if case .array(let items)? = entries["TslSources"], !skippingEdited || !editing.contains(.tslSources) {
+            // A source without a url is dropped rather than shown as a row the
+            // user cannot act on; the agent is the one that persisted it, so
+            // the rest of the list still stands.
+            tslSources = items.compactMap(TslSource.init(cbor:))
         }
         // Entries this build does not know are simply not shown. Nothing is
         // written back wholesale — a write names one key — so an older client
@@ -178,28 +196,75 @@ final class PreferencesModel {
         defaultReason = ""
         defaultLocation = ""
         tsaUrls = []
+        tslSources = []
+        lastTsaUrl = ""
         pluginDir = ""
         tslCacheDir = ""
         aiaCacheDir = ""
     }
 
+    /// What a row holds, whatever its shape. One rollback path covers them
+    /// all: a list row that could only snapshot itself as a string would
+    /// "restore" an empty list over everything the user had entered, which is
+    /// the scalar rollback bug again in the place that loses the most.
+    enum RowValue: Equatable {
+        case text(String)
+        case urls([String])
+        case sources([TslSource])
+    }
+
     /// Exhaustive on purpose: a new settable key must be given a row here
     /// rather than silently losing its previous value on a refused write.
-    private func snapshotOfRow(_ key: SettableConfigKey) -> String {
+    private func snapshotOfRow(_ key: SettableConfigKey) -> RowValue {
         switch key {
-        case .defaultLevel: return defaultLevel
-        case .defaultReason: return defaultReason
-        case .defaultLocation: return defaultLocation
-        case .tsaUrls, .tslSources: return ""
+        case .defaultLevel: return .text(defaultLevel)
+        case .defaultReason: return .text(defaultReason)
+        case .defaultLocation: return .text(defaultLocation)
+        case .tsaUrls: return .urls(tsaUrls)
+        case .tslSources: return .sources(tslSources)
         }
     }
 
-    private func restoreRow(_ key: SettableConfigKey, to value: String) {
+    private func restoreRow(_ key: SettableConfigKey, to value: RowValue) {
+        switch (key, value) {
+        case (.defaultLevel, .text(let v)): defaultLevel = v
+        case (.defaultReason, .text(let v)): defaultReason = v
+        case (.defaultLocation, .text(let v)): defaultLocation = v
+        case (.tsaUrls, .urls(let v)): tsaUrls = v
+        case (.tslSources, .sources(let v)): tslSources = v
+        default:
+            // A shape that does not belong to this key. Restoring anything
+            // here would be inventing a value; leaving the row alone is the
+            // only honest option.
+            break
+        }
+    }
+
+    /// What "no value" looks like for a row, so a reset can clear it without
+    /// the caller knowing the row's shape.
+    private static func emptyRow(for key: SettableConfigKey) -> RowValue {
         switch key {
-        case .defaultLevel: defaultLevel = value
-        case .defaultReason: defaultReason = value
-        case .defaultLocation: defaultLocation = value
-        case .tsaUrls, .tslSources: break
+        case .defaultLevel, .defaultReason, .defaultLocation: return .text("")
+        case .tsaUrls: return .urls([])
+        case .tslSources: return .sources([])
+        }
+    }
+
+    /// The row a value carries, for the optimistic write. Returns nil for a
+    /// shape this build has no row for, so `save` shows nothing rather than
+    /// guessing.
+    private static func rowValue(of value: CBORValue) -> RowValue? {
+        switch value {
+        case .text(let s):
+            return .text(s)
+        case .array(let items):
+            if items.isEmpty { return .urls([]) }
+            if case .text = items[0] {
+                return .urls(items.compactMap { if case .text(let s) = $0 { return s } else { return nil } })
+            }
+            return .sources(items.compactMap(TslSource.init(cbor:)))
+        default:
+            return nil
         }
     }
 

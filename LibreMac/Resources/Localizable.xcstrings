@@ -10983,6 +10983,40 @@
         }
       }
     },
+    "libremac_settings_action_add" : {
+      "comment" : "libremac_settings_action_add",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додај"
+          }
+        }
+      }
+    },
+    "libremac_settings_action_cancel" : {
+      "comment" : "libremac_settings_action_cancel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Откажи"
+          }
+        }
+      }
+    },
     "libremac_settings_advisory_no_tsa" : {
       "comment" : "libremac_settings_advisory_no_tsa",
       "localizations" : {
@@ -11238,6 +11272,23 @@
         }
       }
     },
+    "libremac_settings_last_tsa" : {
+      "comment" : "libremac_settings_last_tsa",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last used"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последње коришћено"
+          }
+        }
+      }
+    },
     "libremac_settings_output_footer" : {
       "comment" : "libremac_settings_output_footer",
       "localizations" : {
@@ -11336,6 +11387,142 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Напредно"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_clear" : {
+      "comment" : "libremac_settings_trust_clear",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove all"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уклони све"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_clear_confirm" : {
+      "comment" : "libremac_settings_trust_clear_confirm",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove all"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уклони све"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_clear_msg" : {
+      "comment" : "libremac_settings_trust_clear_msg",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This removes all {count} entries. You will be asked to confirm the change itself as well."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ово уклања свих {count} ставки. Бићете питани и да потврдите саму измену."
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_clear_title" : {
+      "comment" : "libremac_settings_trust_clear_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove every entry?"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уклонити све ставке?"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_eager" : {
+      "comment" : "libremac_settings_trust_eager",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetched up front"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Преузима се унапред"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_no_lists" : {
+      "comment" : "libremac_settings_trust_no_lists",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No trusted list configured — signatures cannot be validated against one."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниједна листа поверења није подешена — потписи не могу да се провере према њој."
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_no_tsa" : {
+      "comment" : "libremac_settings_trust_no_tsa",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No authority configured — signatures are not timestamped."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниједан ауторитет није подешен — потписи се не жигошу."
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_remove" : {
+      "comment" : "libremac_settings_trust_remove",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уклони"
           }
         }
       }

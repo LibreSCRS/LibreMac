@@ -516,5 +516,49 @@
         <source>Used for every signature unless a request asks for something else.</source>
         <translation>Used for every signature unless a request asks for something else.</translation>
     </message>
+    <message id="libremac_settings_action_cancel">
+        <source>Cancel</source>
+        <translation>Cancel</translation>
+    </message>
+    <message id="libremac_settings_action_add">
+        <source>Add</source>
+        <translation>Add</translation>
+    </message>
+    <message id="libremac_settings_trust_remove">
+        <source>Remove</source>
+        <translation>Remove</translation>
+    </message>
+    <message id="libremac_settings_trust_clear">
+        <source>Remove all</source>
+        <translation>Remove all</translation>
+    </message>
+    <message id="libremac_settings_trust_clear_title">
+        <source>Remove every entry?</source>
+        <translation>Remove every entry?</translation>
+    </message>
+    <message id="libremac_settings_trust_clear_confirm">
+        <source>Remove all</source>
+        <translation>Remove all</translation>
+    </message>
+    <message id="libremac_settings_trust_clear_msg">
+        <source>This removes all {count} entries. You will be asked to confirm the change itself as well.</source>
+        <translation>This removes all {count} entries. You will be asked to confirm the change itself as well.</translation>
+    </message>
+    <message id="libremac_settings_trust_eager">
+        <source>Fetched up front</source>
+        <translation>Fetched up front</translation>
+    </message>
+    <message id="libremac_settings_trust_no_tsa">
+        <source>No authority configured — signatures are not timestamped.</source>
+        <translation>No authority configured — signatures are not timestamped.</translation>
+    </message>
+    <message id="libremac_settings_trust_no_lists">
+        <source>No trusted list configured — signatures cannot be validated against one.</source>
+        <translation>No trusted list configured — signatures cannot be validated against one.</translation>
+    </message>
+    <message id="libremac_settings_last_tsa">
+        <source>Last used</source>
+        <translation>Last used</translation>
+    </message>
 </context>
 </TS>
