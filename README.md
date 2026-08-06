@@ -2,9 +2,12 @@
 
 macOS-native integration for [LibreSCRS](https://github.com/LibreSCRS) smart card stack.
 
-LibreMac is a SwiftUI menu bar host plus a CryptoTokenKit token extension that
-exposes Serbian eID, eMRTD, and other supported cards to Keychain, Safari,
-Mail.app, and PAM login.
+LibreMac is a SwiftUI menu bar host plus a CryptoTokenKit token extension.
+The extension publishes a present card's signing identities (Serbian eID RSA
+signing certificates) to the Keychain, where Safari, Mail.app, and other
+Keychain clients can use them. Planned, not yet shipped: further card
+families and PAM login. eMRTD documents carry no Keychain-usable PKI
+identity and remain a reading feature of the host and agent.
 
 ## Architecture
 

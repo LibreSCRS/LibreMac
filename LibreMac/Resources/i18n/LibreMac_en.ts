@@ -2,42 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en_US">
 <context><name>LibreMac</name>
-    <message id="error.card.unsupported">
-        <source>This card is not supported</source>
-        <translation>This card is not supported</translation>
-    </message>
-    <message id="error.pin.device">
-        <source>PIN verification device error</source>
-        <translation>PIN verification device error</translation>
-    </message>
-    <message id="error.pin.unsupported">
-        <source>PIN verification is not supported on this card</source>
-        <translation>PIN verification is not supported on this card</translation>
-    </message>
-    <message id="error.read.certs">
-        <source>Failed to read certificates from the card</source>
-        <translation>Failed to read certificates from the card</translation>
-    </message>
-    <message id="error.reader.nocard">
-        <source>No card present in the reader</source>
-        <translation>No card present in the reader</translation>
-    </message>
-    <message id="error.reader.protocol">
-        <source>Reader protocol error</source>
-        <translation>Reader protocol error</translation>
-    </message>
-    <message id="error.reader.unavailable">
-        <source>Smart card reader is unavailable</source>
-        <translation>Smart card reader is unavailable</translation>
-    </message>
-    <message id="error.sign.engine">
-        <source>Signing engine error</source>
-        <translation>Signing engine error</translation>
-    </message>
-    <message id="error.sign.pin_required">
-        <source>PIN is required to sign</source>
-        <translation>PIN is required to sign</translation>
-    </message>
     <message id="libremac_error_auth_failed">
         <source>Authentication with the card failed.</source>
         <translation>Authentication with the card failed.</translation>

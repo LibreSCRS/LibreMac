@@ -29,9 +29,13 @@ public enum AgentSocketPath {
     /// 3. `$HOME/Library/Group Containers/group.org.librescrs.LibreMac/agent.sock`
     ///    as a last resort — the SAME directory as (2), reached by its
     ///    well-known absolute path rather than the entitlement-gated API.
-    ///    This is how the non-sandboxed agent process (which owns and binds
-    ///    the socket) finds it: it has no `application-groups` entitlement
-    ///    of its own to resolve (2) with.
+    ///    Every shipped process (host, CTK extension, bundled agent and
+    ///    prompter) is sandboxed WITH the `application-groups` entitlement
+    ///    (`Scripts/bundle-agent.sh` is the signing source of truth), so
+    ///    (2) resolves for all of them; this fallback exists for an
+    ///    UNENTITLED context only — a dev-tree agent or client run outside
+    ///    the signed bundle, which reaches the same per-user directory by
+    ///    its absolute path.
     ///
     /// `environment` and `containerURL` are injectable seams for tests;
     /// production callers use the defaults.

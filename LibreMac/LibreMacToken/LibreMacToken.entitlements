@@ -10,9 +10,11 @@
 	</array>
 	<!-- application-groups: the App-Group whose container holds the agent<->extension
 	     socket. macOS CTK appexes are sandboxed (OpenSCToken precedent) and cannot
-	     reach /tmp; the App-Group container is the shared location both this
-	     sandboxed appex (via this entitlement) and the non-sandboxed agent (via the
-	     absolute container path, same user) can reach. -->
+	     reach /tmp; the App-Group container is the shared location every party
+	     reaches via this same entitlement — this appex, the host, and the bundled
+	     agent, which is sandboxed and App-Group-entitled too (Scripts/bundle-agent.sh
+	     is the signing source of truth). Only an unbundled dev-tree agent falls back
+	     to the container's absolute path (same user, no entitlement). -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.org.librescrs.LibreMac</string>

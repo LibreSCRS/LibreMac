@@ -150,8 +150,10 @@ public final class SigningCoordinator {
         }
 
         stage = .done(destination: destinationURL, meta: meta)
+        // User-chosen document names are PII — .private per the logging
+        // privacy convention (LibreMacShared/Logger+Categories.swift).
         Logger.signing.info(
-            "Signed \(inputURL.lastPathComponent, privacy: .public) -> \(destinationURL.lastPathComponent, privacy: .public)")
+            "Signed \(inputURL.lastPathComponent, privacy: .private) -> \(destinationURL.lastPathComponent, privacy: .private)")
     }
 
     // MARK: - Phase → stage mapping

@@ -2,42 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="sr_RS">
 <context><name>LibreMac</name>
-    <message id="error.card.unsupported">
-        <source>This card is not supported</source>
-        <translation>Ова картица није подржана</translation>
-    </message>
-    <message id="error.pin.device">
-        <source>PIN verification device error</source>
-        <translation>Грешка уређаја при провери ПИН-а</translation>
-    </message>
-    <message id="error.pin.unsupported">
-        <source>PIN verification is not supported on this card</source>
-        <translation>Провера ПИН-а није подржана на овој картици</translation>
-    </message>
-    <message id="error.read.certs">
-        <source>Failed to read certificates from the card</source>
-        <translation>Учитавање сертификата са картице није успело</translation>
-    </message>
-    <message id="error.reader.nocard">
-        <source>No card present in the reader</source>
-        <translation>Картица није уметнута у читач</translation>
-    </message>
-    <message id="error.reader.protocol">
-        <source>Reader protocol error</source>
-        <translation>Грешка протокола читача</translation>
-    </message>
-    <message id="error.reader.unavailable">
-        <source>Smart card reader is unavailable</source>
-        <translation>Читач паметних картица није доступан</translation>
-    </message>
-    <message id="error.sign.engine">
-        <source>Signing engine error</source>
-        <translation>Грешка у механизму за потписивање</translation>
-    </message>
-    <message id="error.sign.pin_required">
-        <source>PIN is required to sign</source>
-        <translation>За потписивање је потребан ПИН</translation>
-    </message>
     <message id="libremac_error_auth_failed">
         <source>Authentication with the card failed.</source>
         <translation>Аутентификација са картицом није успела.</translation>
