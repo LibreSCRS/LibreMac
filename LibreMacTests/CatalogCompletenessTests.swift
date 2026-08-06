@@ -143,6 +143,8 @@ struct CatalogCompletenessTests {
         "libremac_settings_trust_no_tsa",
         "libremac_settings_trust_no_lists",
         "libremac_settings_last_tsa",
+        "libremac_settings_trust_add_tsa",
+        "libremac_settings_trust_add_tsa_title",
     ]
 
     /// Ids the settings window renders but does NOT own — they come from the

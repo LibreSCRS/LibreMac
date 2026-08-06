@@ -560,5 +560,13 @@
         <source>Last used</source>
         <translation>Последње коришћено</translation>
     </message>
+    <message id="libremac_settings_trust_add_tsa">
+        <source>Add a server…</source>
+        <translation>Додај сервер…</translation>
+    </message>
+    <message id="libremac_settings_trust_add_tsa_title">
+        <source>Add a timestamping authority</source>
+        <translation>Додавање ауторитета за временски жиг</translation>
+    </message>
 </context>
 </TS>

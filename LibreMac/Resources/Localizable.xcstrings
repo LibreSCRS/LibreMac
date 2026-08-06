@@ -11391,6 +11391,40 @@
         }
       }
     },
+    "libremac_settings_trust_add_tsa" : {
+      "comment" : "libremac_settings_trust_add_tsa",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a server…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додај сервер…"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_add_tsa_title" : {
+      "comment" : "libremac_settings_trust_add_tsa_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a timestamping authority"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додавање ауторитета за временски жиг"
+          }
+        }
+      }
+    },
     "libremac_settings_trust_clear" : {
       "comment" : "libremac_settings_trust_clear",
       "localizations" : {

@@ -560,5 +560,13 @@
         <source>Last used</source>
         <translation>Last used</translation>
     </message>
+    <message id="libremac_settings_trust_add_tsa">
+        <source>Add a server…</source>
+        <translation>Add a server…</translation>
+    </message>
+    <message id="libremac_settings_trust_add_tsa_title">
+        <source>Add a timestamping authority</source>
+        <translation>Add a timestamping authority</translation>
+    </message>
 </context>
 </TS>

@@ -34,7 +34,10 @@ struct TrustPane: View {
         // the language changed and the labels changed width.
         .formStyle(.grouped)
         .sheet(isPresented: $addingTsa) {
-            AddUrlSheet(title: loc("lc-settings-tl-add-title", "Add a server")) { url in
+            // Its own copy, not the trusted-list sheet's: these two add
+            // different things, and one shared string said "add a trusted
+            // list" over the timestamping section.
+            AddUrlSheet(title: loc("libremac_settings_trust_add_tsa_title", "Add a timestamping authority")) { url in
                 Task { await model.save(.tsaUrls, urlsValue(model.tsaUrls + [url])) }
             }
         }
@@ -77,7 +80,7 @@ struct TrustPane: View {
             }
             rowNote(.tsaUrls)
             HStack {
-                Button(loc("lc-settings-tl-add-item", "Add…")) { addingTsa = true }
+                Button(loc("libremac_settings_trust_add_tsa", "Add a server…")) { addingTsa = true }
                 Spacer()
                 if !model.tsaUrls.isEmpty {
                     Button(loc("libremac_settings_trust_clear", "Remove all"), role: .destructive) {
