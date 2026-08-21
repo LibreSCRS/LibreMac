@@ -20,7 +20,7 @@ public enum ErrorCopy {
 
     /// The localized `LocalizedText` for a code the client phrases itself, or
     /// `nil` for `.none` / any code deferred to the agent's `msgFallback`.
-    /// Split out from `message(...)` so a test can assert the 19-value
+    /// Split out from `message(...)` so a test can assert the 20-value
     /// coverage and the fallback boundary directly.
     public static func localizedText(for code: ErrorCode) -> LocalizedText? {
         switch code {
@@ -82,6 +82,9 @@ public enum ErrorCopy {
         case .invalidDocument:
             return text("libremac_error_invalid_document",
                         "The document you tried to sign is invalid or unreadable. Check the file.")
+        case .entryExpired:
+            return text("libremac_error_entry_expired",
+                        "The entry window closed before a code was entered. Try again.")
         case .unknown:
             // Wire tolerance: a code this build does not have a name for
             // yet (wire-frozen append-only `ErrorCode`) is opaque

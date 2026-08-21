@@ -14,10 +14,10 @@ import Foundation
 /// Stable agent-side error taxonomy, carried as the numeric `code` arm of a
 /// reply's `err` field and as `OpFinished.code`. Mirrors
 /// `LibreSCRS::Agent::ErrorCode` (LibreAgent) and the CDDL `error-code`
-/// group. 20 values, append-only — never renumber.
+/// group. 21 values, append-only — never renumber.
 ///
 /// Wire tolerance: `error-code` is wire-frozen append-only, so a newer agent
-/// may send a code past `invalidDocument` — this build simply does not have
+/// may send a code past `entryExpired` — this build simply does not have
 /// a name for it yet, which is a FUTURE value, not a malformed one. Decode
 /// never fails the frame over it (`ClientCodec.h`'s tolerance table — this
 /// was the ORIGINAL tolerance this wire shipped with). Unlike the
@@ -51,6 +51,7 @@ public enum ErrorCode: Sendable, Equatable {
     case rateLimited
     case engineUnavailable
     case invalidDocument
+    case entryExpired
     /// A code this build does not have a name for yet — carries the raw
     /// wire value verbatim (see the type doc comment).
     case unknown(UInt32)
@@ -86,6 +87,7 @@ extension ErrorCode {
         case 17: self = .rateLimited
         case 18: self = .engineUnavailable
         case 19: self = .invalidDocument
+        case 20: self = .entryExpired
         default: self = .unknown(wireValue)
         }
     }
@@ -115,6 +117,7 @@ extension ErrorCode {
         case .rateLimited: return 17
         case .engineUnavailable: return 18
         case .invalidDocument: return 19
+        case .entryExpired: return 20
         case .unknown(let v): return v
         }
     }
@@ -152,22 +155,24 @@ extension ErrorCode {
         case .rateLimited: return "RateLimited"
         case .engineUnavailable: return "EngineUnavailable"
         case .invalidDocument: return "InvalidDocument"
+        case .entryExpired: return "EntryExpired"
         case .unknown(let raw): return "unknown(\(raw))"
         }
     }
 }
 
 extension ErrorCode: CaseIterable {
-    /// Hand-rolled (associated-value cases forbid synthesis): the 20 NAMED
+    /// Hand-rolled (associated-value cases forbid synthesis): the 21 NAMED
     /// cases only. `.unknown` is not a discrete case to enumerate — it is
     /// an open-ended family of raw values — so it is deliberately excluded;
-    /// `ErrorCopyTests.taxonomyHasTwentyValues` gates this count.
+    /// `ErrorCopyTests.taxonomyHasTwentyOneValues` gates this count.
     public static var allCases: [ErrorCode] {
         [
             .none, .cardRemoved, .credentialWrong, .credentialBlocked, .communicationError,
             .parseError, .unsupportedCard, .authFailed, .prompterError, .capabilityMissing,
             .watchdogTimeout, .keyNotFound, .keyAmbiguous, .certExpiredBlocked, .chainIncomplete,
             .tsaUnreachable, .signingEngineError, .rateLimited, .engineUnavailable, .invalidDocument,
+            .entryExpired,
         ]
     }
 }
@@ -627,6 +632,7 @@ public enum CredentialOutcome: String, Sendable, Equatable, CaseIterable {
     case unsupported = "unsupported"
     case keyActivationFailed = "keyActivationFailed"
     case cardRemoved = "cardRemoved"
+    case entryExpired = "entryExpired"
 }
 
 /// Credential kind (`cred-record.kind`). Mirrors CDDL `cred-kind`

@@ -38,6 +38,10 @@
         <source>The signing engine could not be loaded. Check that LibreSCRS is installed correctly.</source>
         <translation>Механизам за потписивање није могао да се учита. Проверите да ли је LibreSCRS исправно инсталиран.</translation>
     </message>
+    <message id="libremac_error_entry_expired">
+        <source>The entry window closed before a code was entered. Try again.</source>
+        <translation>Прозор за унос се затворио пре него што је шифра унета. Покушајте поново.</translation>
+    </message>
     <message id="libremac_error_invalid_document">
         <source>The document you tried to sign is invalid or unreadable. Check the file.</source>
         <translation>Документ који сте покушали да потпишете је неисправан или нечитљив. Проверите датотеку.</translation>
@@ -301,6 +305,10 @@
     <message id="libremac_credentials_outcome_missingFields">
         <source>A required value was not entered.</source>
         <translation>Обавезна вредност није унета.</translation>
+    </message>
+    <message id="libremac_credentials_outcome_entryExpired">
+        <source>The entry window closed before a code was entered. Try again.</source>
+        <translation>Прозор за унос се затворио пре него што је шифра унета. Покушајте поново.</translation>
     </message>
     <message id="libremac_credentials_outcome_invalidPin">
         <source>The {who} was not correct.</source>

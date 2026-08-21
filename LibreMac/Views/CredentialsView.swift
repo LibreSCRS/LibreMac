@@ -370,6 +370,9 @@ struct CredentialsView: View {
         case .cardRemoved:
             return loc("libremac_credentials_outcome_cardRemoved",
                        "The card was removed before the operation finished.")
+        case .entryExpired:
+            return loc("libremac_credentials_outcome_entryExpired",
+                       "The entry window closed before a code was entered. Try again.")
         }
     }
 

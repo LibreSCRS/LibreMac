@@ -38,6 +38,10 @@
         <source>The signing engine could not be loaded. Check that LibreSCRS is installed correctly.</source>
         <translation>The signing engine could not be loaded. Check that LibreSCRS is installed correctly.</translation>
     </message>
+    <message id="libremac_error_entry_expired">
+        <source>The entry window closed before a code was entered. Try again.</source>
+        <translation>The entry window closed before a code was entered. Try again.</translation>
+    </message>
     <message id="libremac_error_invalid_document">
         <source>The document you tried to sign is invalid or unreadable. Check the file.</source>
         <translation>The document you tried to sign is invalid or unreadable. Check the file.</translation>
@@ -301,6 +305,10 @@
     <message id="libremac_credentials_outcome_missingFields">
         <source>A required value was not entered.</source>
         <translation>A required value was not entered.</translation>
+    </message>
+    <message id="libremac_credentials_outcome_entryExpired">
+        <source>The entry window closed before a code was entered. Try again.</source>
+        <translation>The entry window closed before a code was entered. Try again.</translation>
     </message>
     <message id="libremac_credentials_outcome_invalidPin">
         <source>The {who} was not correct.</source>

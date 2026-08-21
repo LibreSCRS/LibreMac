@@ -9725,6 +9725,23 @@
         }
       }
     },
+    "libremac_credentials_outcome_entryExpired" : {
+      "comment" : "libremac_credentials_outcome_entryExpired",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The entry window closed before a code was entered. Try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прозор за унос се затворио пре него што је шифра унета. Покушајте поново."
+          }
+        }
+      }
+    },
     "libremac_credentials_outcome_invalidPin" : {
       "comment" : "libremac_credentials_outcome_invalidPin",
       "localizations" : {
@@ -10265,6 +10282,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Механизам за потписивање није могао да се учита. Проверите да ли је LibreSCRS исправно инсталиран."
+          }
+        }
+      }
+    },
+    "libremac_error_entry_expired" : {
+      "comment" : "libremac_error_entry_expired",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The entry window closed before a code was entered. Try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прозор за унос се затворио пре него што је шифра унета. Покушајте поново."
           }
         }
       }
