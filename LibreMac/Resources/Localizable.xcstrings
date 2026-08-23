@@ -398,13 +398,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The complete corresponding source code for LibreCelik, LibreMiddleware and the bundled LGPL\/GPL third-party libraries (Qt, GnuTLS, GLib, libidn2 and others) is publicly available at <a href=\"https:\/\/github.com\/LibreSCRS\/LibreMiddleware\">github.com\/LibreSCRS\/LibreMiddleware<\/a> and <a href=\"https:\/\/github.com\/LibreSCRS\/LibreCelik\">github.com\/LibreSCRS\/LibreCelik<\/a>, or on request. This offer is valid for as long as we distribute this software."
+            "value" : "The complete corresponding source code for LibreCelik, the bundled LibreAgent client library and the bundled LGPL\/GPL third-party libraries (Qt, GnuTLS, GLib, libidn2 and others) is publicly available at <a href=\"https:\/\/github.com\/LibreSCRS\/LibreAgent\">github.com\/LibreSCRS\/LibreAgent<\/a> and <a href=\"https:\/\/github.com\/LibreSCRS\/LibreCelik\">github.com\/LibreSCRS\/LibreCelik<\/a>, or on request. This offer is valid for as long as we distribute this software."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Потпуни одговарајући изворни код за LibreCelik, LibreMiddleware и уграђене LGPL\/GPL библиотеке трећих страна (Qt, GnuTLS, GLib, libidn2 и друге) је јавно доступан на <a href=\"https:\/\/github.com\/LibreSCRS\/LibreMiddleware\">github.com\/LibreSCRS\/LibreMiddleware<\/a> и <a href=\"https:\/\/github.com\/LibreSCRS\/LibreCelik\">github.com\/LibreSCRS\/LibreCelik<\/a>, или на захтев. Ова понуда важи све док дистрибуирамо овај софтвер."
+            "value" : "Потпуни одговарајући изворни код за LibreCelik, уграђену LibreAgent клијентску библиотеку и уграђене LGPL\/GPL библиотеке трећих страна (Qt, GnuTLS, GLib, libidn2 и друге) је јавно доступан на <a href=\"https:\/\/github.com\/LibreSCRS\/LibreAgent\">github.com\/LibreSCRS\/LibreAgent<\/a> и <a href=\"https:\/\/github.com\/LibreSCRS\/LibreCelik\">github.com\/LibreSCRS\/LibreCelik<\/a>, или на захтев. Ова понуда важи све док дистрибуирамо овај софтвер."
           }
         }
       }
@@ -490,6 +490,924 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Верзија %1"
+          }
+        }
+      }
+    },
+    "lc-agent-awaiting-preauth" : {
+      "comment" : "lc-agent-awaiting-preauth",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm the card access number in the system dialog to continue reading this card."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потврдите број за приступ картици у системском прозору да би читање картице било настављено."
+          }
+        }
+      }
+    },
+    "lc-agent-call-access-denied" : {
+      "comment" : "lc-agent-call-access-denied",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permission to use the smart card service was denied."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приступ услузи за паметне картице је одбијен."
+          }
+        }
+      }
+    },
+    "lc-agent-call-invalid-arguments" : {
+      "comment" : "lc-agent-call-invalid-arguments",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This request was refused before any work on it started."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Овај захтев је одбијен пре него што је било шта урађено."
+          }
+        }
+      }
+    },
+    "lc-agent-call-protocol" : {
+      "comment" : "lc-agent-call-protocol",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The smart card service replied in a way this application does not understand. The two may be different versions."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Услуга за паметне картице је одговорила на начин који овај програм не разуме. Могуће је да су различитих верзија."
+          }
+        }
+      }
+    },
+    "lc-agent-call-timeout" : {
+      "comment" : "lc-agent-call-timeout",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The smart card service did not answer in time. Try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Услуга за паметне картице није одговорила на време. Покушајте поново."
+          }
+        }
+      }
+    },
+    "lc-agent-call-transport" : {
+      "comment" : "lc-agent-call-transport",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection to the smart card service was lost. Try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Веза са услугом за паметне картице је прекинута. Покушајте поново."
+          }
+        }
+      }
+    },
+    "lc-agent-call-unavailable" : {
+      "comment" : "lc-agent-call-unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not reach the smart card service. Check that it is installed and running."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Услуга за паметне картице није доступна. Проверите да ли је инсталирана и покренута."
+          }
+        }
+      }
+    },
+    "lc-agent-error-artifact-write" : {
+      "comment" : "lc-agent-error-artifact-write",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The document was signed, but the signed file could not be written to the output folder."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Документ је потписан, али потписани фајл није могао да се упише у излазну фасциклу."
+          }
+        }
+      }
+    },
+    "lc-agent-error-auth-failed" : {
+      "comment" : "lc-agent-error-auth-failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authentication with the card failed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аутентификација са картицом није успела."
+          }
+        }
+      }
+    },
+    "lc-agent-error-capability-missing" : {
+      "comment" : "lc-agent-error-capability-missing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This card does not support the requested operation."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова картица не подржава тражену операцију."
+          }
+        }
+      }
+    },
+    "lc-agent-error-card-removed" : {
+      "comment" : "lc-agent-error-card-removed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card was removed before the operation finished."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица је уклоњена пре него што је операција завршена."
+          }
+        }
+      }
+    },
+    "lc-agent-error-cert-expired-blocked" : {
+      "comment" : "lc-agent-error-cert-expired-blocked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing certificate has expired."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сертификат за потписивање је истекао."
+          }
+        }
+      }
+    },
+    "lc-agent-error-chain-incomplete" : {
+      "comment" : "lc-agent-error-chain-incomplete",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The certificate chain could not be completed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ланац сертификата није могао да се употпуни."
+          }
+        }
+      }
+    },
+    "lc-agent-error-communication" : {
+      "comment" : "lc-agent-error-communication",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Communication with the card reader failed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Комуникација са читачем картица није успела."
+          }
+        }
+      }
+    },
+    "lc-agent-error-credential-blocked" : {
+      "comment" : "lc-agent-error-credential-blocked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card credential is blocked. Unblock it before trying again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приступни податак картице је блокиран. Одблокирајте га пре поновног покушаја."
+          }
+        }
+      }
+    },
+    "lc-agent-error-credential-wrong" : {
+      "comment" : "lc-agent-error-credential-wrong",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The PIN or access code entered was incorrect."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Унети ПИН или приступни код није исправан."
+          }
+        }
+      }
+    },
+    "lc-agent-error-engine-unavailable" : {
+      "comment" : "lc-agent-error-engine-unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing service is not set up correctly — its security module could not be loaded. Check the installation."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Услуга за потписивање није исправно подешена — њен безбедносни модул није могао да се учита. Проверите инсталацију."
+          }
+        }
+      }
+    },
+    "lc-agent-error-entry-expired" : {
+      "comment" : "lc-agent-error-entry-expired",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The entry window closed before a code was entered. Try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прозор за унос се затворио пре него што је шифра унета. Покушајте поново."
+          }
+        }
+      }
+    },
+    "lc-agent-error-generic" : {
+      "comment" : "lc-agent-error-generic",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operation did not finish, and no reason was reported."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Операција није завршена, а разлог није пријављен."
+          }
+        }
+      }
+    },
+    "lc-agent-error-helper-too-old" : {
+      "comment" : "lc-agent-error-helper-too-old",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The credential window helper is out of date. Restart your session."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Помоћник за прозор уноса је застарео. Поново покрените сесију."
+          }
+        }
+      }
+    },
+    "lc-agent-error-invalid-document" : {
+      "comment" : "lc-agent-error-invalid-document",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The document you tried to sign is invalid or could not be read. Check the file."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Документ који сте покушали да потпишете је неисправан или нечитљив. Проверите фајл."
+          }
+        }
+      }
+    },
+    "lc-agent-error-key-ambiguous" : {
+      "comment" : "lc-agent-error-key-ambiguous",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More than one key matched the selection."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Више од једног кључа одговара избору."
+          }
+        }
+      }
+    },
+    "lc-agent-error-key-not-found" : {
+      "comment" : "lc-agent-error-key-not-found",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected certificate could not be found on the card."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изабрани сертификат није пронађен на картици."
+          }
+        }
+      }
+    },
+    "lc-agent-error-parse" : {
+      "comment" : "lc-agent-error-parse",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The data read from the card could not be interpreted."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подаци прочитани са картице не могу да се протумаче."
+          }
+        }
+      }
+    },
+    "lc-agent-error-prompter" : {
+      "comment" : "lc-agent-error-prompter",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The secure entry prompt could not be shown."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Безбедни упит за унос није могао да се прикаже."
+          }
+        }
+      }
+    },
+    "lc-agent-error-rate-limited" : {
+      "comment" : "lc-agent-error-rate-limited",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many signing requests. Try again shortly."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Превише захтева за потписивање. Покушајте поново за који тренутак."
+          }
+        }
+      }
+    },
+    "lc-agent-error-signing-engine" : {
+      "comment" : "lc-agent-error-signing-engine",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing engine reported an error."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Механизам за потписивање је пријавио грешку."
+          }
+        }
+      }
+    },
+    "lc-agent-error-tsa-unreachable" : {
+      "comment" : "lc-agent-error-tsa-unreachable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp authority is unreachable."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Временски сервер је недоступан."
+          }
+        }
+      }
+    },
+    "lc-agent-error-unsupported-card" : {
+      "comment" : "lc-agent-error-unsupported-card",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This card is not supported."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова картица није подржана."
+          }
+        }
+      }
+    },
+    "lc-agent-error-watchdog" : {
+      "comment" : "lc-agent-error-watchdog",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operation timed out."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Време за извршавање операције је истекло."
+          }
+        }
+      }
+    },
+    "lc-agent-msg-cancelled" : {
+      "comment" : "lc-agent-msg-cancelled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operation was cancelled."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Операција је отказана."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-blocked" : {
+      "comment" : "lc-agent-outcome-blocked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The credential is blocked."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приступни податак је блокиран."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-cancelled" : {
+      "comment" : "lc-agent-outcome-cancelled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelled."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отказано."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-card-removed" : {
+      "comment" : "lc-agent-outcome-card-removed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card was removed before the change was made."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица је уклоњена пре него што је измена извршена."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-entry-expired" : {
+      "comment" : "lc-agent-outcome-entry-expired",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The entry window closed before a code was entered. Try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прозор за унос се затворио пре него што је шифра унета. Покушајте поново."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-invalid-pin" : {
+      "comment" : "lc-agent-outcome-invalid-pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The PIN entered was incorrect."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Унети ПИН није исправан."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-key-activation-failed" : {
+      "comment" : "lc-agent-outcome-key-activation-failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing key could not be activated."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кључ за потписивање није могао да се активира."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-missing-fields" : {
+      "comment" : "lc-agent-outcome-missing-fields",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A required field was missing from the request."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У захтеву недостаје обавезно поље."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-ok" : {
+      "comment" : "lc-agent-outcome-ok",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Урађено."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-plugin-error" : {
+      "comment" : "lc-agent-outcome-plugin-error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card reported an internal error."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица је пријавила интерну грешку."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-unspecified" : {
+      "comment" : "lc-agent-outcome-unspecified",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No result was reported."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Резултат није пријављен."
+          }
+        }
+      }
+    },
+    "lc-agent-outcome-unsupported" : {
+      "comment" : "lc-agent-outcome-unsupported",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This card does not support that operation."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова картица не подржава ту операцију."
+          }
+        }
+      }
+    },
+    "lc-agent-phase-authenticating" : {
+      "comment" : "lc-agent-phase-authenticating",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authenticating..."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аутентификација..."
+          }
+        }
+      }
+    },
+    "lc-agent-phase-awaiting-consent" : {
+      "comment" : "lc-agent-phase-awaiting-consent",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for your confirmation..."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чекање на вашу потврду..."
+          }
+        }
+      }
+    },
+    "lc-agent-phase-connecting" : {
+      "comment" : "lc-agent-phase-connecting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to the card..."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повезивање са картицом..."
+          }
+        }
+      }
+    },
+    "lc-agent-phase-created" : {
+      "comment" : "lc-agent-phase-created",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing..."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Припрема..."
+          }
+        }
+      }
+    },
+    "lc-agent-phase-done" : {
+      "comment" : "lc-agent-phase-done",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finished"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Завршено"
+          }
+        }
+      }
+    },
+    "lc-agent-phase-reading" : {
+      "comment" : "lc-agent-phase-reading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the card..."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Читање картице..."
+          }
+        }
+      }
+    },
+    "lc-agent-phase-signing" : {
+      "comment" : "lc-agent-phase-signing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing..."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање..."
+          }
+        }
+      }
+    },
+    "lc-agent-phase-timestamping" : {
+      "comment" : "lc-agent-phase-timestamping",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contacting the timestamp authority..."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повезивање са временским сервером..."
+          }
+        }
+      }
+    },
+    "lc-agent-state-missing" : {
+      "comment" : "lc-agent-state-missing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The LibreSCRS card agent is not installed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LibreSCRS агент за картице није инсталиран."
+          }
+        }
+      }
+    },
+    "lc-agent-state-missing-hint" : {
+      "comment" : "lc-agent-state-missing-hint",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LibreCelik reads cards through the card agent. Install it for your system, then try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LibreCelik чита картице преко агента за картице. Инсталирајте га за свој систем, па покушајте поново."
+          }
+        }
+      }
+    },
+    "lc-agent-state-retry" : {
+      "comment" : "lc-agent-state-retry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покушај поново"
+          }
+        }
+      }
+    },
+    "lc-agent-state-unavailable" : {
+      "comment" : "lc-agent-state-unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The LibreSCRS card agent is not responding."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LibreSCRS агент за картице не одговара."
           }
         }
       }
@@ -732,6 +1650,40 @@
         }
       }
     },
+    "lc-card-unsupported-interface-hint" : {
+      "comment" : "lc-card-unsupported-interface-hint",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If the document has a second interface, try that one: a contact reader for its chip, or a contactless reader."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ако документ има и другу врсту приступа, пробајте њу: контактни читач за чип, или бесконтактни читач."
+          }
+        }
+      }
+    },
+    "lc-card-unsupported-reader" : {
+      "comment" : "lc-card-unsupported-reader",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In reader: %1"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У читачу: %1"
+          }
+        }
+      }
+    },
     "lc-cert-algorithm-unknown" : {
       "comment" : "lc-cert-algorithm-unknown",
       "localizations" : {
@@ -762,6 +1714,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Прегледник сертификата"
+          }
+        }
+      }
+    },
+    "lc-cert-export-button" : {
+      "comment" : "lc-cert-export-button",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Извези…"
+          }
+        }
+      }
+    },
+    "lc-cert-export-failed" : {
+      "comment" : "lc-cert-export-failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The certificate file could not be saved."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датотека сертификата није могла бити сачувана."
+          }
+        }
+      }
+    },
+    "lc-cert-export-filter" : {
+      "comment" : "lc-cert-export-filter",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificate files (*.cer *.der)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датотеке сертификата (*.cer *.der)"
+          }
+        }
+      }
+    },
+    "lc-cert-export-save-title" : {
+      "comment" : "lc-cert-export-save-title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Certificate"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сачувај сертификат"
           }
         }
       }
@@ -1255,6 +2275,125 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Сертификат није могуће растумачити"
+          }
+        }
+      }
+    },
+    "lc-cert-status-broken-chain" : {
+      "comment" : "lc-cert-status-broken-chain",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificate chain is broken"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ланац сертификата је прекинут"
+          }
+        }
+      }
+    },
+    "lc-cert-status-expired" : {
+      "comment" : "lc-cert-status-expired",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificate has expired"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сертификат је истекао"
+          }
+        }
+      }
+    },
+    "lc-cert-status-invalid" : {
+      "comment" : "lc-cert-status-invalid",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificate is invalid"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сертификат није исправан"
+          }
+        }
+      }
+    },
+    "lc-cert-status-offline-unverified" : {
+      "comment" : "lc-cert-status-offline-unverified",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not verified (offline)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Није проверено (ван мреже)"
+          }
+        }
+      }
+    },
+    "lc-cert-status-revoked" : {
+      "comment" : "lc-cert-status-revoked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificate was revoked"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сертификат је опозван"
+          }
+        }
+      }
+    },
+    "lc-cert-status-trusted" : {
+      "comment" : "lc-cert-status-trusted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trusted"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поуздан"
+          }
+        }
+      }
+    },
+    "lc-cert-status-untrusted-root" : {
+      "comment" : "lc-cert-status-untrusted-root",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Root certificate is not trusted"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Корени сертификат није поуздан"
           }
         }
       }
@@ -2653,6 +3792,23 @@
         }
       }
     },
+    "lc-eid-pin-needs-change" : {
+      "comment" : "lc-eid-pin-needs-change",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change required"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потребна измена"
+          }
+        }
+      }
+    },
     "lc-eid-pin-transport" : {
       "comment" : "lc-eid-pin-transport",
       "localizations" : {
@@ -2700,6 +3856,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Покушаји: %1 од %2"
+          }
+        }
+      }
+    },
+    "lc-eid-pin-unblocks-remaining" : {
+      "comment" : "lc-eid-pin-unblocks-remaining",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unblocks: %1"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Одблокирања: %1"
           }
         }
       }
@@ -6869,6 +8042,23 @@
         }
       }
     },
+    "lc-main-about-agent" : {
+      "comment" : "lc-main-about-agent",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent: %1"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Агент: %1"
+          }
+        }
+      }
+    },
     "lc-main-about-donate" : {
       "comment" : "lc-main-about-donate",
       "localizations" : {
@@ -7107,6 +8297,125 @@
         }
       }
     },
+    "lc-pin-activate-key-check" : {
+      "comment" : "lc-pin-activate-key-check",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also activate the signing key"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Активирај и кључ за потписивање"
+          }
+        }
+      }
+    },
+    "lc-pin-guidance-blocked-issuer" : {
+      "comment" : "lc-pin-guidance-blocked-issuer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unblocking is done by the issuer."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Деблокаду обавља издавалац картице."
+          }
+        }
+      }
+    },
+    "lc-pin-guidance-key-activation-issuer" : {
+      "comment" : "lc-pin-guidance-key-activation-issuer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signing key is activated by the issuer."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Активацију кључа за потписивање обавља издавалац."
+          }
+        }
+      }
+    },
+    "lc-pin-kind-can" : {
+      "comment" : "lc-pin-kind-can",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card access number"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Број за приступ картици"
+          }
+        }
+      }
+    },
+    "lc-pin-kind-puk" : {
+      "comment" : "lc-pin-kind-puk",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PUK"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PUK"
+          }
+        }
+      }
+    },
+    "lc-pin-kind-sign" : {
+      "comment" : "lc-pin-kind-sign",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN за потписивање"
+          }
+        }
+      }
+    },
+    "lc-pin-kind-user" : {
+      "comment" : "lc-pin-kind-user",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "User PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кориснички PIN"
+          }
+        }
+      }
+    },
     "lc-pin-label-auth" : {
       "comment" : "lc-pin-label-auth",
       "localizations" : {
@@ -7154,6 +8463,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Потписивање"
+          }
+        }
+      }
+    },
+    "lc-pin-prompter-hint" : {
+      "comment" : "lc-pin-prompter-hint",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system dialog will ask for your current and new codes."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Системски прозор ће затражити ваш тренутни и нови код."
+          }
+        }
+      }
+    },
+    "lc-pin-verb-activate" : {
+      "comment" : "lc-pin-verb-activate",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activate"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Активирај"
+          }
+        }
+      }
+    },
+    "lc-pin-verb-change" : {
+      "comment" : "lc-pin-verb-change",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Промени"
+          }
+        }
+      }
+    },
+    "lc-pin-verb-unblock" : {
+      "comment" : "lc-pin-verb-unblock",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unblock"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Деблокирај"
           }
         }
       }
@@ -7493,7 +8870,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discovery"
+            "value" : "Откривање"
           }
         }
       }
@@ -7544,7 +8921,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PIV (NIST SP 800-73)"
+            "value" : "PIV картица (NIST SP 800-73)"
           }
         }
       }
@@ -7685,6 +9062,40 @@
         }
       }
     },
+    "lc-settings-config-refused" : {
+      "comment" : "lc-settings-config-refused",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent refused this change."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Агент је одбио ову измену."
+          }
+        }
+      }
+    },
+    "lc-settings-config-unauthorized" : {
+      "comment" : "lc-settings-config-unauthorized",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You are not authorized to change this setting."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Немате овлашћење да измените ово подешавање."
+          }
+        }
+      }
+    },
     "lc-settings-default-level" : {
       "comment" : "lc-settings-default-level",
       "localizations" : {
@@ -7766,6 +9177,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Језик:"
+          }
+        }
+      }
+    },
+    "lc-settings-last-tsa" : {
+      "comment" : "lc-settings-last-tsa",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last used TSA server:"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последњи коришћени TSA сервер:"
+          }
+        }
+      }
+    },
+    "lc-settings-needs-agent" : {
+      "comment" : "lc-settings-needs-agent",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing and trust preferences are kept by the agent. Start it to change them."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подешавања потписивања и поверења чува агент. Покрените га да бисте их мењали."
           }
         }
       }
@@ -7940,6 +9385,23 @@
         }
       }
     },
+    "lc-settings-trust-import-notice" : {
+      "comment" : "lc-settings-trust-import-notice",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your previous timestamp\/trust-list settings can be applied under Settings."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша ранија подешавања временског жига и листа поверења могу се применити у Подешавањима."
+          }
+        }
+      }
+    },
     "lc-settings-tsa-servers" : {
       "comment" : "lc-settings-tsa-servers",
       "localizations" : {
@@ -8106,6 +9568,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Потписивање завршено: %1 успешно, %2 неуспешно"
+          }
+        }
+      }
+    },
+    "lc-sign-consent-hint" : {
+      "comment" : "lc-sign-consent-hint",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You will confirm and enter your PIN in the system dialog %n times."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You will confirm and enter your PIN in the system dialog %n times."
           }
         }
       }
@@ -8722,6 +10201,23 @@
         }
       }
     },
+    "lc-sign-sequential-notice" : {
+      "comment" : "lc-sign-sequential-notice",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each file is confirmed separately — %n confirmations."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each file is confirmed separately — %n confirmations."
+          }
+        }
+      }
+    },
     "lc-sign-step-files" : {
       "comment" : "lc-sign-step-files",
       "localizations" : {
@@ -8820,6 +10316,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ниво"
+          }
+        }
+      }
+    },
+    "lc-sign-too-many-files" : {
+      "comment" : "lc-sign-too-many-files",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One signing run takes at most %1 files. The files beyond that were not added."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Једно потписивање обухвата највише %1 фајлова. Фајлови преко тог броја нису додати."
           }
         }
       }
