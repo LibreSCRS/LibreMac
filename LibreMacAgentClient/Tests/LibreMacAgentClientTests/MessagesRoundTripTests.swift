@@ -12,8 +12,8 @@ import Foundation
 // algorithm `CanonicalCBOR.swift.encode()` implements, one field at a time,
 // for the exact request/reply/event field lists the LibreDarwin C++ source
 // (`Messages.h` / `Messages.cpp`) and the reconciled CDDL
-// (`agent/wire/librescrs-agent.cddl`) declare. Field-key byte lengths (and
-// so their canonical order) are noted per fixture below.
+// (`wire/librescrs-agent.cddl`, LibreAgent repo) declare. Field-key byte
+// lengths (and so their canonical order) are noted per fixture below.
 //
 // Two deliberate deviations from a natural first-guess shorthand for these
 // fields, resolved in favor of the wire source of truth (documented at

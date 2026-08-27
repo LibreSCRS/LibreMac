@@ -6,7 +6,8 @@ import Foundation
 /// Typed (de)serialization over the `CBORValue` wire seam
 /// (`CanonicalCBOR.swift`), mirroring the LibreDarwin agent's
 /// `LibreSCRS::Darwin::wire` message layer (`Messages.h` / `Messages.cpp`)
-/// and the reconciled CDDL contract (`agent/wire/librescrs-agent.cddl`).
+/// and the reconciled CDDL contract (`wire/librescrs-agent.cddl`, LibreAgent
+/// repo).
 ///
 /// The client is a socket CLIENT, the mirror image of the agent's SERVER
 /// role: it BUILDS outbound requests (`AgentRequest.encode(req:)`, exactly
@@ -17,11 +18,12 @@ import Foundation
 ///
 /// Reply-arm discrimination: unlike requests (tagged by `t`) and events
 /// (also tagged by `t`), every reply shares the literal `t: "Reply"` — the
-/// CDDL disambiguates `reply-ok`'s nine arms structurally, "discriminated
-/// by their own keys" (`librescrs-agent.cddl:91-93`). `decodeReply` mirrors
-/// that: `err` first (exclusive with every success arm), then the
-/// remaining arms by their distinguishing key(s), in the CDDL's declared
-/// order.
+/// CDDL disambiguates `reply-ok`'s arms structurally, "discriminated by
+/// their own keys" (`reply` / `reply-ok`, `librescrs-agent.cddl`). The
+/// schema declares twelve such arms; `AgentReply` below mirrors the ten
+/// this client consumes. `decodeReply` mirrors that discrimination: `err`
+/// first (exclusive with every success arm), then the remaining arms by
+/// their distinguishing key(s), in the CDDL's declared order.
 ///
 /// Enum-VALUE tolerance (distinct from the map-KEY tolerance above): inside
 /// an otherwise-recognized shape, a closed enum's unrecognized VALUE never
@@ -69,7 +71,7 @@ public enum MessageError: Error, Sendable, Equatable {
 /// The `err` arm of a reply: either the async numeric `ErrorCode` or a
 /// named synchronous-method `SyncError` — never both. Mirrors
 /// `LibreSCRS::Darwin::wire::ErrInfo` and CDDL `err-info`
-/// (`librescrs-agent.cddl:97`).
+/// (`librescrs-agent.cddl`).
 public struct ErrInfo: Sendable, Equatable {
     public enum Code: Sendable, Equatable {
         case code(ErrorCode)
@@ -91,7 +93,7 @@ public struct ErrInfo: Sendable, Equatable {
 
 /// The typed payload of an `OpResultReady` event, dispatched by the
 /// `result.kind` wire tag. Mirrors `LibreSCRS::Darwin::wire::OpResult` and
-/// CDDL `op-result` (`librescrs-agent.cddl:153`).
+/// CDDL `op-result` (`librescrs-agent.cddl`).
 public enum OpResult: Sendable, Equatable {
     case identity(IdentityResult)
     case photo(PhotoResult)
@@ -137,7 +139,7 @@ public enum AgentRequest: Sendable, Equatable {
     case pkSignRaw(reader: String, cert: String, data: Data)
     case pkDecrypt(reader: String, cert: String, data: Data)
     /// Credentials1 seam — gate all three on the `"credentials"` HelloAck
-    /// feature token (`librescrs-agent.cddl:122-128`): an agent predating
+    /// feature token (`hello-ack`, `librescrs-agent.cddl`): an agent predating
     /// that contract fails an unknown request `t` closed and DROPS the
     /// connection, so skipping the gate costs the whole session.
     case listCredentials(card: String)
@@ -214,10 +216,10 @@ extension AgentRequest {
                 ("verb", .text(verb.rawValue)),
             ]
             // `activateKey` is legal only with verb "activate_pin"
-            // (InvalidRequest otherwise, `librescrs-agent.cddl:79-86`):
-            // flatten the non-optional Bool onto the wire's optional key
-            // by OMITTING it for every other verb, mirroring the peer
-            // codec's `std::optional<bool>` encode.
+            // (InvalidRequest otherwise — `manage-pin`,
+            // `librescrs-agent.cddl`): flatten the non-optional Bool onto
+            // the wire's optional key by OMITTING it for every other verb,
+            // mirroring the peer codec's `std::optional<bool>` encode.
             if verb == .activatePin {
                 pairs.append(("activateKey", .bool(activateKey)))
             }
@@ -274,10 +276,9 @@ private func cborMap(_ pairs: [(String, CBORValue)]) -> CBORValue {
 // MARK: - Replies (agent -> client)
 
 /// One agent -> client reply arm. Mirrors the reply builders in
-/// `LibreSCRS::Darwin::wire` and CDDL `reply-ok`
-/// (`librescrs-agent.cddl:106-118`) plus the `err` arm
-/// (`librescrs-agent.cddl:93,97`), including the `Pkcs11.*` surface's
-/// `PublicKeyReply` / `RawSignatureReply` arms.
+/// `LibreSCRS::Darwin::wire` and CDDL `reply-ok` (`librescrs-agent.cddl`)
+/// plus the `err` arm (`reply` / `err-info`, same file), including the
+/// `Pkcs11.*` surface's `PublicKeyReply` / `RawSignatureReply` arms.
 public enum AgentReply: Sendable, Equatable {
     case helloAck(agentVer: String, features: [String])
     case opStarted(op: UInt64)
@@ -293,7 +294,7 @@ public enum AgentReply: Sendable, Equatable {
 }
 
 /// A decoded reply, correlated to its request by `req`. Mirrors the
-/// `{t:"Reply", req, ...}` envelope (`librescrs-agent.cddl:93`).
+/// `{t:"Reply", req, ...}` envelope (`reply`, `librescrs-agent.cddl`).
 public struct AgentReplyEnvelope: Sendable, Equatable {
     public let req: UInt64
     public let reply: AgentReply
@@ -307,8 +308,7 @@ public struct AgentReplyEnvelope: Sendable, Equatable {
 // MARK: - Events (agent -> client, unsolicited)
 
 /// One unsolicited agent -> client event. Mirrors the event builders in
-/// `LibreSCRS::Darwin::wire` and CDDL `event`
-/// (`librescrs-agent.cddl:131-133`).
+/// `LibreSCRS::Darwin::wire` and CDDL `event` (`librescrs-agent.cddl`).
 public enum AgentEvent: Sendable, Equatable {
     case readerAdded(ReaderState)
     case readerRemoved(handle: String)

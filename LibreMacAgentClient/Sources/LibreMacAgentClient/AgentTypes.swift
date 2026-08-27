@@ -5,9 +5,10 @@ import Foundation
 
 // Value types for the LibreMac agent wire protocol. These mirror the
 // LibreDarwin agent's `LibreSCRS::Darwin::wire` C++ types (`Messages.h`) and
-// the reconciled CDDL contract (`agent/wire/librescrs-agent.cddl`) that both
-// implementations round-trip against. Enum raw values are wire-significant
-// and locked to the upstream numbering; never renumber existing cases.
+// the reconciled CDDL contract (`wire/librescrs-agent.cddl`, LibreAgent
+// repo) that both implementations round-trip against. Enum raw values are
+// wire-significant and locked to the upstream numbering; never renumber
+// existing cases.
 
 // MARK: - Wire-mirrored enums
 
@@ -180,7 +181,7 @@ extension ErrorCode: CaseIterable {
 /// Named synchronous-method errors (D-Bus `Error.*` names), carried as the
 /// string `name` arm of a reply's `err` field. Distinct from the numeric
 /// `ErrorCode` — one or the other, never both (`err-info`,
-/// `librescrs-agent.cddl:97,101-105`). The raw value IS the wire string,
+/// `librescrs-agent.cddl`). The raw value IS the wire string,
 /// mirroring the agent's sync-error names. 18 values.
 ///
 /// Wire tolerance: `sync-error` is a TEXT-token closed enum, unlike the
@@ -222,7 +223,7 @@ public enum SyncError: String, Sendable, Equatable, CaseIterable {
 
 /// `Operation1` progress phase. Mirrors
 /// `LibreSCRS::Agent::Operations::OperationPhase` (LibreAgent) and CDDL
-/// `op-phase` (`librescrs-agent.cddl:39-40`). Append-only.
+/// `op-phase` (`librescrs-agent.cddl`). Append-only.
 ///
 /// Wire tolerance: like `ErrorCode` above, a value past `done` is a FUTURE
 /// phase, not a malformed one — carried through as `.unknown(UInt32)`
@@ -305,7 +306,7 @@ extension OperationPhase {
 
 /// Terminal `Operation1.Finished` status. Mirrors
 /// `LibreSCRS::Agent::Operations::OperationStatus` (LibreAgent) and CDDL
-/// `op-status` (`librescrs-agent.cddl:41`).
+/// `op-status` (`librescrs-agent.cddl`).
 ///
 /// Wire tolerance: like `OperationPhase` above, a value past `error` is a
 /// FUTURE status carried through as `.unknown(UInt32)`. The stateful layer
@@ -363,7 +364,7 @@ extension OperationStatus {
 /// Socket-only lifecycle vocabulary — no upstream core enum, macOS-specific
 /// (system sleep / screen lock / session switch / shutdown quiesce). Mirrors
 /// `LibreSCRS::Darwin::wire::QuiesceReason` (LibreDarwin) and CDDL
-/// `quiesce-reason` (`librescrs-agent.cddl:150`).
+/// `quiesce-reason` (`librescrs-agent.cddl`).
 ///
 /// Wire tolerance: append-only, like `PreReadAuth` below; a value past
 /// `shutdown` is a FUTURE reason carried through as `.unknown(UInt32)`.
@@ -426,7 +427,7 @@ extension QuiesceReason {
 /// Pre-read unlock mechanism for travel-document-style cards. Mirrors
 /// `LibreSCRS::Auth::PreReadAuthMethod` (LibreMiddleware
 /// `include/LibreSCRS/Auth/AuthRequirement.h` — `None`/`Mrz`/`Can`)
-/// and CDDL `pre-read-auth` (`librescrs-agent.cddl:38`).
+/// and CDDL `pre-read-auth` (`librescrs-agent.cddl`).
 ///
 /// Wire tolerance: append-only; a value past `can` is a FUTURE unlock
 /// method this build does not name yet, carried through as
@@ -487,7 +488,7 @@ extension PreReadAuth {
 /// Card capability bitmask carried as `CardState.caps` (a raw `uint32` on
 /// the wire — see the C++ `CardState::caps` comment in the LibreDarwin
 /// agent's wire types). Bit positions mirror the CDDL `capability-bit`
-/// group (`librescrs-agent.cddl:36-37`); there is no dedicated upstream C++
+/// group (`librescrs-agent.cddl`); there is no dedicated upstream C++
 /// enum for this bitmask today.
 public struct Capabilities: OptionSet, Sendable, Equatable {
     public let rawValue: UInt32
@@ -601,7 +602,7 @@ public struct TslSource: Sendable, Equatable {
 // MARK: - Credential wire enums (Credentials1 seam)
 
 /// Client-side verb vocabulary for `ManagePin` — the closed CDDL
-/// `cred-verb` set (`librescrs-agent.cddl:88`). The raw value IS the wire
+/// `cred-verb` set (`librescrs-agent.cddl`). The raw value IS the wire
 /// token (`activate_pin` stays snake_case on the wire).
 public enum CredentialVerb: String, Sendable, Equatable, CaseIterable {
     case change = "change"
@@ -611,7 +612,7 @@ public enum CredentialVerb: String, Sendable, Equatable, CaseIterable {
 
 /// Outcome of a credential mutation, carried as `cred-result.outcome`.
 /// Mirrors `LibreSCRS::Agent::CredentialOutcome` and CDDL `cred-outcome`
-/// (`librescrs-agent.cddl:215-217`); the raw value IS the camelCase wire
+/// (`librescrs-agent.cddl`); the raw value IS the camelCase wire
 /// token.
 ///
 /// Wire tolerance: `cred-outcome` is a TEXT-token closed enum, exactly like
@@ -636,7 +637,7 @@ public enum CredentialOutcome: String, Sendable, Equatable, CaseIterable {
 }
 
 /// Credential kind (`cred-record.kind`). Mirrors CDDL `cred-kind`
-/// (`librescrs-agent.cddl:227`); the raw value IS the wire token.
+/// (`librescrs-agent.cddl`); the raw value IS the wire token.
 ///
 /// Unlike every other enum in this package (which decode fail-closed),
 /// the four record-token enums (`CredentialKind` / `CredentialState` /
@@ -661,7 +662,7 @@ public enum CredentialKind: String, Sendable, Equatable, CaseIterable {
 }
 
 /// Credential lifecycle state (`cred-record.state`). Mirrors CDDL
-/// `cred-state` (`librescrs-agent.cddl:228`); the raw value IS the wire
+/// `cred-state` (`librescrs-agent.cddl`); the raw value IS the wire
 /// token. Degrades unrecognized tokens to `.unknown` — see
 /// `CredentialKind` for the rationale shared by this enum family.
 public enum CredentialState: String, Sendable, Equatable, CaseIterable {
@@ -678,7 +679,7 @@ public enum CredentialState: String, Sendable, Equatable, CaseIterable {
 }
 
 /// How an unblock behaves on this credential (`cred-record.unblockStyle`).
-/// Mirrors CDDL `unblock-style` (`librescrs-agent.cddl:229`); the raw
+/// Mirrors CDDL `unblock-style` (`librescrs-agent.cddl`); the raw
 /// value IS the wire token. Degrades unrecognized tokens to `.unknown` —
 /// see `CredentialKind` for the rationale shared by this enum family.
 public enum CredentialUnblockStyle: String, Sendable, Equatable, CaseIterable {
@@ -694,7 +695,7 @@ public enum CredentialUnblockStyle: String, Sendable, Equatable, CaseIterable {
 }
 
 /// Recovery path once a credential is blocked (`cred-record.recovery`).
-/// Mirrors CDDL `cred-recovery` (`librescrs-agent.cddl:230`); the raw
+/// Mirrors CDDL `cred-recovery` (`librescrs-agent.cddl`); the raw
 /// value IS the wire token. Degrades unrecognized tokens to `.unknown` —
 /// see `CredentialKind` for the rationale shared by this enum family.
 public enum CredentialRecovery: String, Sendable, Equatable, CaseIterable {
@@ -712,7 +713,7 @@ public enum CredentialRecovery: String, Sendable, Equatable, CaseIterable {
 // MARK: - Value models
 
 /// One reader-scoped state cell. Mirrors `LibreSCRS::Darwin::wire::ReaderState`
-/// and CDDL `reader-state` (`librescrs-agent.cddl:120`).
+/// and CDDL `reader-state` (`librescrs-agent.cddl`).
 public struct ReaderState: Sendable, Equatable {
     public let handle: String
     public let name: String
@@ -728,7 +729,7 @@ public struct ReaderState: Sendable, Equatable {
 }
 
 /// One card-scoped state cell. Mirrors `LibreSCRS::Darwin::wire::CardState`
-/// and CDDL `card-state` (`librescrs-agent.cddl:121`).
+/// and CDDL `card-state` (`librescrs-agent.cddl`).
 public struct CardState: Sendable, Equatable {
     public let handle: String
     public let reader: String
@@ -746,7 +747,7 @@ public struct CardState: Sendable, Equatable {
 /// One labeled certificate-field cell: `[labelKey, labelFallback, value]`
 /// (`value` is always UTF-8 text on the certificate surface). Mirrors
 /// `LibreSCRS::Darwin::wire::CertField` and CDDL `cert-field`
-/// (`librescrs-agent.cddl:128`).
+/// (`librescrs-agent.cddl`).
 public struct CertField: Sendable, Equatable {
     public let labelKey: String
     public let labelFallback: String
@@ -761,7 +762,7 @@ public struct CertField: Sendable, Equatable {
 
 /// Certificate metadata as the agent groups it for display: `group -> field
 /// -> cell`. Mirrors `LibreSCRS::Darwin::wire::CertInfo` and CDDL
-/// `cert-info` (`librescrs-agent.cddl:125-127`).
+/// `cert-info` (`librescrs-agent.cddl`).
 ///
 /// NOTE: this model has no flat scalar fields (`subjectCN`, `issuerCN`,
 /// `notBefore`, `notAfter`, `usage?`, `ekus?`). The actual wire shape —
@@ -853,7 +854,7 @@ public enum Packaging: String, Sendable, CaseIterable {
 
 /// `Card1.Sign` request options. `format`/`level`/`packaging` are required;
 /// the rest are per-sign chrome. Mirrors `LibreSCRS::Darwin::wire::SignOpts`
-/// and CDDL `sign-opts` (`librescrs-agent.cddl:79-80`).
+/// and CDDL `sign-opts` (`librescrs-agent.cddl`).
 ///
 /// `tsaUrl` overrides the agent's configured TSA (Config1's `TsaUrls`/
 /// `LastTsaUrl`) for THIS sign only — https + non-empty host, and only
@@ -908,7 +909,7 @@ public struct SignOptions: Sendable, Equatable {
 
 /// Metadata describing a completed signature. Mirrors
 /// `LibreSCRS::Darwin::wire::SignMeta` and CDDL `sign-meta`
-/// (`librescrs-agent.cddl:161`).
+/// (`librescrs-agent.cddl`).
 public struct SignMeta: Sendable, Equatable {
     public let format: String
     public let level: String
@@ -926,7 +927,7 @@ public struct SignMeta: Sendable, Equatable {
 /// A signing op-result payload: the signed artifact rides SCM_RIGHTS and is
 /// referenced here by fd-index only (resolution to a real fd is a later
 /// task's concern). Mirrors `LibreSCRS::Darwin::wire::SignResult` and CDDL
-/// `sign-result` (`librescrs-agent.cddl:160`).
+/// `sign-result` (`librescrs-agent.cddl`).
 public struct SignResult: Sendable, Equatable {
     public let artifact: UInt64 // fd-index into the frame's SCM_RIGHTS vector
     public let meta: SignMeta
@@ -939,7 +940,7 @@ public struct SignResult: Sendable, Equatable {
 
 /// One identity-field cell's value: `tstr` for `text`/`date` fields, `bstr`
 /// for `binary` fields. Mirrors the `value` arm of `IdentityField` and CDDL
-/// `id-field`'s `value: tstr / bstr` (`librescrs-agent.cddl:157`).
+/// `id-field`'s `value: tstr / bstr` (`librescrs-agent.cddl`).
 public enum IdentityFieldValue: Sendable, Equatable {
     case text(String)
     case binary(Data)
@@ -947,7 +948,7 @@ public enum IdentityFieldValue: Sendable, Equatable {
 
 /// One labeled identity-field cell: `[labelKey, labelFallback, type,
 /// value]`. Mirrors `LibreSCRS::Darwin::wire::IdentityField` and CDDL
-/// `id-field` (`librescrs-agent.cddl:157`).
+/// `id-field` (`librescrs-agent.cddl`).
 public struct IdentityField: Sendable, Equatable {
     public let labelKey: String
     public let labelFallback: String
@@ -964,7 +965,7 @@ public struct IdentityField: Sendable, Equatable {
 
 /// `ReadIdentity` op-result payload: `group -> field -> cell`. Mirrors
 /// `LibreSCRS::Darwin::wire::IdentityResult` and CDDL `identity-result`
-/// (`librescrs-agent.cddl:156`).
+/// (`librescrs-agent.cddl`).
 public struct IdentityResult: Sendable, Equatable {
     public let fields: [String: [String: IdentityField]]
 
@@ -976,7 +977,7 @@ public struct IdentityResult: Sendable, Equatable {
 /// One photo item: `key` is `"group:field"`; `fd` is an fd-index into the
 /// frame's SCM_RIGHTS vector (resolution to a real fd is a later task's
 /// concern). Mirrors `LibreSCRS::Darwin::wire::PhotoItem` and the
-/// `photo-result` array element (`librescrs-agent.cddl:158`).
+/// `photo-result` array element (`librescrs-agent.cddl`).
 public struct PhotoItem: Sendable, Equatable {
     public let key: String
     public let fd: UInt64
@@ -989,7 +990,7 @@ public struct PhotoItem: Sendable, Equatable {
 
 /// `GetPhoto` op-result payload. Mirrors
 /// `LibreSCRS::Darwin::wire::PhotoResult` and CDDL `photo-result`
-/// (`librescrs-agent.cddl:158`).
+/// (`librescrs-agent.cddl`).
 public struct PhotoResult: Sendable, Equatable {
     public let photos: [PhotoItem]
 
@@ -1000,7 +1001,7 @@ public struct PhotoResult: Sendable, Equatable {
 
 /// One credential (PIN/PUK/CAN) record from a credentials listing.
 /// Mirrors `LibreSCRS::Agent::CredentialRecord` and CDDL `cred-record`
-/// (`librescrs-agent.cddl:218-226`) — 23 camelCase wire keys: the wire's
+/// (`librescrs-agent.cddl`) — 23 camelCase wire keys: the wire's
 /// optional keys are optionals here; the always-written booleans are
 /// non-optional. `id` is the agent-synthesized handle a `ManagePin`
 /// addresses (this wire never carries a secret).
@@ -1068,7 +1069,7 @@ public struct CredentialRecord: Sendable, Equatable {
 
 /// Uniform result of a credential mutation (and the `Ok` result of a
 /// listing). Mirrors `LibreSCRS::Agent::CredentialOpResult` and CDDL
-/// `cred-result` (`librescrs-agent.cddl:213-214`). `pinActivated` /
+/// `cred-result` (`librescrs-agent.cddl`). `pinActivated` /
 /// `keyActivated` are populated for the `activate_pin` bring-up
 /// continuation and for `ActivateSigningKey` (partial bring-up =
 /// `pinActivated == true`, `keyActivated == false`, outcome
@@ -1095,7 +1096,7 @@ public struct CredentialResult: Sendable, Equatable {
 /// `Credentials` op-result payload: the mutation/list result plus the
 /// (possibly empty) record listing. Mirrors
 /// `LibreSCRS::Darwin::wire::CredentialsResult` and CDDL
-/// `credentials-result` (`librescrs-agent.cddl:211-212`). A mutation's
+/// `credentials-result` (`librescrs-agent.cddl`). A mutation's
 /// `records` is always `[]`; a listing emits this payload only when it
 /// completes Ok.
 public struct CredentialsPayload: Sendable, Equatable {
