@@ -120,10 +120,19 @@ public enum ErrorCopy {
         case .invalidRequest:
             return text("libremac_credentials_err_invalid_request",
                         "The request is not valid for this credential.")
+        // masterListReplayed answers a master-list import, which these
+        // credential gates never start. It keeps the communication posture here
+        // for the same reason as the rest of this list: dedicated copy on a
+        // path that cannot reach it is a sentence nobody reads, and worse, one
+        // that would have to be kept translated. The refusal IS actionable --
+        // "you already have this list" -- so when an import surface lands on
+        // this host, the sentence belongs beside it, and lifting the name out
+        // of this list is what will say so.
         case .unknownCard, .keyNotFound, .userNotLoggedIn, .unknownConfigKey,
              .readOnlyConfig, .invalidConfigValue, .unsupportedProtocol,
              .authFailed, .communicationError, .notSupported,
-             .unsupportedSignatureParameter, .inputTooLarge, .noResult:
+             .unsupportedSignatureParameter, .inputTooLarge, .noResult,
+             .masterListReplayed:
             return communicationCopy
         }
     }

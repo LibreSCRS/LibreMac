@@ -36,6 +36,7 @@ final class PreferencesModel {
     var defaultLocation = ""
     var tsaUrls: [String] = []
     var tslSources: [TslSource] = []
+    var cscaSources: [CscaSource] = []
     /// The authority the agent actually used last. Read-only agent state, so
     /// it is shown rather than offered for editing.
     var lastTsaUrl = ""
@@ -112,7 +113,7 @@ final class PreferencesModel {
     /// value read at that point is already the new one.
     func save(_ key: SettableConfigKey, _ value: CBORValue) async {
         let previous = valueBeforeEditing[key] ?? snapshotOfRow(key)
-        if let optimistic = Self.rowValue(of: value) { restoreRow(key, to: optimistic) }
+        if let optimistic = Self.rowValue(of: value, for: key) { restoreRow(key, to: optimistic) }
         do {
             try await client.setConfig(key, value: value)
             rowError[key] = nil
@@ -132,7 +133,7 @@ final class PreferencesModel {
             let entries = try await client.getConfig()
             // Only this row. An agent that no longer publishes the key has
             // no default to show, which is an empty row, not a stale one.
-            if let restored = entries[key.rawValue].flatMap(Self.rowValue(of:)) {
+            if let restored = entries[key.rawValue].flatMap({ Self.rowValue(of: $0, for: key) }) {
                 restoreRow(key, to: restored)
             } else {
                 // The agent no longer publishes the key, so its default is
@@ -219,6 +220,7 @@ final class PreferencesModel {
         case text(String)
         case urls([String])
         case sources([TslSource])
+        case cscaSources([CscaSource])
     }
 
     /// Exhaustive on purpose: a new settable key must be given a row here
@@ -230,6 +232,7 @@ final class PreferencesModel {
         case .defaultLocation: return .text(defaultLocation)
         case .tsaUrls: return .urls(tsaUrls)
         case .tslSources: return .sources(tslSources)
+        case .cscaSources: return .cscaSources(cscaSources)
         }
     }
 
@@ -240,6 +243,7 @@ final class PreferencesModel {
         case (.defaultLocation, .text(let v)): defaultLocation = v
         case (.tsaUrls, .urls(let v)): tsaUrls = v
         case (.tslSources, .sources(let v)): tslSources = v
+        case (.cscaSources, .cscaSources(let v)): cscaSources = v
         default:
             // A shape that does not belong to this key. Restoring anything
             // here would be inventing a value; leaving the row alone is the
@@ -255,24 +259,35 @@ final class PreferencesModel {
         case .defaultLevel, .defaultReason, .defaultLocation: return .text("")
         case .tsaUrls: return .urls([])
         case .tslSources: return .sources([])
+        case .cscaSources: return .cscaSources([])
         }
     }
 
     /// The row a value carries, for the optimistic write. Returns nil for a
     /// shape this build has no row for, so `save` shows nothing rather than
     /// guessing.
-    private static func rowValue(of value: CBORValue) -> RowValue? {
-        switch value {
-        case .text(let s):
-            return .text(s)
-        case .array(let items):
-            if items.isEmpty { return .urls([]) }
-            if case .text = items[0] {
-                return .urls(items.compactMap { if case .text(let s) = $0 { return s } else { return nil } })
-            }
-            return .sources(items.compactMap(TslSource.init(cbor:)))
-        default:
+    ///
+    /// Takes the KEY, and no longer guesses from the value alone. It used to
+    /// sniff the first array element: text meant a URL list, anything else meant
+    /// trusted-list sources. That worked while exactly one key carried maps.
+    /// With country-signing sources there are two map-shaped rows whose wire
+    /// forms differ only in their keys, so a guess would silently hand one row's
+    /// value to the other -- and both call sites already know which key they are
+    /// writing, so the guess was never necessary.
+    private static func rowValue(of value: CBORValue, for key: SettableConfigKey) -> RowValue? {
+        switch key {
+        case .defaultLevel, .defaultReason, .defaultLocation:
+            if case .text(let s) = value { return .text(s) }
             return nil
+        case .tsaUrls:
+            guard case .array(let items) = value else { return nil }
+            return .urls(items.compactMap { if case .text(let s) = $0 { return s } else { return nil } })
+        case .tslSources:
+            guard case .array(let items) = value else { return nil }
+            return .sources(items.compactMap(TslSource.init(cbor:)))
+        case .cscaSources:
+            guard case .array(let items) = value else { return nil }
+            return .cscaSources(items.compactMap(CscaSource.init(cbor:)))
         }
     }
 
@@ -308,10 +323,18 @@ final class PreferencesModel {
         case .unknownConfigKey:
             return ("libremac_settings_err_unknown_key",
                     "This agent does not have this setting.")
+        // masterListReplayed sits here rather than getting its own sentence,
+        // and that is a decision about THIS window, not about the refusal. It
+        // answers a master-list import -- "you already have this list, or this
+        // one is older" -- and no control here starts one. A settings pane that
+        // explained a refusal it cannot provoke would be copy nobody can reach,
+        // and the day this host does gain an import path it will want the
+        // sentence next to that control, not next to the level and location
+        // fields. Moving it out of this list is then the reminder.
         case .unknownCard, .keyNotFound, .userNotLoggedIn, .unsupportedProtocol,
              .authFailed, .communicationError, .notSupported, .unsupportedOnThisCard,
              .unsupportedSignatureParameter, .inputTooLarge, .rateLimited,
-             .unknownCredential, .invalidRequest, .noResult:
+             .unknownCredential, .invalidRequest, .noResult, .masterListReplayed:
             return (genericKey, genericFallback)
         }
     }

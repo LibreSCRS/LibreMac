@@ -219,6 +219,7 @@ public enum SyncError: String, Sendable, Equatable, CaseIterable {
     /// answers a not-mine op exactly like an absent one). Previously served
     /// ad hoc (a borrowed name); this is the dedicated one.
     case noResult = "NoResult"
+    case masterListReplayed = "MasterListReplayed"
 }
 
 /// `Operation1` progress phase. Mirrors
@@ -543,6 +544,51 @@ public enum SettableConfigKey: String, Sendable, Equatable, CaseIterable {
     case defaultLocation = "DefaultLocation"
     case tsaUrls = "TsaUrls"
     case tslSources = "TslSources"
+    case cscaSources = "CscaSources"
+}
+
+/// One configured country-signing source, the element type of the `CscaSources`
+/// config value. Mirrors `LibreSCRS::Agent::Config::CscaSource`, which the
+/// agent builds from exactly these TWO map keys.
+///
+/// Two members, not three. `TslSource` below carries an `isLotl` flag because a
+/// trusted list can be a list OF lists; country-signing anchors have no such
+/// pivot, so a third field added here for symmetry would be a value with
+/// nothing to put in it and a wire key the agent never reads. The asymmetry is
+/// the decision, not an omission.
+public struct CscaSource: Sendable, Equatable {
+    public var uri: String
+    public var eager: Bool
+
+    public init(uri: String, eager: Bool = false) {
+        self.uri = uri
+        self.eager = eager
+    }
+
+    /// Decodes one wire map. A source without a `uri` is not a source, so it
+    /// yields nil rather than an entry the user cannot act on; `eager` defaults
+    /// to false exactly as the agent's own decode does.
+    public init?(cbor: CBORValue) {
+        guard case .map(let pairs) = cbor else { return nil }
+        func value(_ key: String) -> CBORValue? {
+            let wanted = Data(key.utf8)
+            for (k, v) in pairs where k == wanted { return v }
+            return nil
+        }
+        guard case .text(let uri)? = value("uri"), !uri.isEmpty else { return nil }
+        self.uri = uri
+        if case .bool(let b)? = value("eager") { self.eager = b } else { self.eager = false }
+    }
+
+    /// The wire map. `eager` is always written: absence is not distinguishable
+    /// from false by a reader, and a round-trip that silently dropped a set
+    /// flag would change when the agent reaches the network.
+    public var cbor: CBORValue {
+        .map([
+            (Data("uri".utf8), .text(uri)),
+            (Data("eager".utf8), .bool(eager)),
+        ])
+    }
 }
 
 /// One configured trusted-list source, the element type of the `TslSources`

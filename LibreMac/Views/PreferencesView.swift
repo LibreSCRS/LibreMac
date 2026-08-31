@@ -27,10 +27,18 @@ struct PreferencesView: View {
     static let settableKeysWithControls: Set<SettableConfigKey> =
         [.defaultLevel, .defaultReason, .defaultLocation, .tsaUrls, .tslSources]
 
-    /// Keys deliberately not drawn. Empty, and the guard keeps it honest: a
-    /// key listed here as well as drawn fails the build, so a deferral cannot
-    /// outlive the deferring.
-    static let deferredSettableKeys: Set<SettableConfigKey> = []
+    /// Keys deliberately not drawn, and the guard keeps it honest: a key listed
+    /// here as well as drawn fails the build, so a deferral cannot outlive the
+    /// deferring.
+    ///
+    /// `cscaSources` is deferred rather than drawn because a control with no
+    /// effect is the mistake this project has already reverted once elsewhere.
+    /// The agent gates country-signing sources behind the trust tier, and this
+    /// host has no import path to pair a source list with; a field that accepts
+    /// text and changes nothing a person can observe is worse than its absence.
+    /// The key still round-trips through the model, so nothing is LOST on a
+    /// refused write -- which is the whole reason this set exists.
+    static let deferredSettableKeys: Set<SettableConfigKey> = [.cscaSources]
 
     var body: some View {
         TabView {
