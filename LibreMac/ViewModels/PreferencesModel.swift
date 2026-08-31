@@ -195,6 +195,14 @@ final class PreferencesModel {
             // the rest of the list still stands.
             tslSources = items.compactMap(TslSource.init(cbor:))
         }
+        if case .array(let items)? = entries["CscaSources"], !skippingEdited || !editing.contains(.cscaSources) {
+            // Read even though no pane draws it. The row exists so that a
+            // refused write can restore what was there; a row that is never
+            // filled would restore emptiness over a list the agent holds, which
+            // is the rollback bug this model is built to avoid rather than a
+            // harmless gap.
+            cscaSources = items.compactMap(CscaSource.init(cbor:))
+        }
         // Entries this build does not know are simply not shown. Nothing is
         // written back wholesale — a write names one key — so an older client
         // cannot erase a newer agent's key.
@@ -206,6 +214,7 @@ final class PreferencesModel {
         defaultLocation = ""
         tsaUrls = []
         tslSources = []
+        cscaSources = []
         lastTsaUrl = ""
         pluginDir = ""
         tslCacheDir = ""
