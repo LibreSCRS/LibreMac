@@ -182,7 +182,7 @@ extension ErrorCode: CaseIterable {
 /// string `name` arm of a reply's `err` field. Distinct from the numeric
 /// `ErrorCode` — one or the other, never both (`err-info`,
 /// `librescrs-agent.cddl`). The raw value IS the wire string,
-/// mirroring the agent's sync-error names. 18 values.
+/// mirroring the agent's sync-error names. 20 values.
 ///
 /// Wire tolerance: `sync-error` is a TEXT-token closed enum, unlike the
 /// numeric enums above/below — there is no width to bound an unrecognized
@@ -220,6 +220,13 @@ public enum SyncError: String, Sendable, Equatable, CaseIterable {
     /// ad hoc (a borrowed name); this is the dedicated one.
     case noResult = "NoResult"
     case masterListReplayed = "MasterListReplayed"
+    /// The person dismissed the prompt the request raised. Not a failure: the
+    /// card is fine and nothing was refused, so a caller that shows this as a
+    /// device error takes the token away from someone who only wanted to
+    /// answer the prompt on the second try. The bus transport has carried this
+    /// name from the start; the socket wire gained it so both can be held to
+    /// one answer.
+    case cancelled = "Cancelled"
 }
 
 /// `Operation1` progress phase. Mirrors
