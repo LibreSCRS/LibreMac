@@ -24,6 +24,7 @@ jobs:
   swift-test:
     # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. Xcode 16
     # (and its `swift test` toolchain) is preinstalled on macos-15.
+    timeout-minutes: 20
     runs-on: macos-15
     strategy:
       matrix:
@@ -44,6 +45,7 @@ jobs:
     # macOS 15 runner: the project deploys to macOS 15.0 and needs the
     # matching SDK (Xcode 16). Older runner images ship an SDK below the
     # deployment target and fail to link.
+    timeout-minutes: 30
     runs-on: macos-15
     steps:
       - name: Install build tools
