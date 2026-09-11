@@ -12,7 +12,7 @@
 # Layout staged (hardware-proven 2026-07-12):
 #   Contents/MacOS/librescrs-agent           <- LIBREDARWIN_PREFIX/agent/librescrs-agent
 #   Contents/MacOS/librescrs-prompter        <- LIBREDARWIN_PREFIX/prompter/librescrs-prompter
-#   Contents/Frameworks/libLibreSCRS_*.dylib <- LM_LIB_PREFIX/libLibreSCRS_*.4.dylib
+#   Contents/Frameworks/libLibreSCRS_*.dylib <- LM_LIB_PREFIX/libLibreSCRS_*.<soname>.dylib
 #   Contents/Frameworks/librescrs-pkcs11.dylib <- LM_LIB_PREFIX/pkcs11/librescrs-pkcs11*.dylib
 #   Contents/PlugIns/librescrs/*.dylib       <- LM_LIB_PREFIX/librescrs/plugins/*.dylib
 #   Contents/Library/LaunchAgents/org.librescrs.{agent,prompter}.plist <- Packaging/
@@ -132,16 +132,31 @@ cp "$LIBREDARWIN_PREFIX/prompter/librescrs-prompter" "$MACOS/librescrs-prompter"
 chmod u+w "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter"
 
 # ---------------------------------------------------------------- stage LM dylibs
-# Dereference the .4 symlinks -> the real versioned file: a symlinked
+# Dereference the soname symlinks -> the real versioned file: a symlinked
 # dylib copied as a symlink into the bundle would dangle once the
 # LibreMiddleware build tree it points at is gone.
+#
+# The soname integer is LIBRESCRS_ABI_SOVERSION, not the release version, and it
+# was hard-coded here as 4 until LibreMiddleware moved to 5 -- see
+# Scripts/lm-soname.sh for why neither a literal nor PROJECT_VERSION is right.
+#
+# The two markers below delimit the block ci/scripts/lm-soname.selftest.sh lifts
+# out and RUNS over prefixes it builds. Reading this block instead of running it
+# only ever measured how the lines are spelled: a check that the helper is
+# called and that no name carries an integer is green on a script that calls the
+# helper and then overwrites its answer. Everything the staging depends on --
+# SCRIPT_DIR, LM_LIB_PREFIX, FRAMEWORKS -- has to stay between them.
+# BEGIN LM dylib staging
 shopt -s nullglob
-lm_dylibs=("$LM_LIB_PREFIX"/libLibreSCRS_*.4.dylib)
-[ "${#lm_dylibs[@]}" -gt 0 ] || { echo "bundle-agent: no libLibreSCRS_*.4.dylib under $LM_LIB_PREFIX" >&2; exit 1; }
+lm_soname="$("$SCRIPT_DIR/lm-soname.sh" "$LM_LIB_PREFIX")" || exit 1
+lm_dylibs=("$LM_LIB_PREFIX"/libLibreSCRS_*."$lm_soname".dylib)
+[ "${#lm_dylibs[@]}" -gt 0 ] || { echo "bundle-agent: no libLibreSCRS_*.$lm_soname.dylib under $LM_LIB_PREFIX" >&2; exit 1; }
+echo "bundle-agent: LibreMiddleware soname=$lm_soname (${#lm_dylibs[@]} dylibs)"
 for lib in "${lm_dylibs[@]}"; do
     cp -L "$lib" "$FRAMEWORKS/$(basename "$lib")"
     chmod u+w "$FRAMEWORKS/$(basename "$lib")"
 done
+# END LM dylib staging
 
 # pkcs11 module: LM's resolvePkcs11Module candidate 3 is
 # exe/../Frameworks/librescrs-pkcs11.dylib — the target NAME must be exactly
