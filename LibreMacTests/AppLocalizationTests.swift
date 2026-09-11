@@ -99,6 +99,29 @@ struct AppLocalizationTests {
         }
     }
 
+    /// `CatalogCompletenessTests` reads the `.ts` sources; the app reads the
+    /// generated `Localizable.xcstrings`. Between them sits a pre-build step
+    /// that SILENTLY DOES NOTHING when LibreCelik is not a sibling — which is
+    /// exactly the shape of the CI checkout. So a key added to both `.ts`
+    /// files and not to the committed catalog passes every other gate here and
+    /// renders English to a Serbian user. This is the assertion that closes
+    /// that gap for the copy this release added.
+    @Test("the cancel copy resolves in Serbian from the shipped catalog")
+    func cancelCopyIsTranslated() {
+        let localization = AppLocalization(defaults: isolatedDefaults(#function))
+        localization.locale = "sr"
+
+        let pairs = [
+            ("libremac_credentials_err_cancelled",
+             "You closed the prompt, so nothing was changed. Try again when you are ready."),
+            ("libremac_settings_err_cancelled",
+             "You closed the prompt, so the change was not saved."),
+        ]
+        for (key, english) in pairs {
+            #expect(localization.loc(key, english) != english, "\(key) fell back to English")
+        }
+    }
+
     /// Live language switching rests entirely on this: a view body that
     /// resolves a string must register a dependency on the chosen language,
     /// or SwiftUI is never told to redraw it. Caching the resolved bundle in

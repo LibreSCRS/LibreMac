@@ -354,6 +354,10 @@
         <source>The request is not valid for this credential.</source>
         <translation>Захтев није важећи за овај акредитив.</translation>
     </message>
+    <message id="libremac_credentials_err_cancelled">
+        <source>You closed the prompt, so nothing was changed. Try again when you are ready.</source>
+        <translation>Затворили сте упит, па ништа није промењено. Покушајте поново када будете спремни.</translation>
+    </message>
     <message id="libremac_credentials_unblock_title">
         <source>Unblock PIN</source>
         <translation>Деблокирање ПИН-а</translation>
@@ -421,6 +425,10 @@
     <message id="libremac_settings_err_unknown_key">
         <source>This agent does not have this setting.</source>
         <translation>Овај агент нема ово подешавање.</translation>
+    </message>
+    <message id="libremac_settings_err_cancelled">
+        <source>You closed the prompt, so the change was not saved.</source>
+        <translation>Затворили сте упит, па измена није сачувана.</translation>
     </message>
     <message id="libremac_settings_language_system">
         <source>System</source>

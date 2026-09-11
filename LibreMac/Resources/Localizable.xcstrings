@@ -11017,6 +11017,23 @@
         }
       }
     },
+    "libremac_credentials_err_cancelled" : {
+      "comment" : "libremac_credentials_err_cancelled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You closed the prompt, so nothing was changed. Try again when you are ready."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Затворили сте упит, па ништа није промењено. Покушајте поново када будете спремни."
+          }
+        }
+      }
+    },
     "libremac_credentials_err_invalid_request" : {
       "comment" : "libremac_credentials_err_invalid_request",
       "localizations" : {
@@ -12560,6 +12577,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Подразумевани разлог:"
+          }
+        }
+      }
+    },
+    "libremac_settings_err_cancelled" : {
+      "comment" : "libremac_settings_err_cancelled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You closed the prompt, so the change was not saved."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Затворили сте упит, па измена није сачувана."
           }
         }
       }

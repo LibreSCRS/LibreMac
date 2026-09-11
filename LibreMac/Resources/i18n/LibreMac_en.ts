@@ -354,6 +354,10 @@
         <source>The request is not valid for this credential.</source>
         <translation>The request is not valid for this credential.</translation>
     </message>
+    <message id="libremac_credentials_err_cancelled">
+        <source>You closed the prompt, so nothing was changed. Try again when you are ready.</source>
+        <translation>You closed the prompt, so nothing was changed. Try again when you are ready.</translation>
+    </message>
     <message id="libremac_credentials_unblock_title">
         <source>Unblock PIN</source>
         <translation>Unblock PIN</translation>
@@ -421,6 +425,10 @@
     <message id="libremac_settings_err_unknown_key">
         <source>This agent does not have this setting.</source>
         <translation>This agent does not have this setting.</translation>
+    </message>
+    <message id="libremac_settings_err_cancelled">
+        <source>You closed the prompt, so the change was not saved.</source>
+        <translation>You closed the prompt, so the change was not saved.</translation>
     </message>
     <message id="libremac_settings_language_system">
         <source>System</source>

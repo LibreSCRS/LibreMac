@@ -89,6 +89,7 @@ struct CatalogCompletenessTests {
         "libremac_credentials_err_rate_limited",
         "libremac_credentials_err_unknown_credential",
         "libremac_credentials_err_invalid_request",
+        "libremac_credentials_err_cancelled",
     ]
 
     /// The guidance keys the agent's flows actually emit (grepped from the
@@ -116,6 +117,7 @@ struct CatalogCompletenessTests {
         "libremac_settings_err_invalid_value",
         "libremac_settings_err_read_only",
         "libremac_settings_err_unknown_key",
+        "libremac_settings_err_cancelled",
         "libremac_settings_language_system",
         "libremac_settings_browse",
         "libremac_settings_agent_unavailable",
