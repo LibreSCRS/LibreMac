@@ -313,9 +313,11 @@ final class PreferencesModel {
     private static let genericKey = "libremac_settings_err_save_failed"
     private static let genericFallback = "The change was not saved."
 
-    /// The four refusals this window can provoke get their own sentence; one
-    /// message for all of them would leave the user unable to tell a value
-    /// the agent rejected from a setting it will not let anyone change.
+    /// The four refusals this window can provoke get their own sentence, and
+    /// so does a dismissed prompt, which is not a refusal at all; one message
+    /// for all of them would leave the user unable to tell a value the agent
+    /// rejected from a setting it will not let anyone change, or from having
+    /// closed the prompt oneself.
     /// Exhaustive over `SyncError` (no `default`) so an appended wire name
     /// forces a copy decision here, matching the error-code table.
     private static func copy(for name: SyncError) -> (String, String) {
@@ -332,6 +334,13 @@ final class PreferencesModel {
         case .unknownConfigKey:
             return ("libremac_settings_err_unknown_key",
                     "This agent does not have this setting.")
+        case .cancelled:
+            // A dismissed prompt is not a refusal: the agent did not decline
+            // the value, the person simply did not answer. The generic
+            // sentence stops at "the change was not saved", which reads as a
+            // failure to investigate rather than as one's own act.
+            return ("libremac_settings_err_cancelled",
+                    "You closed the prompt, so the change was not saved.")
         // masterListReplayed sits here rather than getting its own sentence,
         // and that is a decision about THIS window, not about the refusal. It
         // answers a master-list import -- "you already have this list, or this

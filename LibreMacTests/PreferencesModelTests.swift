@@ -111,14 +111,15 @@ struct PreferencesModelTests {
         #expect(model.rowError[.defaultReason] != nil)
     }
 
-    /// Each refusal the agent can give this window gets its own sentence —
-    /// one message for all four would tell the user nothing about which of
-    /// them happened.
-    @Test("the four configuration refusals render four distinct sentences")
+    /// Each refusal the agent can give this window gets its own sentence, and
+    /// so does a dismissed prompt — one message for all five would tell the
+    /// user nothing about which of them happened, and would in particular
+    /// report their own cancel as something that went wrong.
+    @Test("the four configuration refusals and a cancel render five distinct sentences")
     func eachRefusalHasItsOwnSentence() async {
         var messages: Set<String> = []
         for name in [SyncError.notAuthorized, .invalidConfigValue,
-                     .readOnlyConfig, .unknownConfigKey] {
+                     .readOnlyConfig, .unknownConfigKey, .cancelled] {
             let fake = FakeConfigClient(entries: ["DefaultReason": .text("Approval")])
             fake.failNextWrite = name
             let model = PreferencesModel(client: fake)
@@ -130,7 +131,7 @@ struct PreferencesModelTests {
             #expect(message?.isEmpty == false, "\(name) produced no message")
             if let message { messages.insert(message) }
         }
-        #expect(messages.count == 4, "refusals share copy: \(messages.sorted())")
+        #expect(messages.count == 5, "refusals share copy: \(messages.sorted())")
     }
 
     @Test("a successful write clears the row's earlier error")

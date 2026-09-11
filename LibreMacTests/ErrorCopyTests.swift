@@ -4,7 +4,8 @@
 // Coverage gate for the 20-value ErrorCode → copy table. Every non-`none`
 // code MUST have client-localized copy; `.none` MUST defer to the agent's
 // msgFallback. Also gates the SyncError overload: the five credential
-// entry errors get dedicated, mutually distinct copy; every other name
+// entry errors get dedicated, mutually distinct copy; a dismissed prompt gets
+// its own and is asserted NOT to be the communication one; every other name
 // keeps rendering as a communication failure.
 
 import Testing
@@ -63,6 +64,19 @@ struct ErrorCopyTests {
         .unknownCredential, .invalidRequest,
     ]
 
+    /// Names that must NOT render as a communication failure but are not
+    /// credential entry errors either. `.cancelled` is the person answering
+    /// the prompt with "no": the card is fine and nothing was refused.
+    ///
+    /// It lives in its own list rather than in the one above because the
+    /// fallback test below iterates `SyncError.allCases`, so an appended name
+    /// is swept into it AUTOMATICALLY — and for a while that is exactly what
+    /// happened here: this suite asserted that a cancel must render
+    /// "Communication with the card reader failed.", pinning the one outcome
+    /// the wire gained the name to prevent. A test that survives a decision
+    /// and then works against it is worse than no test.
+    private static let nonFailureErrors: [SyncError] = [.cancelled]
+
     @Test("each credential entry error yields its own distinct copy")
     func credentialEntryErrorCopyIsDistinct() {
         let texts = Self.credentialEntryErrors.map { ErrorCopy.localizedText(for: $0) }
@@ -94,12 +108,59 @@ struct ErrorCopyTests {
     func otherSyncErrorsFallBackToCommunicationCopy() {
         let communication = ErrorCopy.localizedText(for: ErrorCode.communicationError)
         for error in SyncError.allCases
-        where !Self.credentialEntryErrors.contains(error) {
+        where !Self.credentialEntryErrors.contains(error)
+            && !Self.nonFailureErrors.contains(error) {
             let text = ErrorCopy.localizedText(for: error)
             #expect(text.key == communication?.key,
                     "\(error) should render as a communication failure")
             #expect(text.defaultText == communication?.defaultText,
                     "\(error) should carry the communication fallback copy")
         }
+    }
+
+    /// The exemption above only stops this suite from PINNING the wrong
+    /// answer. This is the assertion that makes it a gate: a cancel must not
+    /// reach the user as a broken exchange, on this surface or any other.
+    /// Deleting the exemption without this test leaves the anti-gate; adding
+    /// this test without the exemption leaves the suite contradicting itself.
+    @Test("a dismissed prompt does not render as a communication failure")
+    func cancelledDoesNotRenderAsCommunicationFailure() {
+        let communication = ErrorCopy.localizedText(for: ErrorCode.communicationError)
+        #expect(communication != nil)
+        for error in Self.nonFailureErrors {
+            let text = ErrorCopy.localizedText(for: error)
+            #expect(text.key != communication?.key,
+                    "\(error) reuses the communication key")
+            #expect(text.defaultText != communication?.defaultText,
+                    "\(error) reuses the communication copy")
+            #expect(!text.defaultText.isEmpty)
+        }
+    }
+
+    /// Every name is either a credential entry error, a non-failure, or a
+    /// communication fallback — and nothing is in two lists at once. Both
+    /// lists take names OUT of the fallback loop above, so each name they
+    /// take out must earn it by carrying an answer of its own: without that,
+    /// adding a name to either list and forgetting to give it copy would
+    /// simply shrink the loop and pass. The last expectation keeps the loop
+    /// from being emptied altogether.
+    @Test("the exemption lists do not overlap, and every exempted name earns its exemption")
+    func exemptionListsPartitionTheVocabulary() {
+        let entry = Set(Self.credentialEntryErrors)
+        let nonFailure = Set(Self.nonFailureErrors)
+        #expect(entry.isDisjoint(with: nonFailure),
+                "a name is claimed by both lists: \(entry.intersection(nonFailure))")
+        let communication = ErrorCopy.localizedText(for: ErrorCode.communicationError)
+        #expect(communication != nil)
+        for error in entry.union(nonFailure) {
+            let text = ErrorCopy.localizedText(for: error)
+            #expect(text.key != communication?.key,
+                    "\(error) is exempted from the fallback yet renders as one")
+            #expect(text.defaultText != communication?.defaultText,
+                    "\(error) is exempted from the fallback yet carries its copy")
+            #expect(!text.defaultText.isEmpty, "\(error) is exempted and has no copy at all")
+        }
+        #expect(!Set(SyncError.allCases).subtracting(entry).subtracting(nonFailure).isEmpty,
+                "every name is exempted — the fallback assertion above walks nothing")
     }
 }

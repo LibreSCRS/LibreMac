@@ -9,8 +9,8 @@
 // client-synchronous codes to a localized message, falling back to the
 // agent-provided `msgFallback` for anything not localized here (and for
 // `.none`). Named sync errors get the same treatment: the five credential
-// entry errors carry dedicated copy; every other name renders as a
-// communication failure.
+// entry errors and a dismissed prompt carry dedicated copy; every other name
+// renders as a communication failure.
 
 import LibreMacAgentClient
 import LibreMacShared
@@ -99,10 +99,12 @@ public enum ErrorCopy {
     /// request gates. The five credential entry errors — capability
     /// (`UnsupportedOnThisCard`), validation (`UnknownCredential`,
     /// `InvalidRequest`), authorization (`NotAuthorized`) and rate limiting
-    /// (`RateLimited`) — each carry dedicated copy; every OTHER name keeps
-    /// the pre-existing client posture of rendering as a communication
-    /// failure. Exhaustive over `SyncError` (no `default`) so an appended
-    /// wire name forces a copy decision here.
+    /// (`RateLimited`) — each carry dedicated copy, as does `Cancelled`, which
+    /// is not a failure at all; every OTHER name keeps the pre-existing client
+    /// posture of rendering as a communication failure. Exhaustive over
+    /// `SyncError` (no `default`) so an appended wire name forces a copy
+    /// decision here — a mechanism that worked as designed and that nobody
+    /// ran, which is how `Cancelled` got this far.
     public static func localizedText(for error: SyncError) -> LocalizedText {
         switch error {
         case .unsupportedOnThisCard:
@@ -120,6 +122,18 @@ public enum ErrorCopy {
         case .invalidRequest:
             return text("libremac_credentials_err_invalid_request",
                         "The request is not valid for this credential.")
+        case .cancelled:
+            // The person dismissed the prompt this request raised. Nothing
+            // failed and nothing was refused, so the communication copy below
+            // would take a working card away from someone who only wanted to
+            // answer on the second try. Unlike masterListReplayed, this name
+            // is NOT unreachable by construction: `CredentialsViewModel`'s
+            // error folding passes named server errors through as themselves,
+            // so the day a credential verb answers `Cancelled` this branch is
+            // what the person reads — a sentence written after the fact would
+            // arrive one release late and silently.
+            return text("libremac_credentials_err_cancelled",
+                        "You closed the prompt, so nothing was changed. Try again when you are ready.")
         // masterListReplayed answers a master-list import, which these
         // credential gates never start. It keeps the communication posture here
         // for the same reason as the rest of this list: dedicated copy on a
