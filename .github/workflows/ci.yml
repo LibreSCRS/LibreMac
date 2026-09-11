@@ -118,3 +118,29 @@ jobs:
         run: |
           xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Debug \
             build test CODE_SIGNING_ALLOWED=NO
+
+  vocabulary-consumers:
+    # WireVocabularyConformanceTests proves the mirror CARRIES the contract's
+    # names. This proves they are USED: every non-test source mentioning
+    # SyncError is registered, every switch over it whose subject the check can
+    # resolve sits at a registry anchor, every anchored switch is exhaustive
+    # with no catch-all arm, and a cancel shares neither a case arm nor an
+    # answer with a communication failure. A name reached main with the token
+    # gate green and three consumers untouched, which is the gap this closes.
+    #
+    # Deliberately NOT on macos-15: it needs neither Xcode nor a Swift
+    # toolchain, and a structural gate that can only be seen on an Apple runner
+    # is a gate nobody watches. The selftest perturbs a throwaway copy and
+    # fails if any of the eleven regressions stops being caught. The script's
+    # header states what it does and does not resist, including which switch
+    # subjects it cannot resolve.
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: sync-error consumer gate
+        run: python3 Scripts/check-sync-error-consumers.py
+
+      - name: the gate can still fail
+        run: ./ci/scripts/check-sync-error-consumers.selftest.sh
