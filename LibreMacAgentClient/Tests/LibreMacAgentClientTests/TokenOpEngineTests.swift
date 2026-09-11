@@ -79,6 +79,26 @@ struct TokenOpEngineTests {
         }
     }
 
+    /// The wire gained a name for a dismissed prompt so a cancel would stop
+    /// arriving as a device failure. This is the assertion that keeps it that
+    /// way: the engine is the only macOS path the token actually reaches, and
+    /// before this it folded `Cancelled` into `.communicationError` through a
+    /// `default:` arm that swallowed it silently.
+    @Test("a dismissed prompt maps to canceledByUser, not to a communication failure")
+    func cancelledMapsToCanceledByUser() {
+        let t = FakeTransport()
+        t.script = [
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .err(ErrInfo(code: .name(.cancelled))) },
+        ]
+        #expect(throws: TokenOpError.mapped(.canceledByUser)) {
+            _ = try TokenOpEngine(transport: t).sign(certId: "x", digestInfo: Data([0]), requireFreshAuth: false)
+        }
+        // Named against the answer it must NOT give, so a future refactor that
+        // reunites the two arms fails here rather than only in the copy tests.
+        #expect(TKErrorMapped.canceledByUser != TKErrorMapped.communicationError)
+    }
+
     @Test("requireFreshAuth logs in before signing, every time")
     func requireFreshAuthLogsInBeforeSigning() throws {
         let t = FakeTransport()

@@ -93,14 +93,31 @@ public struct TokenOpEngine {
     }
 
     private func map(_ info: ErrInfo) -> TKErrorMapped {
-        switch syncError(info) {
+        // A reply that carries a numeric code instead of a name has no token
+        // to read; that is the only nil this guard absorbs. Everything below
+        // is exhaustive over `SyncError` (no `default`) so an appended wire
+        // name forces a mapping decision here rather than being folded into
+        // the communication answer unnoticed — which is exactly what happened
+        // to `Cancelled` while the vocabulary gate stayed green.
+        guard let name = syncError(info) else { return .communicationError }
+        switch name {
         case .unknownCard: return .tokenNotFound
         case .keyNotFound: return .objectNotFound
         case .authFailed, .notAuthorized: return .authenticationFailed
         case .userNotLoggedIn: return .authenticationNeeded
         case .notSupported: return .notImplemented
-        case .rateLimited, .communicationError: return .communicationError
-        default: return .communicationError
+        case .cancelled:
+            // The person dismissed the prompt. CryptoTokenKit has a code for
+            // exactly this; answering `communicationError` tells ctkd the
+            // device broke, and a loader shown a device error stops offering
+            // the token at all instead of letting the person answer on the
+            // second try.
+            return .canceledByUser
+        case .rateLimited, .communicationError, .unknownConfigKey, .readOnlyConfig,
+             .invalidConfigValue, .unsupportedProtocol, .unsupportedOnThisCard,
+             .unsupportedSignatureParameter, .inputTooLarge, .unknownCredential,
+             .invalidRequest, .noResult, .masterListReplayed:
+            return .communicationError
         }
     }
 }
