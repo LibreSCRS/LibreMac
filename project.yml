@@ -48,7 +48,7 @@ targets:
       path: LibreMac/Info.plist
       properties:
         CFBundleDisplayName: LibreMac
-        CFBundleShortVersionString: 0.1.0
+        CFBundleShortVersionString: 5.0.0
         CFBundleVersion: 1
         LSUIElement: true
         NSHumanReadableCopyright: "Copyright (c) 2026 hirashix0. LGPL-2.1-or-later."

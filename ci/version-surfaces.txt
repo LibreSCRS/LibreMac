@@ -1,0 +1,4 @@
+# <kind> <path>
+yaml-short-version   project.yml
+plist-short-version  LibreMac/Info.plist
+plist-short-version  LibreMac/LibreMacToken/Info.plist

@@ -20,8 +20,10 @@ versioning follows [Semantic Versioning](https://semver.org/).
   agent and both hosts. A cancelled PIN prompt is now distinguishable from a
   failed one on every surface.
 
-- The version this tree is heading for is recorded in `VERSION`, so a source
-  drop with no `.git` stamps the version it is actually part of.
+- The version this tree is heading for is recorded in `VERSION`, and the app now
+  states that version everywhere it states one: the bundle information, the token
+  extension, and the name the host gives the agent when it connects. All three said
+  0.1.0 before, which is a version this project never had.
 
 ### Notes
 
