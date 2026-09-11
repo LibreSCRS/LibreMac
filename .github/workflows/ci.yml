@@ -9,10 +9,10 @@ name: CI
 # no clang-format gate here; the Swift compiler's strict-concurrency and
 # warnings-as-errors settings are the format/lint gate.
 #
-# Deferred (D-P4-3): CI does NOT assemble or verify the agent bundle — that
-# needs the LibreDarwin build tree plus a signing identity. Until
-# LibreDarwin ships release artifacts, the release checklist runs
-# Scripts/bundle-agent.sh + Scripts/verify-bundle.sh locally.
+# Deferred: CI does NOT assemble or verify the agent bundle — that needs the
+# LibreDarwin build tree plus a signing identity. Until LibreDarwin ships
+# release artifacts, the release checklist runs Scripts/bundle-agent.sh +
+# Scripts/verify-bundle.sh locally.
 
 on:
   push:
@@ -21,6 +21,46 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    # Everything cheap that needs no macOS: a plain ubuntu runner answers in
+    # seconds, where the macOS jobs below queue and bill by the minute.
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prove the version-surface check still fails when it should
+        run: ./ci/scripts/check-version-surfaces.selftest.sh
+
+      - name: Every surface states the version in VERSION
+        # VERSION had no reader at all here: the bundle said 0.1.0 and the host
+        # announced itself to the agent as LibreMac/0.1.0.
+        run: ./ci/scripts/check-version-surfaces.sh
+
+  bundle-scripts:
+    # bundle-agent.sh runs nowhere in CI (see the note above), so the one thing
+    # in it that is pure shell -- which LibreMiddleware soname to stage -- gets
+    # its own check. It was wrong for the whole cycle: the glob named a soname
+    # integer from the previous line while LIBRESCRS_ABI_SOVERSION had moved on,
+    # so the only script that assembles the macOS bundle exited 1 on the last
+    # step before signing, and nothing here could see it. Ubuntu: this is bash
+    # over fixture directories, no Apple anything.
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Soname discovery behaves on clean, stale and reused prefixes
+        # Also RUNS bundle-agent.sh — first its staging block over those
+        # prefixes, then the whole script into a fixture .app — and asserts
+        # which names land. A suite that only read the block stayed green over
+        # a bundler that called the helper and overwrote its answer on the next
+        # line; a rule that read the lines around the block stayed green over
+        # four spellings of a second staging pass that copied a hard-coded
+        # soname into Contents/Frameworks. Both are the shipped defect put
+        # back, and both are now measured by what reaches the bundle.
+        run: ./ci/scripts/lm-soname.selftest.sh
+
   swift-test:
     # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. Xcode 16
     # (and its `swift test` toolchain) is preinstalled on macos-15.
