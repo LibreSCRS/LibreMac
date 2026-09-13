@@ -6,9 +6,12 @@
 # check that Scripts/bundle-agent.sh actually uses it.
 #
 # Fixtures are named the way CMake names the real thing: the REAL file carries
-# PROJECT_VERSION (the previous release, in a checkout with no tag) and only the
-# symlink carries SOVERSION. A fixture that named the real file 5.0.0 would let
-# a wrong glob pass, which is the bug this exists to keep out.
+# the full version triple, the soname symlink carries SOVERSION alone, and the
+# unversioned link points at the soname. The triple and the soname integer are
+# deliberately given DIFFERENT numbers here: they track different events -- an
+# ABI layout change, not a release -- and that disagreement is what makes these
+# cases measure the SONAME. Over a prefix where the two agreed, a helper that
+# read the integer off the real file would answer correctly and pass.
 #
 # Most of the cases are not about the helper at all. One is a perturbation: it
 # breaks the helper on purpose and requires the suite to notice, because "5 of 5
@@ -43,7 +46,7 @@ WORK="$(mktemp -d /var/tmp/lm-soname-selftest.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
 
-mkprefix() { # <dir> <soname>...   real file is always the previous release
+mkprefix() { # <dir> <soname>...   real file's triple differs from the soname
     local d="$1"; shift; mkdir -p "$d"
     local c s
     for c in Auth Card Plugin Trust; do
@@ -105,11 +108,11 @@ fi
 #        spelling of the component: `libLibreSCRS_Auth.4.dylib` is the same
 #        hard-coded integer as the star glob the defect happened to be written
 #        as, and a rule matching `libLibreSCRS_*.` only would print
-#        "hard-codes none" over it. Comments are searched too. They were
-#        exempted once, on the reasoning that prose about the defect is not the
-#        defect -- but the layout this script stages is DOCUMENTED in the header
-#        comment, and an exemption there let the documented layout rot back to
-#        the old soname with nothing to notice. The repaired lines spell the
+#        "hard-codes none" over it. Comments are searched too, even though
+#        prose about the defect is not the defect: the layout this script
+#        stages is DOCUMENTED in the header comment, and an exemption there
+#        would let the documented layout go on naming an integer the staging
+#        no longer uses, with nothing to notice. The lines here spell the
 #        integer as "$lm_soname" or <soname>, so none of them match.
 #
 #   R3b  exactly one line assigns lm_soname, and that line calls lm-soname.sh.
@@ -129,16 +132,15 @@ fi
 #        helper exists to prevent.
 #
 #
-# What lies OUTSIDE the block was bounded for a while by a fourth sub-rule: a
-# grep for the lib prefix being globbed after the END marker. It is gone, and R5
-# below took its place. It was a list of spellings, and four of them were
-# measured staging hard-coded `.4` names into Contents/Frameworks with this
-# suite 26 passed, 0 failed rc=0 -- the prefix bound with braces
-# (`lm_src="${LM_LIB_PREFIX}"`), bound with a trailing slash, walked with
-# `ls | grep`, and reached through `/librescrs/..`, which the rule excluded by
-# path. Only the one spelling the rule had been written against went red. R5
-# runs the whole script and asserts what lands in the bundle, which is a
-# property no spelling can talk its way past.
+# What lies OUTSIDE the block is bounded by R5 below, not by a fourth sub-rule
+# grepping for the lib prefix being globbed after the END marker. Such a grep
+# is a list of spellings, and R5 carries four perturbations that stage
+# hard-coded `.4` names into Contents/Frameworks in spellings no such list
+# names: the prefix bound with braces (`lm_src="${LM_LIB_PREFIX}"`), bound with
+# a trailing slash, walked with `ls | grep`, and reached through
+# `/librescrs/..`, which a path-anchored rule excludes outright. R5 runs the
+# whole script and asserts what lands in the bundle, which is a property no
+# spelling can talk its way past.
 # The staged block's first and last line in a given file, or 0 0 when the
 # markers are not both there. A missing marker is not a pass: the block can then
 # be neither run nor bounded, and everything below says so.
@@ -293,10 +295,10 @@ r3_perturbation "the glob drops the soname altogether" 'libLibreSCRS_*.dylib)' \
 # block is spelled, and spelling is the wrong axis: a bundler that calls the
 # helper and then writes `export lm_soname=4` on the next line satisfies R3a
 # (no name carries an integer), R3b (one line matching `^lm_soname=`, and it is
-# the call) and R3c (every dylib line names lm_soname) -- measured, the suite
-# stayed 15/0 rc=0 over a bundler that then globbed .4 against a 5.0 prefix and
-# exited 1. `declare`, `local`, `readonly` and `read -r lm_soname <<< 4` pass
-# the same way, and enumerating those four spellings would leave the fifth.
+# the call) and R3c (every dylib line names lm_soname) -- and then globs .4
+# against a 5.0 prefix and exits 1 with every rule above still green.
+# `declare`, `local`, `readonly` and `read -r lm_soname <<< 4` pass the same
+# way, and enumerating those four spellings would leave the fifth.
 #
 # So lift the block out and stage with it, over the same prefixes the helper
 # cases above already build. What is asserted is the outcome: which names land
@@ -387,29 +389,29 @@ r4_perturbation "the glob drops the soname" "$WORK/five" 0 \
 
 # R5 -- the WHOLE script, run, under every host identity it ships to. R4 runs
 # the delimited block and only the block, so a second staging pass written after
-# the END marker is measured by nothing there. What bounded that once was a grep
-# over the lines outside the block, and a grep is a list of spellings: four of
-# them staged hard-coded `.4` names into Contents/Frameworks with the suite
-# green while the one spelling the rule had been written against went red.
+# the END marker is measured by nothing there. A grep over the lines outside the
+# block does not bound it either: a grep is a list of spellings, and four of the
+# perturbations below stage hard-coded `.4` names into Contents/Frameworks in
+# spellings such a list does not name.
 #
-# Running the script closed that -- for the lines that RUN. It was then measured
-# that a second staging pass wrapped in
+# Running the script closes that -- for the lines that RUN. A second staging
+# pass wrapped in
 #
 #     if [ "$(uname)" = "Darwin" ]; then ... fi
 #
-# left the suite green on this host while staging both canaries on a Mac: the
-# job that runs this suite is a Linux job, so the single most natural guard in a
-# macOS bundler was the one branch the suite could never execute. So the script
-# is run TWICE, once as this host and once with `uname` answering Darwin, and
-# both runs must leave the same bundle.
+# leaves a single-identity run green on this host while staging both canaries
+# on a Mac: the job that runs this suite is a Linux job, so the single most
+# natural guard in a macOS bundler is the one branch such a run can never
+# execute. So the script is run TWICE, once as this host and once with `uname`
+# answering Darwin, and both runs must leave the same bundle.
 #
 # The identities answer THREE platform probes, named here rather than described
-# in general, because "the platform test" was claimed once when one of them was
-# covered: `uname` (a stub on PATH), `$OSTYPE` (a bash variable, handed in
-# through the environment) and `sw_vers` (a stub present only in the Darwin
-# identity, so a script that merely asks whether it EXISTS is answered too).
-# The middle one cost a round: `[[ "$OSTYPE" == darwin* ]]` around the same
-# stale staging pass read 37 passed, 0 failed rc=0 here.
+# in general, because "the platform test" reaches only one of them while reading
+# as though it reached all three: `uname` (a stub on PATH), `$OSTYPE` (a bash
+# variable, handed in through the environment) and `sw_vers` (a stub present
+# only in the Darwin identity, so a script that merely asks whether it EXISTS is
+# answered too). The middle one is no formality: `[[ "$OSTYPE" == darwin* ]]`
+# around a stale staging pass is invisible to a run that stubs `uname` alone.
 #
 # What this does NOT measure, said plainly rather than left to be discovered: a
 # staging pass guarded on some OTHER condition the fixture does not satisfy --
@@ -437,11 +439,11 @@ r4_perturbation "the glob drops the soname" "$WORK/five" 0 \
 # The Apple tools the script signs and relinks with are stubbed -- this host has
 # none of them -- and the stubs RECORD their argv, so what was signed and what
 # was relinked is asserted PER TOOL alongside what was staged. Per tool because
-# the union of all three was what the assertion used to compare, and a union is
-# satisfied by whichever tool is most talkative: `otool` is invoked on every
-# staged dylib anyway, so deleting the signing loop outright left the suite at
-# 40 passed, 0 failed rc=0. Everything else -- the helper, the glob, the copies,
-# the version stamp -- is the shipped script.
+# comparing the union of all three would be satisfied by whichever tool is most
+# talkative: `otool` is invoked on every staged dylib anyway, so a union
+# assertion holds over a bundler whose signing loop has been deleted outright.
+# Everything else -- the helper, the glob, the copies, the version stamp -- is
+# the shipped script.
 make_stubs() {  # make_stubs <dir> <host-name>
     local d="$1" host="$2" tool
     mkdir -p "$d"
@@ -518,11 +520,11 @@ bundled_files() {  # bundled_files <app> -> the staged files under Contents/, so
 }
 # What ONE tool was handed, by the name it was handed it under: the last
 # argument of each of its recorded lines, which is the file every one of these
-# tools acts on. The union across all three stubs was asserted instead, and a
-# union is satisfied by whichever tool is most talkative. Measured: deleting the
-# whole dylib signing loop, and narrowing it to one library in seven, both left
-# this suite at 40 passed, 0 failed rc=0 -- `otool` alone re-enumerates the
-# staged set, so the assertion held while nothing was signed at all.
+# tools acts on. A union across all three stubs is satisfied by whichever tool
+# is most talkative: `otool` alone re-enumerates the staged set, so a union
+# assertion holds while nothing is signed at all. The perturbations below delete
+# the whole dylib signing loop and narrow it to one library in seven, and both
+# are caught only because each tool is asserted on its own.
 recorded_targets() {  # recorded_targets <tool> <calls.log> -> sorted unique basenames
     local out
     out="$(awk -v t="$1" '$1 == t { print $NF }' "$2" 2>/dev/null \
@@ -559,10 +561,11 @@ tools_agree() {  # tools_agree <calls.log> -> prints the first mismatch
 # (a bash variable, and bash takes it from the environment when one is handed
 # in -- measured) and `sw_vers` (stubbed, and absent from the first identity's
 # PATH entirely, which is how a script that merely LOOKS for it tells the two
-# apart). One spelling was covered once and `[[ "$OSTYPE" == darwin* ]]` around
-# the same stale staging pass left this suite 37 passed, 0 failed rc=0. The
-# shipped script asks none of the three, which is the point -- a run that
-# differs between the identities is a run that took a platform branch.
+# apart). All three are answered because covering one leaves the others open: a
+# stale staging pass behind `[[ "$OSTYPE" == darwin* ]]` is invisible to stubs
+# on PATH alone. The shipped script asks none of the three, which is the point
+# -- a run that differs between the identities is a run that took a platform
+# branch.
 IDENT_NAMES=(this-host Darwin)
 IDENT_STUBS=("$STUBS" "$STUBS_DARWIN")
 IDENT_OSTYPE=("" darwin24)
@@ -679,12 +682,13 @@ fi'
 r5_perturbation "a second staging pass hard-coding the soname the prefix is at" 'for stale in "$LM_LIB_PREFIX"/*.5.dylib' \
     after '^# END LM dylib staging$' \
     'for stale in "$LM_LIB_PREFIX"/*.5.dylib; do cp -L "$stale" "$FRAMEWORKS/$(basename "$stale")"; done'
-# The other two spellings of "am I on a Mac". `uname` was covered and $OSTYPE
-# was not: the same stale staging pass behind `[[ "$OSTYPE" == darwin* ]]` left
-# this suite 37 passed, 0 failed rc=0, staging both previous-soname canaries on
-# a Mac. It is not an invented guard -- bash sets OSTYPE itself, so it is the
-# platform test a bash script writes when it does not want to spawn `uname` --
-# and neither is looking for `sw_vers`, which exists on no other platform.
+# The other two spellings of "am I on a Mac". Covering `uname` alone leaves
+# $OSTYPE open: the same stale staging pass behind `[[ "$OSTYPE" == darwin* ]]`
+# runs on a Mac and stages both previous-soname canaries there, while a run
+# that stubs only `uname` stays green. It is not an invented guard -- bash sets
+# OSTYPE itself, so it is the platform test a bash script writes when it does
+# not want to spawn `uname` -- and neither is looking for `sw_vers`, which
+# exists on no other platform.
 r5_perturbation "a second staging pass guarded on \$OSTYPE" 'if [[ "$OSTYPE" == darwin* ]]' \
     after '^# END LM dylib staging$' \
     'if [[ "$OSTYPE" == darwin* ]]; then
@@ -698,10 +702,10 @@ fi'
 # Three that stage exactly the right files and do the WORK wrong, which is what
 # the per-tool assertion is for. Each shadows an Apple tool with a shell
 # function, so the bundle is byte-identical under both identities and only the
-# recorded argv differs. Against the union assertion these were 40 passed, 0
-# failed rc=0: `otool` is invoked on every staged dylib anyway and satisfied the
-# union on its own, so the signing pass could be deleted outright and the suite
-# said the bundle was correct.
+# recorded argv differs. A union assertion passes all three: `otool` is invoked
+# on every staged dylib anyway and satisfies the union on its own, so the
+# signing pass could be deleted outright and the bundle would still be called
+# correct.
 r5_perturbation "nothing is signed at all" 'codesign() { :; }' \
     after '^# END LM dylib staging$' \
     'codesign() { :; }'

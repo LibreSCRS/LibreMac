@@ -40,11 +40,11 @@ jobs:
   bundle-scripts:
     # bundle-agent.sh runs nowhere in CI (see the note above), so the one thing
     # in it that is pure shell -- which LibreMiddleware soname to stage -- gets
-    # its own check. It was wrong for the whole cycle: the glob named a soname
-    # integer from the previous line while LIBRESCRS_ABI_SOVERSION had moved on,
-    # so the only script that assembles the macOS bundle exited 1 on the last
-    # step before signing, and nothing here could see it. Ubuntu: this is bash
-    # over fixture directories, no Apple anything.
+    # its own check. It was wrong and nothing here could see it: the glob named
+    # a hard-coded soname integer while LIBRESCRS_ABI_SOVERSION had moved on, so
+    # the only script that assembles the macOS bundle exited 1 while staging the
+    # LibreMiddleware dylibs, four sections before it signs anything. Ubuntu:
+    # this is bash over fixture directories, no Apple anything.
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:

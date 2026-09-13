@@ -9,20 +9,22 @@
 # The number is LIBRESCRS_ABI_SOVERSION, which LibreMiddleware bumps when its
 # ABI layout check reports a non-additive change and NOT when a release is
 # declared (its own comment: "4 = 4.0-4.2; 5 = 5.0 onward"). So it cannot be
-# derived from the release version, and hard-coding it is what broke
-# bundle-agent.sh: the glob said `.4` from the 4.x line and LibreMiddleware
-# moved to 5. Deriving it from PROJECT_VERSION would be wrong a third way -- in
-# a checkout with no tag, git describe reports the PREVIOUS release, so the REAL
-# file is still libLibreSCRS_Auth.4.2.0.dylib while only the soname symlink
-# moved to .5.
+# derived from the release version -- one integer spans three releases there --
+# and hard-coding it is what broke bundle-agent.sh: the glob named the integer
+# of the ABI the bundler had been written against, and LibreMiddleware bumped
+# past it. A number taken from PROJECT_VERSION is wrong a third way: the real
+# file is named with the full version triple and the soname symlink with this
+# integer alone, so the two are different names answering different questions.
 #
-# Hence: discover it, and insist on exactly one. install() overwrites but never
-# deletes, so a prefix reused across an ABI bump keeps the old soname symlink as
-# well -- and because the real filename does not change between 4.2 and 5.0, the
-# stale .4 link then points at the NEW library. Staging under that name copies
-# correct bytes under a name the agent's LC_LOAD_DYLIB never asks for: a dyld
-# failure at launch, discovered after signing and notarisation. Two sonames is
-# therefore an error, not a choice to be made with head -1.
+# Hence: discover it from the prefix, and insist on exactly one. install()
+# overwrites but never deletes, so installing into a prefix across an ABI bump
+# adds the new real file and its soname symlink BESIDE the previous pair and
+# overwrites only the unversioned development link. The prefix then offers two
+# sonames, the stale one still resolving to the superseded library. Picking
+# between them with head -1 can stage that library, under a name the agent's
+# LC_LOAD_DYLIB never asks for: a dyld failure at launch, discovered after
+# signing and notarisation. A prefix carrying two sonames is therefore an error
+# naming its cause, not a choice.
 #
 # Exit codes:
 #   0  exactly one soname found; it is on stdout
