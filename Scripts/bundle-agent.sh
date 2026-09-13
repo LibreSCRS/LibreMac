@@ -9,7 +9,7 @@
 # LibreDarwin; run generate-project.sh + xcodebuild (or the release pipeline)
 # first, then point this script at the resulting .app.
 #
-# Layout staged (hardware-proven 2026-07-12):
+# Layout staged (hardware-proven):
 #   Contents/MacOS/librescrs-agent           <- LIBREDARWIN_PREFIX/agent/librescrs-agent
 #   Contents/MacOS/librescrs-prompter        <- LIBREDARWIN_PREFIX/prompter/librescrs-prompter
 #   Contents/Frameworks/libLibreSCRS_*.dylib <- LM_LIB_PREFIX/libLibreSCRS_*.<soname>.dylib

@@ -97,8 +97,9 @@ public struct TokenOpEngine {
         // to read; that is the only nil this guard absorbs. Everything below
         // is exhaustive over `SyncError` (no `default`) so an appended wire
         // name forces a mapping decision here rather than being folded into
-        // the communication answer unnoticed — which is exactly what happened
-        // to `Cancelled` while the vocabulary gate stayed green.
+        // the communication answer unnoticed: a gate that only reads the
+        // names an enum carries cannot see a case the copy tables downstream
+        // do not yet handle.
         guard let name = syncError(info) else { return .communicationError }
         switch name {
         case .unknownCard: return .tokenNotFound
