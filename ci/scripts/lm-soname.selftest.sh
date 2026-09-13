@@ -246,7 +246,11 @@ PCOPY=""
 perturbed_copy() {  # perturbed_copy <label> <rule> <fragment> <mode> <selector> [<text>]
     local label="$1" rule="$2" frag="$3" copy
     shift 3
-    copy=$(mktemp "$WORK/ba.XXXXXX.sh")
+    # BSD mktemp only substitutes X's that TRAIL the template: given
+    # `ba.XXXXXX.sh` it creates that literal name, so the second call dies with
+    # "File exists" and every later case fails. Keep the X's last, add the
+    # suffix afterwards.
+    copy=$(mktemp "$WORK/ba.XXXXXX") && mv "$copy" "$copy.sh" && copy="$copy.sh"
     if ! apply_edit "$BA" "$copy" "$@"; then
         echo "  FAIL  $rule perturbation ($label) could not be applied -- the selector no longer matches"
         fail=$((fail+1)); return 1
@@ -301,7 +305,7 @@ lm_stage() {  # lm_stage <bundle-agent.sh> <lm-lib-prefix> <dest> -> rc; stdout 
     local ba="$1" prefix="$2" dest="$3" bl el runner
     read -r bl el < <(block_bounds "$ba")
     [ "$bl" = 0 ] && return 3
-    runner=$(mktemp "$WORK/stage.XXXXXX.sh")
+    runner=$(mktemp "$WORK/stage.XXXXXX") && mv "$runner" "$runner.sh" && runner="$runner.sh"
     { echo '#!/usr/bin/env bash'
       # The options the block ships under. Under `set -u` alone a failing cp
       # would let the loop carry on and the case could still land the whole
