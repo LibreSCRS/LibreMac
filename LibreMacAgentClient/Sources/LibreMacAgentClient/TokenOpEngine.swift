@@ -108,10 +108,11 @@ public struct TokenOpEngine {
         case .notSupported: return .notImplemented
         case .cancelled:
             // The person dismissed the prompt. CryptoTokenKit has a code for
-            // exactly this; answering `communicationError` tells ctkd the
-            // device broke, and a loader shown a device error stops offering
-            // the token at all instead of letting the person answer on the
-            // second try.
+            // exactly this. Answering `communicationError` instead reports a
+            // device failure for what was an answer, and what a caller then
+            // does with a token it believes broken is its own choice, not one
+            // this process can take back; `canceledByUser` says only that this
+            // attempt was declined and leaves the second try open.
             return .canceledByUser
         case .rateLimited, .communicationError, .unknownConfigKey, .readOnlyConfig,
              .invalidConfigValue, .unsupportedProtocol, .unsupportedOnThisCard,

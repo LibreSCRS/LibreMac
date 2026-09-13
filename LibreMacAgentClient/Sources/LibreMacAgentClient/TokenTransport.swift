@@ -20,8 +20,9 @@ public enum TokenTransportError: Error, Equatable {
 ///
 /// `canceledByUser` is the one member that is not a failure: it is the person
 /// answering the prompt with "no". It is carried separately because the
-/// alternative — folding it into `communicationError` — is what made a
-/// dismissed PIN prompt look to ctkd like a broken reader.
+/// alternative — folding it into `communicationError` — reports a dismissed
+/// PIN prompt as a device failure, which is a different claim about the reader
+/// and the card than the one the person actually made.
 public enum TKErrorMapped: Sendable, Equatable {
     case tokenNotFound, authenticationFailed, objectNotFound
     case authenticationNeeded, communicationError, notImplemented

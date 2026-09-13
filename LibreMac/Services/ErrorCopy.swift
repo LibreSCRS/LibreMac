@@ -103,8 +103,9 @@ public enum ErrorCopy {
     /// is not a failure at all; every OTHER name keeps the pre-existing client
     /// posture of rendering as a communication failure. Exhaustive over
     /// `SyncError` (no `default`) so an appended wire name forces a copy
-    /// decision here — a mechanism that worked as designed and that nobody
-    /// ran, which is how `Cancelled` got this far.
+    /// decision here rather than inheriting the communication answer
+    /// unnoticed — a mechanism that bites only when this file is rebuilt
+    /// against a wire vocabulary that has grown a name.
     public static func localizedText(for error: SyncError) -> LocalizedText {
         switch error {
         case .unsupportedOnThisCard:

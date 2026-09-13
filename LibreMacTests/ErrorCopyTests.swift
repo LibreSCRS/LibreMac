@@ -70,11 +70,11 @@ struct ErrorCopyTests {
     ///
     /// It lives in its own list rather than in the one above because the
     /// fallback test below iterates `SyncError.allCases`, so an appended name
-    /// is swept into it AUTOMATICALLY — and for a while that is exactly what
-    /// happened here: this suite asserted that a cancel must render
-    /// "Communication with the card reader failed.", pinning the one outcome
-    /// the wire gained the name to prevent. A test that survives a decision
-    /// and then works against it is worse than no test.
+    /// is swept into it AUTOMATICALLY. Left in that loop, `.cancelled` would
+    /// be asserted to render "Communication with the card reader failed." —
+    /// pinning the one outcome the separate wire name exists to prevent. A
+    /// test that pins the answer a name was added to avoid is worse than no
+    /// test.
     private static let nonFailureErrors: [SyncError] = [.cancelled]
 
     @Test("each credential entry error yields its own distinct copy")
