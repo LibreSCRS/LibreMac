@@ -1412,6 +1412,329 @@
         }
       }
     },
+    "lc-annex-additional-data" : {
+      "comment" : "lc-annex-additional-data",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Additional Personal Data"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Додатни лични подаци"
+          }
+        }
+      }
+    },
+    "lc-annex-address-date" : {
+      "comment" : "lc-annex-address-date",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address Date"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датум промене адресе"
+          }
+        }
+      }
+    },
+    "lc-annex-address-label" : {
+      "comment" : "lc-annex-address-label",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Адреса"
+          }
+        }
+      }
+    },
+    "lc-annex-apartment-number" : {
+      "comment" : "lc-annex-apartment-number",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apartment"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Стан"
+          }
+        }
+      }
+    },
+    "lc-annex-authenticity" : {
+      "comment" : "lc-annex-authenticity",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data Authenticity"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аутентичност података"
+          }
+        }
+      }
+    },
+    "lc-annex-community" : {
+      "comment" : "lc-annex-community",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Community"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Општина"
+          }
+        }
+      }
+    },
+    "lc-annex-community-of-birth" : {
+      "comment" : "lc-annex-community-of-birth",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Community of Birth"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Општина рођења"
+          }
+        }
+      }
+    },
+    "lc-annex-document-serial" : {
+      "comment" : "lc-annex-document-serial",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Document Number"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Број документа"
+          }
+        }
+      }
+    },
+    "lc-annex-entrance" : {
+      "comment" : "lc-annex-entrance",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entrance"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Улаз"
+          }
+        }
+      }
+    },
+    "lc-annex-floor" : {
+      "comment" : "lc-annex-floor",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Floor"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Спрат"
+          }
+        }
+      }
+    },
+    "lc-annex-house-letter" : {
+      "comment" : "lc-annex-house-letter",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Letter"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слово"
+          }
+        }
+      }
+    },
+    "lc-annex-house-number" : {
+      "comment" : "lc-annex-house-number",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Number"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кућни број"
+          }
+        }
+      }
+    },
+    "lc-annex-integrity" : {
+      "comment" : "lc-annex-integrity",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data Integrity"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Интегритет података"
+          }
+        }
+      }
+    },
+    "lc-annex-parent-given-name" : {
+      "comment" : "lc-annex-parent-given-name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parent Given Name"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Име родитеља"
+          }
+        }
+      }
+    },
+    "lc-annex-place" : {
+      "comment" : "lc-annex-place",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Place"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Место"
+          }
+        }
+      }
+    },
+    "lc-annex-state" : {
+      "comment" : "lc-annex-state",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "State"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Држава"
+          }
+        }
+      }
+    },
+    "lc-annex-state-of-birth" : {
+      "comment" : "lc-annex-state-of-birth",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "State of Birth"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Држава рођења"
+          }
+        }
+      }
+    },
+    "lc-annex-street" : {
+      "comment" : "lc-annex-street",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Street"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Улица"
+          }
+        }
+      }
+    },
+    "lc-annex-verification" : {
+      "comment" : "lc-annex-verification",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Additional Data Verification"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Провера додатних података"
+          }
+        }
+      }
+    },
     "lc-btn-abort" : {
       "comment" : "lc-btn-abort",
       "localizations" : {
@@ -1646,6 +1969,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Да"
+          }
+        }
+      }
+    },
+    "lc-card-retry-button" : {
+      "comment" : "lc-card-retry-button",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the card again"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покрени читање поново"
+          }
+        }
+      }
+    },
+    "lc-card-retry-title" : {
+      "comment" : "lc-card-retry-title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The card was not read"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Картица није прочитана"
           }
         }
       }
@@ -4064,6 +4421,23 @@
         }
       }
     },
+    "lc-emrtd-auth-bac" : {
+      "comment" : "lc-emrtd-auth-bac",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BAC"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BAC"
+          }
+        }
+      }
+    },
     "lc-emrtd-auth-can-desc" : {
       "comment" : "lc-emrtd-auth-can-desc",
       "localizations" : {
@@ -4111,6 +4485,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "CAN"
+          }
+        }
+      }
+    },
+    "lc-emrtd-auth-chip" : {
+      "comment" : "lc-emrtd-auth-chip",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chip Authentication"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аутентификација чипа"
           }
         }
       }
@@ -4251,6 +4642,57 @@
         }
       }
     },
+    "lc-emrtd-auth-none" : {
+      "comment" : "lc-emrtd-auth-none",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None (plain read)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Без заштите (отворено читање)"
+          }
+        }
+      }
+    },
+    "lc-emrtd-auth-pace-can" : {
+      "comment" : "lc-emrtd-auth-pace-can",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PACE (CAN)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PACE (CAN)"
+          }
+        }
+      }
+    },
+    "lc-emrtd-auth-pace-mrz" : {
+      "comment" : "lc-emrtd-auth-pace-mrz",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PACE (MRZ)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PACE (MRZ)"
+          }
+        }
+      }
+    },
     "lc-emrtd-auth-required" : {
       "comment" : "lc-emrtd-auth-required",
       "localizations" : {
@@ -4383,6 +4825,91 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Контакти"
+          }
+        }
+      }
+    },
+    "lc-emrtd-csca-anchors-undecodable" : {
+      "comment" : "lc-emrtd-csca-anchors-undecodable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The country signing certificate store holds no usable certificate. Import the master list again in Settings → Trust."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Складиште сертификата државних издавалаца не садржи ниједан употребљив сертификат. Поново увезите мастер листу у Подешавања → Поверење."
+          }
+        }
+      }
+    },
+    "lc-emrtd-csca-anchors-unreadable" : {
+      "comment" : "lc-emrtd-csca-anchors-unreadable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The country signing certificate store could not be read. Check that its path exists and is readable, or import a master list again in Settings → Trust, then read the document again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Складиште сертификата државних издавалаца не може да се прочита. Проверите да ли његова путања постоји и да ли је читљива, или поново увезите мастер листу у Подешавања → Поверење, па поново прочитајте документ."
+          }
+        }
+      }
+    },
+    "lc-emrtd-csca-chain-failed" : {
+      "comment" : "lc-emrtd-csca-chain-failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This document's signer does not lead to the country signing certificate held for its issuer. Do not rely on this document; have the issuing authority check it. If the certificates installed in Settings → Trust are out of date, import a current master list there."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписник овог документа не води до сертификата државног издаваоца који се чува за његовог издаваоца. Не ослањајте се на овај документ; нека га провери орган који га је издао. Ако су сертификати инсталирани у Подешавања → Поверење застарели, увезите тамо актуелну мастер листу."
+          }
+        }
+      }
+    },
+    "lc-emrtd-csca-no-anchor-for-issuer" : {
+      "comment" : "lc-emrtd-csca-no-anchor-for-issuer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No country signing certificate is held for the country that issued this document. Import that country's master list in Settings → Trust."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нема сертификата државног издаваоца за државу која је издала овај документ. Увезите мастер листу те државе у Подешавања → Поверење."
+          }
+        }
+      }
+    },
+    "lc-emrtd-csca-not-configured" : {
+      "comment" : "lc-emrtd-csca-not-configured",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No country signing certificates have been imported. Import a master list in Settings → Trust, then read the document again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниједан сертификат државног издаваоца није увезен. Увезите мастер листу у Подешавања → Поверење, па поново прочитајте документ."
           }
         }
       }
@@ -5046,6 +5573,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Безбедносни статус"
+          }
+        }
+      }
+    },
+    "lc-emrtd-security-status-travel-doc" : {
+      "comment" : "lc-emrtd-security-status-travel-doc",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travel Document Verification"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Провера података путне исправе"
           }
         }
       }
@@ -9096,6 +9640,312 @@
         }
       }
     },
+    "lc-settings-config-undecided" : {
+      "comment" : "lc-settings-config-undecided",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The authorization service did not answer. Nothing was changed; try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сервис за ауторизацију није одговорио. Ништа није промењено; покушајте поново."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-anchors" : {
+      "comment" : "lc-settings-csca-anchors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Country Signing Anchors"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сидра државних издавалаца"
+          }
+        }
+      }
+    },
+    "lc-settings-csca-import" : {
+      "comment" : "lc-settings-csca-import",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Master List…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Увези мастер листу…"
+          }
+        }
+      }
+    },
+    "lc-settings-csca-import-filter" : {
+      "comment" : "lc-settings-csca-import-filter",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Master lists (*.ml *.mls *.ldif);;All files (*)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мастер листе (*.ml *.mls *.ldif);;Све датотеке (*)"
+          }
+        }
+      }
+    },
+    "lc-settings-csca-import-title" : {
+      "comment" : "lc-settings-csca-import-title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select an ICAO Master List"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изаберите ICAO мастер листу"
+          }
+        }
+      }
+    },
+    "lc-settings-csca-installed" : {
+      "comment" : "lc-settings-csca-installed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The master list was installed. Read the document again for the new anchors to take effect."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мастер листа је инсталирана. Поново прочитајте документ да би нова сидра ступила на снагу."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-manual" : {
+      "comment" : "lc-settings-csca-manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading it means accepting ICAO's terms and conditions, so LibreCelik never fetches a master list by itself. Download the file, then import it here."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Преузимање подразумева прихватање ICAO услова коришћења, па LibreCelik никада сам не преузима мастер листу. Преузмите датотеку, па је овде увезите."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-refused" : {
+      "comment" : "lc-settings-csca-refused",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was installed: this file is not a signed ICAO master list, or the signature over it did not verify. Check that you chose the master list itself and not another file from the download."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ништа није инсталирано: ова датотека није потписана ICAO мастер листа, или се потпис над њом не проверава. Проверите да ли сте изабрали саму мастер листу, а не неку другу датотеку из преузимања."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-replayed" : {
+      "comment" : "lc-settings-csca-replayed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was installed: this list is not newer than the one already in place. The same list is already installed, and an older one would roll the anchors back."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ништа није инсталирано: ова листа није новија од оне која је већ на снази. Иста листа је већ инсталирана, а старија би вратила сидра уназад."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-rollback-off" : {
+      "comment" : "lc-settings-csca-rollback-off",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This list carries no signing time, so a later list cannot be checked for rolling the anchors back."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова листа не носи време потписивања, па се за каснију листу не може проверити да ли враћа сидра уназад."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-rollback-on" : {
+      "comment" : "lc-settings-csca-rollback-on",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A later list that is not newer than this one will be refused."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каснија листа која није новија од ове биће одбијена."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-state-anchors" : {
+      "comment" : "lc-settings-csca-state-anchors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installed anchors: %1. Issuing countries: %2."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Инсталирана сидра: %1. Државе издаваоци: %2."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-state-none" : {
+      "comment" : "lc-settings-csca-state-none",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is installed: there are no country signing anchors. Import a master list to install them."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ништа није инсталирано: нема сидара државних издавалаца. Увезите мастер листу да бисте их инсталирали."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-state-publishers" : {
+      "comment" : "lc-settings-csca-state-publishers",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These anchors come from more than one publisher, so no single publisher or signing date is shown."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ова сидра потичу од више објављивача, па се не приказују ни појединачни објављивач ни датум потписа."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-state-signed" : {
+      "comment" : "lc-settings-csca-state-signed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List signed: %1"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Листа потписана: %1"
+          }
+        }
+      }
+    },
+    "lc-settings-csca-unreadable" : {
+      "comment" : "lc-settings-csca-unreadable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That file could not be opened. Check that it exists and is readable."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Та датотека не може да се отвори. Проверите да ли постоји и да ли је читљива."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-what" : {
+      "comment" : "lc-settings-csca-what",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A master list is a signed collection of the country signing certificates that passports are checked against."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мастер листа је потписана збирка сертификата државних издавалаца према којима се пасоши проверавају."
+          }
+        }
+      }
+    },
+    "lc-settings-csca-where" : {
+      "comment" : "lc-settings-csca-where",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download it from the ICAO Public Key Directory at %1 — take the master list download, the file named icaopkd-002-complete-NNN.ldif. It carries every publishing country's master list, and they are installed in one import. The download is public: no PKD membership is needed."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Преузмите је из ICAO директоријума јавних кључева на %1 — изаберите преузимање мастер листа, датотеку под називом icaopkd-002-complete-NNN.ldif. Она садржи мастер листу сваке државе која их објављује, а све се инсталирају једним увозом. Преузимање је јавно: чланство у PKD-у није потребно."
+          }
+        }
+      }
+    },
     "lc-settings-default-level" : {
       "comment" : "lc-settings-default-level",
       "localizations" : {
@@ -9194,6 +10044,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Последњи коришћени TSA сервер:"
+          }
+        }
+      }
+    },
+    "lc-settings-legacy-import-dropped" : {
+      "comment" : "lc-settings-legacy-import-dropped",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings from version 4.2 are no longer imported. The agent keeps them now; set them again here."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подешавања из верзије 4.2 се више не увозе. Сада их чува агент; подесите их поново овде."
           }
         }
       }
@@ -9357,13 +10224,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trusted Lists:"
+            "value" : "Trusted Lists"
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Листе поверења:"
+            "value" : "Листе поверења"
           }
         }
       }
