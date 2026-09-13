@@ -7,11 +7,12 @@
 #
 # Fixtures are named the way CMake names the real thing: the REAL file carries
 # the full version triple, the soname symlink carries SOVERSION alone, and the
-# unversioned link points at the soname. The triple and the soname integer are
-# deliberately given DIFFERENT numbers here: they track different events -- an
-# ABI layout change, not a release -- and that disagreement is what makes these
-# cases measure the SONAME. Over a prefix where the two agreed, a helper that
-# read the integer off the real file would answer correctly and pass.
+# unversioned link points at the soname. Some fixtures give the triple and the
+# soname integer DIFFERENT numbers, tracking different events -- an ABI layout
+# change, not a release. Where the fixture gives them different numbers, a
+# helper reading the integer off the real file answers the wrong one; that is
+# what makes those cases measure the SONAME rather than the triple. Over a
+# prefix where the two agree, such a helper would answer correctly and pass.
 #
 # Most of the cases are not about the helper at all. One is a perturbation: it
 # breaks the helper on purpose and requires the suite to notice, because "5 of 5
@@ -206,8 +207,8 @@ fi
 # to, rejects `a text` written on one line, exits 1 and writes NOTHING, and does
 # not read `\n` in a replacement as a newline either. The guard was `cmp -s`,
 # which asks whether the copy DIFFERS -- and an empty file differs. Measured
-# under a sed reproducing that one difference, all five of the R5 perturbations
-# below reported themselves caught having perturbed nothing, and the suite
+# under a sed reproducing that one difference, the R5 perturbations below
+# reported themselves caught having perturbed nothing, and the suite
 # printed its full count with every guard vacuous.
 #
 # So: the splice is head/printf/tail, which is POSIX, substitutions carry no
