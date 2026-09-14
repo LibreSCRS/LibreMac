@@ -548,5 +548,101 @@
         <source>Add a timestamping authority</source>
         <translation>Додавање ауторитета за временски жиг</translation>
     </message>
+    <message id="prompter_title_pin">
+        <source>PIN</source>
+        <translation>ПИН</translation>
+    </message>
+    <message id="prompter_title_can">
+        <source>Card Access Number</source>
+        <translation>Приступни број картице</translation>
+    </message>
+    <message id="prompter_title_mrz">
+        <source>Machine-Readable Zone</source>
+        <translation>Машински читљива зона</translation>
+    </message>
+    <message id="prompter_title_change_pin">
+        <source>Change PIN</source>
+        <translation>Промена ПИН-а</translation>
+    </message>
+    <message id="prompter_heading_pin">
+        <source>Enter your PIN</source>
+        <translation>Унесите ПИН</translation>
+    </message>
+    <message id="prompter_heading_can">
+        <source>Enter your Card Access Number (CAN)</source>
+        <translation>Унесите приступни број картице (CAN)</translation>
+    </message>
+    <message id="prompter_heading_mrz">
+        <source>Enter your Machine-Readable Zone (MRZ)</source>
+        <translation>Унесите машински читљиву зону (MRZ)</translation>
+    </message>
+    <message id="prompter_heading_change_pin">
+        <source>Change your PIN</source>
+        <translation>Промените ПИН</translation>
+    </message>
+    <message id="prompter_button_ok">
+        <source>OK</source>
+        <translation>У реду</translation>
+    </message>
+    <message id="prompter_button_cancel">
+        <source>Cancel</source>
+        <translation>Откажи</translation>
+    </message>
+    <message id="prompter_label_current_pin">
+        <source>Current PIN</source>
+        <translation>Тренутни ПИН</translation>
+    </message>
+    <message id="prompter_label_new_pin">
+        <source>New PIN</source>
+        <translation>Нови ПИН</translation>
+    </message>
+    <message id="prompter_label_confirm_pin">
+        <source>Confirm new PIN</source>
+        <translation>Потврдите нови ПИН</translation>
+    </message>
+    <message id="prompter_requested_by">
+        <source>Requested by:</source>
+        <translation>Подносилац захтева:</translation>
+    </message>
+    <message id="prompter_document">
+        <source>Document:</source>
+        <translation>Документ:</translation>
+    </message>
+    <message id="prompter_retry_generic">
+        <source>The value you entered was not accepted. Please try again.</source>
+        <translation>Унета вредност није прихваћена. Покушајте поново.</translation>
+    </message>
+    <message id="prompter_retry_rejected">
+        <source>Your previous entry was not accepted. Please try again.</source>
+        <translation>Претходни унос није прихваћен. Покушајте поново.</translation>
+    </message>
+    <message id="prompter_trust_import">
+        <source>Install the country signing certificates from the offered file, replacing the ones this computer checks passports against.</source>
+        <translation>Инсталирај сертификате за потписивање земаља из понуђене датотеке, уместо оних према којима овај рачунар проверава пасоше.</translation>
+    </message>
+    <message id="prompter_trust_forget">
+        <source>Remove every country signing certificate this computer holds.</source>
+        <translation>Уклони све сертификате за потписивање земаља које овај рачунар чува.</translation>
+    </message>
+    <message id="prompter_trust_tsa">
+        <source>Change the timestamping authorities this computer will use.</source>
+        <translation>Промени временске ауторитете које ће овај рачунар користити.</translation>
+    </message>
+    <message id="prompter_trust_tsl">
+        <source>Change the trusted lists this computer accepts signatures against.</source>
+        <translation>Промени поуздане листе према којима овај рачунар прихвата потписе.</translation>
+    </message>
+    <message id="prompter_trust_generic">
+        <source>Change a trust setting on this computer.</source>
+        <translation>Промени подешавање поверења на овом рачунару.</translation>
+    </message>
+    <message id="prompter_confirm_requested_by">
+        <source>(requested by “%@”)</source>
+        <translation>(захтева „%@“)</translation>
+    </message>
+    <message id="librescrs.error.preRead.authFailed">
+        <source>Card authentication failed before reading could begin.</source>
+        <translation>Аутентификација са картицом није успела пре почетка читања.</translation>
+    </message>
 </context>
 </TS>

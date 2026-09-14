@@ -548,5 +548,101 @@
         <source>Add a timestamping authority</source>
         <translation>Add a timestamping authority</translation>
     </message>
+    <message id="prompter_title_pin">
+        <source>PIN</source>
+        <translation>PIN</translation>
+    </message>
+    <message id="prompter_title_can">
+        <source>Card Access Number</source>
+        <translation>Card Access Number</translation>
+    </message>
+    <message id="prompter_title_mrz">
+        <source>Machine-Readable Zone</source>
+        <translation>Machine-Readable Zone</translation>
+    </message>
+    <message id="prompter_title_change_pin">
+        <source>Change PIN</source>
+        <translation>Change PIN</translation>
+    </message>
+    <message id="prompter_heading_pin">
+        <source>Enter your PIN</source>
+        <translation>Enter your PIN</translation>
+    </message>
+    <message id="prompter_heading_can">
+        <source>Enter your Card Access Number (CAN)</source>
+        <translation>Enter your Card Access Number (CAN)</translation>
+    </message>
+    <message id="prompter_heading_mrz">
+        <source>Enter your Machine-Readable Zone (MRZ)</source>
+        <translation>Enter your Machine-Readable Zone (MRZ)</translation>
+    </message>
+    <message id="prompter_heading_change_pin">
+        <source>Change your PIN</source>
+        <translation>Change your PIN</translation>
+    </message>
+    <message id="prompter_button_ok">
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message id="prompter_button_cancel">
+        <source>Cancel</source>
+        <translation>Cancel</translation>
+    </message>
+    <message id="prompter_label_current_pin">
+        <source>Current PIN</source>
+        <translation>Current PIN</translation>
+    </message>
+    <message id="prompter_label_new_pin">
+        <source>New PIN</source>
+        <translation>New PIN</translation>
+    </message>
+    <message id="prompter_label_confirm_pin">
+        <source>Confirm new PIN</source>
+        <translation>Confirm new PIN</translation>
+    </message>
+    <message id="prompter_requested_by">
+        <source>Requested by:</source>
+        <translation>Requested by:</translation>
+    </message>
+    <message id="prompter_document">
+        <source>Document:</source>
+        <translation>Document:</translation>
+    </message>
+    <message id="prompter_retry_generic">
+        <source>The value you entered was not accepted. Please try again.</source>
+        <translation>The value you entered was not accepted. Please try again.</translation>
+    </message>
+    <message id="prompter_retry_rejected">
+        <source>Your previous entry was not accepted. Please try again.</source>
+        <translation>Your previous entry was not accepted. Please try again.</translation>
+    </message>
+    <message id="prompter_trust_import">
+        <source>Install the country signing certificates from the offered file, replacing the ones this computer checks passports against.</source>
+        <translation>Install the country signing certificates from the offered file, replacing the ones this computer checks passports against.</translation>
+    </message>
+    <message id="prompter_trust_forget">
+        <source>Remove every country signing certificate this computer holds.</source>
+        <translation>Remove every country signing certificate this computer holds.</translation>
+    </message>
+    <message id="prompter_trust_tsa">
+        <source>Change the timestamping authorities this computer will use.</source>
+        <translation>Change the timestamping authorities this computer will use.</translation>
+    </message>
+    <message id="prompter_trust_tsl">
+        <source>Change the trusted lists this computer accepts signatures against.</source>
+        <translation>Change the trusted lists this computer accepts signatures against.</translation>
+    </message>
+    <message id="prompter_trust_generic">
+        <source>Change a trust setting on this computer.</source>
+        <translation>Change a trust setting on this computer.</translation>
+    </message>
+    <message id="prompter_confirm_requested_by">
+        <source>(requested by “%@”)</source>
+        <translation>(requested by “%@”)</translation>
+    </message>
+    <message id="librescrs.error.preRead.authFailed">
+        <source>Card authentication failed before reading could begin.</source>
+        <translation>Card authentication failed before reading could begin.</translation>
+    </message>
 </context>
 </TS>

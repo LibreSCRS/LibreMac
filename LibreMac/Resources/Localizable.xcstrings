@@ -14111,6 +14111,23 @@
         }
       }
     },
+    "librescrs.error.preRead.authFailed" : {
+      "comment" : "librescrs.error.preRead.authFailed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card authentication failed before reading could begin."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аутентификација са картицом није успела пре почетка читања."
+          }
+        }
+      }
+    },
     "librescrs.pin.blocked.issuer" : {
       "comment" : "librescrs.pin.blocked.issuer",
       "localizations" : {
@@ -14141,6 +14158,397 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Активацију кључа за потписивање обавља издавалац."
+          }
+        }
+      }
+    },
+    "prompter_button_cancel" : {
+      "comment" : "prompter_button_cancel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Откажи"
+          }
+        }
+      }
+    },
+    "prompter_button_ok" : {
+      "comment" : "prompter_button_ok",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У реду"
+          }
+        }
+      }
+    },
+    "prompter_confirm_requested_by" : {
+      "comment" : "prompter_confirm_requested_by",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(requested by “%@”)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(захтева „%@“)"
+          }
+        }
+      }
+    },
+    "prompter_document" : {
+      "comment" : "prompter_document",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Document:"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Документ:"
+          }
+        }
+      }
+    },
+    "prompter_heading_can" : {
+      "comment" : "prompter_heading_can",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter your Card Access Number (CAN)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Унесите приступни број картице (CAN)"
+          }
+        }
+      }
+    },
+    "prompter_heading_change_pin" : {
+      "comment" : "prompter_heading_change_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change your PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Промените ПИН"
+          }
+        }
+      }
+    },
+    "prompter_heading_mrz" : {
+      "comment" : "prompter_heading_mrz",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter your Machine-Readable Zone (MRZ)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Унесите машински читљиву зону (MRZ)"
+          }
+        }
+      }
+    },
+    "prompter_heading_pin" : {
+      "comment" : "prompter_heading_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter your PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Унесите ПИН"
+          }
+        }
+      }
+    },
+    "prompter_label_confirm_pin" : {
+      "comment" : "prompter_label_confirm_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm new PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потврдите нови ПИН"
+          }
+        }
+      }
+    },
+    "prompter_label_current_pin" : {
+      "comment" : "prompter_label_current_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тренутни ПИН"
+          }
+        }
+      }
+    },
+    "prompter_label_new_pin" : {
+      "comment" : "prompter_label_new_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нови ПИН"
+          }
+        }
+      }
+    },
+    "prompter_requested_by" : {
+      "comment" : "prompter_requested_by",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requested by:"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подносилац захтева:"
+          }
+        }
+      }
+    },
+    "prompter_retry_generic" : {
+      "comment" : "prompter_retry_generic",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The value you entered was not accepted. Please try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Унета вредност није прихваћена. Покушајте поново."
+          }
+        }
+      }
+    },
+    "prompter_retry_rejected" : {
+      "comment" : "prompter_retry_rejected",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your previous entry was not accepted. Please try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Претходни унос није прихваћен. Покушајте поново."
+          }
+        }
+      }
+    },
+    "prompter_title_can" : {
+      "comment" : "prompter_title_can",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card Access Number"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приступни број картице"
+          }
+        }
+      }
+    },
+    "prompter_title_change_pin" : {
+      "comment" : "prompter_title_change_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Промена ПИН-а"
+          }
+        }
+      }
+    },
+    "prompter_title_mrz" : {
+      "comment" : "prompter_title_mrz",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Machine-Readable Zone"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Машински читљива зона"
+          }
+        }
+      }
+    },
+    "prompter_title_pin" : {
+      "comment" : "prompter_title_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ПИН"
+          }
+        }
+      }
+    },
+    "prompter_trust_forget" : {
+      "comment" : "prompter_trust_forget",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove every country signing certificate this computer holds."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уклони све сертификате за потписивање земаља које овај рачунар чува."
+          }
+        }
+      }
+    },
+    "prompter_trust_generic" : {
+      "comment" : "prompter_trust_generic",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change a trust setting on this computer."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Промени подешавање поверења на овом рачунару."
+          }
+        }
+      }
+    },
+    "prompter_trust_import" : {
+      "comment" : "prompter_trust_import",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install the country signing certificates from the offered file, replacing the ones this computer checks passports against."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Инсталирај сертификате за потписивање земаља из понуђене датотеке, уместо оних према којима овај рачунар проверава пасоше."
+          }
+        }
+      }
+    },
+    "prompter_trust_tsa" : {
+      "comment" : "prompter_trust_tsa",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change the timestamping authorities this computer will use."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Промени временске ауторитете које ће овај рачунар користити."
+          }
+        }
+      }
+    },
+    "prompter_trust_tsl" : {
+      "comment" : "prompter_trust_tsl",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change the trusted lists this computer accepts signatures against."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Промени поуздане листе према којима овај рачунар прихвата потписе."
           }
         }
       }

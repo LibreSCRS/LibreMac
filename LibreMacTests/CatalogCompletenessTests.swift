@@ -98,6 +98,13 @@ struct CatalogCompletenessTests {
     private static let guidanceIds: Set<String> = [
         "librescrs.pin.blocked.issuer",
         "librescrs.pin.keyActivation.issuer",
+        // The only retry `lastError` the agent emits on the credential path,
+        // resolved by the prompter under the wire key itself. Listed here
+        // rather than left to the id-set invariant because that invariant
+        // stays green if the key is dropped from BOTH catalogs — which is
+        // exactly the shape that leaves a Serbian dialog with an English
+        // sentence in it.
+        "librescrs.error.preRead.authFailed",
     ]
 
     /// The reader-picker ids the multi-reader UI renders.
