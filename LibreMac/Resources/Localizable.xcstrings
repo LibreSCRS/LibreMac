@@ -14349,6 +14349,57 @@
         }
       }
     },
+    "prompter_reader" : {
+      "comment" : "prompter_reader",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reader: %@"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Читач: %@"
+          }
+        }
+      }
+    },
+    "prompter_reader_contact" : {
+      "comment" : "prompter_reader_contact",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "contact"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "контактни"
+          }
+        }
+      }
+    },
+    "prompter_reader_contactless" : {
+      "comment" : "prompter_reader_contactless",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "contactless"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "бесконтактни"
+          }
+        }
+      }
+    },
     "prompter_requested_by" : {
       "comment" : "prompter_requested_by",
       "localizations" : {

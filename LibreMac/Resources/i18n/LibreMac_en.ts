@@ -636,6 +636,18 @@
         <source>Change a trust setting on this computer.</source>
         <translation>Change a trust setting on this computer.</translation>
     </message>
+    <message id="prompter_reader">
+        <source>Reader: %@</source>
+        <translation>Reader: %@</translation>
+    </message>
+    <message id="prompter_reader_contact">
+        <source>contact</source>
+        <translation>contact</translation>
+    </message>
+    <message id="prompter_reader_contactless">
+        <source>contactless</source>
+        <translation>contactless</translation>
+    </message>
     <message id="prompter_confirm_requested_by">
         <source>(requested by “%@”)</source>
         <translation>(requested by “%@”)</translation>
