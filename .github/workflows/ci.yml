@@ -37,6 +37,14 @@ jobs:
         # announced itself to the agent as LibreMac/0.1.0.
         run: ./ci/scripts/check-version-surfaces.sh
 
+      - name: Prove the release-lockstep check still fails when it should
+        run: ./ci/scripts/check-release-lockstep.selftest.sh
+
+      - name: CHANGELOG and VERSION agree on the version this tree is heading for
+        # Nothing measured this here: CHANGELOG said 5.0.0 and VERSION said
+        # 5.0.0, and the two could have drifted apart in the next bump unseen.
+        run: ./ci/scripts/check-release-lockstep.sh "$(head -n1 VERSION | tr -d '[:space:]')"
+
   bundle-scripts:
     # bundle-agent.sh runs nowhere in CI (see the note above), so the one thing
     # in it that is pure shell -- which LibreMiddleware soname to stage -- gets
