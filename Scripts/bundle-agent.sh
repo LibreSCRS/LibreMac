@@ -10,6 +10,7 @@
 # first, then point this script at the resulting .app.
 #
 # Layout staged:
+#   Contents/Resources/certificates/ <- LM_LIB_PREFIX/../share/librescrs/certificates
 #   Contents/MacOS/librescrs-agent           <- LIBREDARWIN_PREFIX/agent/librescrs-agent
 #   Contents/MacOS/librescrs-prompter        <- LIBREDARWIN_PREFIX/prompter/librescrs-prompter
 #   Contents/Frameworks/libLibreSCRS_*.dylib <- LM_LIB_PREFIX/libLibreSCRS_*.<soname>.dylib
@@ -17,7 +18,6 @@
 #   Contents/PlugIns/librescrs/*.dylib       <- LM_LIB_PREFIX/librescrs/plugins/*.dylib
 #   Contents/Library/LaunchAgents/org.librescrs.{agent,prompter}.plist <- Packaging/
 #   Contents/Resources/librescrs-agent.version <- stamped from the LibreDarwin build tree
-#   Contents/Resources/certificates/ <- LM_LIB_PREFIX/../share/librescrs/certificates
 #
 # Not staged by this script but signed by it: Contents/PlugIns/LibreMacToken.appex
 # is nested into the host .app by the Xcode build itself (LibreMacToken is a
