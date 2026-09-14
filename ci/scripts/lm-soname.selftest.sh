@@ -492,6 +492,11 @@ mkdir -p "$WORK/whole/pkcs11" "$WORK/whole/librescrs/plugins"
 : > "$WORK/whole/libStale.4.dylib"
 : > "$WORK/whole/libLibreSCRS_Legacy_Old.4.dylib"
 : > "$WORK/whole/libStale.5.dylib"
+# Trust anchors, a sibling of the lib/ prefix (LM_LIB_PREFIX/../share/librescrs/
+# certificates) exactly as a real LibreMiddleware install lays it out. Without
+# this the bundler's own hard check refuses the prefix before staging anything.
+mkdir -p "$WORK/share/librescrs/certificates"
+: > "$WORK/share/librescrs/certificates/x.pem"
 
 # The calls log is created by the CALLER and handed in: whole_run is used inside
 # a command substitution, so anything it assigns dies with the subshell.
@@ -532,7 +537,7 @@ recorded_targets() {  # recorded_targets <tool> <calls.log> -> sorted unique bas
         | sed 's|.*/||' | sort -u | tr '\n' ' ')"
     printf '%s' "${out% }"
 }
-WHOLE="Frameworks/libLibreSCRS_Auth.5.dylib Frameworks/libLibreSCRS_Card.5.dylib Frameworks/libLibreSCRS_Plugin.5.dylib Frameworks/libLibreSCRS_Trust.5.dylib Frameworks/librescrs-pkcs11.dylib Library/LaunchAgents/org.librescrs.agent.plist Library/LaunchAgents/org.librescrs.prompter.plist MacOS/librescrs-agent MacOS/librescrs-prompter PlugIns/librescrs/librescrs-eid.dylib PlugIns/librescrs/librescrs-emrtd.dylib Resources/librescrs-agent.version"
+WHOLE="Frameworks/libLibreSCRS_Auth.5.dylib Frameworks/libLibreSCRS_Card.5.dylib Frameworks/libLibreSCRS_Plugin.5.dylib Frameworks/libLibreSCRS_Trust.5.dylib Frameworks/librescrs-pkcs11.dylib Library/LaunchAgents/org.librescrs.agent.plist Library/LaunchAgents/org.librescrs.prompter.plist MacOS/librescrs-agent MacOS/librescrs-prompter PlugIns/librescrs/librescrs-eid.dylib PlugIns/librescrs/librescrs-emrtd.dylib Resources/certificates/x.pem Resources/librescrs-agent.version"
 # What each tool must have been handed, per tool. CODESIGNED is the inside-out
 # signing pass in full -- every staged dylib, the token extension and both
 # executables -- and RELINKED is the rpath fixup, which is the part of the

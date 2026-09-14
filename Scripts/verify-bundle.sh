@@ -96,6 +96,20 @@ else
     fail "Contents/Resources/librescrs-agent.version missing or empty"
 fi
 
+# ---------------------------------------------------------------- trust anchors
+# The agent builds its trust store from the anchors staged here; without them
+# every card verification reads "unknown", silently. Count, do not stat: an
+# empty directory is the same failure as a missing one. The depth is the
+# provider's, not the filesystem's: it loads the files directly in this
+# directory plus the ones in its immediate subdirectories and descends no
+# further, so a file staged deeper would be counted here and never read there.
+certs=$(find "$RESOURCES/certificates" -maxdepth 2 -type f \( -name '*.pem' -o -name '*.crt' -o -name '*.cer' -o -name '*.der' \) 2>/dev/null | wc -l | tr -d ' ')
+if [ "${certs:-0}" -eq 0 ]; then
+    fail "Contents/Resources/certificates is missing or empty: the agent would report every card verification as unknown"
+else
+    pass "trust anchors staged: $certs file(s)"
+fi
+
 # ---------------------------------------------------------------- entitlements
 check_entitlement() {
     local bin="$1" key="$2" want="$3"

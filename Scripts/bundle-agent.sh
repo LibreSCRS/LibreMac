@@ -17,6 +17,7 @@
 #   Contents/PlugIns/librescrs/*.dylib       <- LM_LIB_PREFIX/librescrs/plugins/*.dylib
 #   Contents/Library/LaunchAgents/org.librescrs.{agent,prompter}.plist <- Packaging/
 #   Contents/Resources/librescrs-agent.version <- stamped from the LibreDarwin build tree
+#   Contents/Resources/certificates/ <- LM_LIB_PREFIX/../share/librescrs/certificates
 #
 # Not staged by this script but signed by it: Contents/PlugIns/LibreMacToken.appex
 # is nested into the host .app by the Xcode build itself (LibreMacToken is a
@@ -87,6 +88,22 @@ PLUGINS="$APP_PATH/Contents/PlugIns/librescrs"
 LAUNCHAGENTS="$APP_PATH/Contents/Library/LaunchAgents"
 RESOURCES="$APP_PATH/Contents/Resources"
 mkdir -p "$MACOS" "$FRAMEWORKS" "$PLUGINS" "$LAUNCHAGENTS" "$RESOURCES"
+
+# ---------------------------------------------------------------- stage trust anchors
+# Trust anchors for the card plugins, from the same LibreMiddleware prefix the
+# dylibs come from. The provider inside the Trust library looks for
+# lib/../Resources/certificates relative to where it was loaded from, which in
+# this layout is exactly Contents/Resources/certificates. Cleared before it is
+# filled: a copy that merges into a directory surviving an incremental rebuild
+# keeps an anchor the prefix has since retired, and signs it again.
+CERTS_SRC="$LM_LIB_PREFIX/../share/librescrs/certificates"
+[ -d "$CERTS_SRC" ] || {
+    echo "bundle-agent: no trust anchors under $CERTS_SRC (install LibreMiddleware with its share/ tree)" >&2
+    exit 1
+}
+rm -rf "$RESOURCES/certificates"
+mkdir -p "$RESOURCES/certificates"
+cp -R "$CERTS_SRC"/. "$RESOURCES/certificates/"
 
 # ---------------------------------------------------------------- entitlements
 ENTS_DIR="$(mktemp -d)"
