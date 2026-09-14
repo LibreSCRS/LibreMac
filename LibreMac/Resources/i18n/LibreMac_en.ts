@@ -656,5 +656,13 @@
         <source>Card authentication failed before reading could begin.</source>
         <translation>Card authentication failed before reading could begin.</translation>
     </message>
+    <message id="prompter_batch_documents">
+        <source>Documents (as named by the requesting app):</source>
+        <translation>Documents (as named by the requesting app):</translation>
+    </message>
+    <message id="prompter_batch_more">
+        <source>(+%@ more)</source>
+        <translation>(+%@ more)</translation>
+    </message>
 </context>
 </TS>

@@ -14162,6 +14162,40 @@
         }
       }
     },
+    "prompter_batch_documents" : {
+      "comment" : "prompter_batch_documents",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Documents (as named by the requesting app):"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Документи (како их именује апликација која тражи):"
+          }
+        }
+      }
+    },
+    "prompter_batch_more" : {
+      "comment" : "prompter_batch_more",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(+%@ more)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(+%@ још)"
+          }
+        }
+      }
+    },
     "prompter_button_cancel" : {
       "comment" : "prompter_button_cancel",
       "localizations" : {

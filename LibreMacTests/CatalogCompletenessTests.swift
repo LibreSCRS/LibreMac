@@ -9,7 +9,8 @@
 //      only would silently render its fallback in the other);
 //   2. every `libremac_credentials_*` id the credentials surface renders
 //      (CredentialsView + ErrorCopy) exists in BOTH, plus the agent
-//      guidance keys the flows actually emit;
+//      guidance keys the flows actually emit and every `prompter_*` id the
+//      credential prompter looks up;
 //   3. no LibreMac-owned id enters the `lc-` namespace — ts2xcstrings
 //      merges per-locale values last-writer-wins, so id-set disjointness
 //      with LibreCelik is the real lossless-regeneration protection.
@@ -112,6 +113,53 @@ struct CatalogCompletenessTests {
         "libremac_reader_picker_title",
         "libremac_reader_iface_contact",
         "libremac_reader_iface_contactless",
+    ]
+
+    /// Every `prompter_*` id the agent-owned credential prompter reaches, from
+    /// both sides it reaches them by: the ids `PromptWindow.mm` /
+    /// `ConfirmAuthorizer.mm` look up directly, and the five trust sentences the
+    /// agent names on the wire as a `descriptionKey` for the panel to look up.
+    /// Listed because the id-set invariant alone stays green if a key is
+    /// dropped from BOTH catalogs — which is exactly the shape that leaves a
+    /// Serbian panel showing an English sentence.
+    private static let prompterIds: Set<String> = [
+        // window titles
+        "prompter_title_can",
+        "prompter_title_mrz",
+        "prompter_title_pin",
+        "prompter_title_change_pin",
+        // headings
+        "prompter_heading_can",
+        "prompter_heading_mrz",
+        "prompter_heading_pin",
+        "prompter_heading_change_pin",
+        // the change panel's three field captions
+        "prompter_label_current_pin",
+        "prompter_label_new_pin",
+        "prompter_label_confirm_pin",
+        // buttons
+        "prompter_button_cancel",
+        "prompter_button_ok",
+        // retry lines
+        "prompter_retry_generic",
+        "prompter_retry_rejected",
+        // the framing above the entry field
+        "prompter_requested_by",
+        "prompter_document",
+        "prompter_reader",
+        "prompter_reader_contact",
+        "prompter_reader_contactless",
+        // the batch-sign consent list
+        "prompter_batch_documents",
+        "prompter_batch_more",
+        // the device-owner confirmation
+        "prompter_confirm_requested_by",
+        // the trust sentences the agent sends as a descriptionKey
+        "prompter_trust_import",
+        "prompter_trust_forget",
+        "prompter_trust_tsa",
+        "prompter_trust_tsl",
+        "prompter_trust_generic",
     ]
 
     /// The refusal sentences the settings window renders when the agent
@@ -288,6 +336,40 @@ struct CatalogCompletenessTests {
         let sr = Set(try Self.ids(of: Self.srCatalog))
         #expect(Self.readerPickerIds.subtracting(en).isEmpty)
         #expect(Self.readerPickerIds.subtracting(sr).isEmpty)
+    }
+
+    @Test("every prompter id exists in both catalogs")
+    func prompterIdsAreComplete() throws {
+        let en = Set(try Self.ids(of: Self.enCatalog))
+        let sr = Set(try Self.ids(of: Self.srCatalog))
+        let missingInEn = Self.prompterIds.subtracting(en)
+        let missingInSr = Self.prompterIds.subtracting(sr)
+        #expect(missingInEn.isEmpty, "missing in en: \(missingInEn.sorted())")
+        #expect(missingInSr.isEmpty, "missing in sr: \(missingInSr.sorted())")
+    }
+
+    /// The prompter's own strings are rendered by AppKit's `stringWithFormat:`,
+    /// not by a named-placeholder substitution, so a translation that drops its
+    /// `%@` silently loses the value (the reader's model, the requesting app's
+    /// name, the count of documents the list left out) and one that doubles it
+    /// reads a vararg that was never passed. Neither shows up as a bad
+    /// translation until it is on screen — or, for the doubled one, until it
+    /// crashes.
+    @Test("the prompter's formatted strings carry exactly one %@ in both locales")
+    func prompterFormatStringsKeepOnePlaceholder() throws {
+        let formatted = [
+            "prompter_reader",
+            "prompter_confirm_requested_by",
+            "prompter_batch_more",
+        ]
+        for (locale, url) in [("en", Self.enCatalog), ("sr", Self.srCatalog)] {
+            let table = try Self.translations(of: url)
+            for id in formatted {
+                let value = try #require(table[id], "\(id) absent from \(locale)")
+                let count = value.components(separatedBy: "%@").count - 1
+                #expect(count == 1, "\(locale) \(id) carries \(count) %@, expected exactly 1: \(value)")
+            }
+        }
     }
 
     @Test("every settings refusal id exists in both catalogs")

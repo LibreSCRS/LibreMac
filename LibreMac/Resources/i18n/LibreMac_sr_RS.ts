@@ -656,5 +656,13 @@
         <source>Card authentication failed before reading could begin.</source>
         <translation>Аутентификација са картицом није успела пре почетка читања.</translation>
     </message>
+    <message id="prompter_batch_documents">
+        <source>Documents (as named by the requesting app):</source>
+        <translation>Документи (како их именује апликација која тражи):</translation>
+    </message>
+    <message id="prompter_batch_more">
+        <source>(+%@ more)</source>
+        <translation>(+%@ још)</translation>
+    </message>
 </context>
 </TS>
