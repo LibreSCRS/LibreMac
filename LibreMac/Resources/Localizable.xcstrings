@@ -10443,15 +10443,45 @@
       "comment" : "lc-sign-consent-hint",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You will confirm and enter your PIN in the system dialog %n times."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You will confirm and enter your PIN in the system dialog %lld time."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You will confirm and enter your PIN in the system dialog %lld times."
+                }
+              }
+            }
           }
         },
         "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You will confirm and enter your PIN in the system dialog %n times."
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "ПИН ћете потврдити и унети у системском прозору %lld пута."
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "ПИН ћете потврдити и унети у системском прозору %lld пут."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "ПИН ћете потврдити и унети у системском прозору %lld пута."
+                }
+              }
+            }
           }
         }
       }
@@ -11072,15 +11102,45 @@
       "comment" : "lc-sign-sequential-notice",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Each file is confirmed separately — %n confirmations."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Each file is confirmed separately — %lld confirmation."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Each file is confirmed separately — %lld confirmations."
+                }
+              }
+            }
           }
         },
         "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Each file is confirmed separately — %n confirmations."
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Сваки фајл се потврђује засебно — %lld потврде."
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Сваки фајл се потврђује засебно — %lld потврда."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Сваки фајл се потврђује засебно — %lld потврда."
+                }
+              }
+            }
           }
         }
       }
@@ -12160,15 +12220,45 @@
       "comment" : "libremac_credentials_outcome_invalidPin_attributed",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The {who} was not correct — {count} attempt(s) left."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The {who} was not correct — %lld attempt left."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The {who} was not correct — %lld attempts left."
+                }
+              }
+            }
           }
         },
         "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "{who} није тачан — преостало покушаја: {count}."
+          "variations" : {
+            "plural" : {
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "{who} није тачан — преостала су %lld покушаја."
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "{who} није тачан — преостао је %lld покушај."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "{who} није тачан — преостало је %lld покушаја."
+                }
+              }
+            }
           }
         }
       }

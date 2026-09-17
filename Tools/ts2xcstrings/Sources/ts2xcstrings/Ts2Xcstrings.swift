@@ -10,8 +10,26 @@ public struct StringUnit: Codable, Sendable {
     public var value: String
 }
 
+/// One locale's value for a key: either a single string, or — for a key the
+/// `.ts` source marks `numerus="yes"` — one string per plural category.
 public struct Localization: Codable, Sendable {
     public var stringUnit: StringUnit?
+    public var variations: PluralVariations?
+
+    public init(stringUnit: StringUnit? = nil, variations: PluralVariations? = nil) {
+        self.stringUnit = stringUnit
+        self.variations = variations
+    }
+}
+
+/// The catalog's plural container: CLDR category (`one` / `few` / `other`)
+/// to the string that category renders.
+public struct PluralVariations: Codable, Sendable {
+    public var plural: [String: Localization]
+
+    public init(plural: [String: Localization]) {
+        self.plural = plural
+    }
 }
 
 public struct StringEntry: Codable, Sendable {
@@ -33,7 +51,64 @@ public struct StringCatalog: Codable, Sendable {
 
 // MARK: - Conversion
 
+public enum ConversionError: LocalizedError {
+    case unknownPluralLanguage(id: String, locale: String)
+    case numerusFormCountMismatch(id: String, locale: String, got: Int, expected: [String])
+
+    public var errorDescription: String? {
+        switch self {
+        case let .unknownPluralLanguage(id, locale):
+            return "\(id): no plural category list for locale '\(locale)'; "
+                + "add it to pluralCategoriesByLocale before translating a numerus message into it"
+        case let .numerusFormCountMismatch(id, locale, got, expected):
+            return "\(id) [\(locale)]: \(got) numerusform(s) for \(expected.count) plural "
+                + "categories \(expected)"
+        }
+    }
+}
+
 public enum Ts2Xcstrings {
+    /// The CLDR plural categories each shipped locale needs, in CLDR's
+    /// canonical order — the order Qt writes `<numerusform>` elements in, so
+    /// the Nth form is the Nth category HERE. The list is per locale and
+    /// deliberately short: the two counts agree only by language. Russian, to
+    /// name the nearest example, has three Qt forms covering `one`/`few`/
+    /// `many` with CLDR's `other` reserved for fractions, so reading the
+    /// third form as "the third category" would file it as `other` and leave
+    /// `many` — every count from 5 up — falling back to it. A locale absent
+    /// from this table therefore fails the conversion instead of being
+    /// guessed at.
+    public static let pluralCategoriesByLocale: [String: [String]] = [
+        "en": ["one", "other"],
+        "sr": ["one", "few", "other"],
+        "sr-Latn": ["one", "few", "other"],
+    ]
+
+    /// Qt counts with `%n`; the catalog's plural variants are consumed as
+    /// `String(format:)` templates and count with `%lld`.
+    static func rewriteCountPlaceholder(_ text: String) -> String {
+        text.replacingOccurrences(of: "%n", with: "%lld")
+    }
+
+    /// The plural container for one `.ts` numerus message.
+    static func pluralLocalization(id: String, locale: String,
+                                   forms: [String]) throws -> Localization {
+        guard let categories = pluralCategoriesByLocale[locale] else {
+            throw ConversionError.unknownPluralLanguage(id: id, locale: locale)
+        }
+        guard forms.count == categories.count else {
+            throw ConversionError.numerusFormCountMismatch(
+                id: id, locale: locale, got: forms.count, expected: categories)
+        }
+        var plural: [String: Localization] = [:]
+        for (category, form) in zip(categories, forms) {
+            plural[category] = Localization(
+                stringUnit: StringUnit(state: "translated",
+                                       value: rewriteCountPlaceholder(form)))
+        }
+        return Localization(variations: PluralVariations(plural: plural))
+    }
+
     /// Map a Qt locale code (`xx_YY`) to Apple's preferred form (`xx` /
     /// `xx-Yyyy`). Apple drops the region for unambiguous languages; the
     /// `sr_RS@latin` Qt suffix becomes Apple's `sr-Latn`.
@@ -58,9 +133,21 @@ public enum Ts2Xcstrings {
                         comment: msg.id,
                         localizations: [:])
                 }
-                let unit = StringUnit(
-                    state: "translated",
-                    value: msg.translation ?? msg.source)
+                // An untranslated numerus message has no forms at all; it
+                // degrades to its source, exactly as an untranslated plain
+                // message does. A message with SOME forms but not the
+                // locale's number of them is a mistranslation and stops the
+                // conversion.
+                if let forms = msg.numerusForms, !forms.isEmpty {
+                    catalog.strings[msg.id]?.localizations[appleLocale] =
+                        try pluralLocalization(id: msg.id, locale: appleLocale, forms: forms)
+                    continue
+                }
+                var value = msg.translation ?? msg.source
+                if msg.numerusForms != nil {
+                    value = rewriteCountPlaceholder(value)
+                }
+                let unit = StringUnit(state: "translated", value: value)
                 catalog.strings[msg.id]?.localizations[appleLocale] =
                     Localization(stringUnit: unit)
             }
@@ -75,6 +162,9 @@ struct TsMessage {
     var id: String
     var source: String
     var translation: String?
+    /// `nil` for a plain message; the `<numerusform>` bodies in file order
+    /// for one marked `numerus="yes"` (possibly empty, if untranslated).
+    var numerusForms: [String]?
 }
 
 final class TsParser: NSObject, XMLParserDelegate {
@@ -83,6 +173,9 @@ final class TsParser: NSObject, XMLParserDelegate {
     private var currentId: String?
     private var currentSource: String = ""
     private var currentTranslation: String = ""
+    private var currentNumerus: Bool = false
+    private var currentForm: String = ""
+    private var currentForms: [String] = []
     private var currentElement: String = ""
 
     func parse(url: URL) throws -> [TsMessage] {
@@ -108,6 +201,10 @@ final class TsParser: NSObject, XMLParserDelegate {
             currentId = attributes["id"]
             currentSource = ""
             currentTranslation = ""
+            currentNumerus = attributes["numerus"] == "yes"
+            currentForms = []
+        } else if element == "numerusform" {
+            currentForm = ""
         }
     }
 
@@ -117,6 +214,8 @@ final class TsParser: NSObject, XMLParserDelegate {
             currentSource += text
         case "translation":
             currentTranslation += text
+        case "numerusform":
+            currentForm += text
         default:
             break
         }
@@ -124,14 +223,21 @@ final class TsParser: NSObject, XMLParserDelegate {
 
     func parser(_ parser: XMLParser, didEndElement element: String,
                 namespaceURI: String?, qualifiedName: String?) {
+        if element == "numerusform" {
+            currentForms.append(currentForm.trimmingCharacters(in: .whitespacesAndNewlines))
+            currentForm = ""
+        }
         if element == "message", let id = currentId {
             let trimmedTranslation = currentTranslation.trimmingCharacters(in: .whitespacesAndNewlines)
             messages.append(TsMessage(
                 id: id,
                 source: currentSource.trimmingCharacters(in: .whitespacesAndNewlines),
-                translation: trimmedTranslation.isEmpty ? nil : trimmedTranslation
+                translation: trimmedTranslation.isEmpty ? nil : trimmedTranslation,
+                numerusForms: currentNumerus ? currentForms : nil
             ))
             currentId = nil
+            currentNumerus = false
+            currentForms = []
         }
         currentElement = ""
     }

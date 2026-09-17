@@ -44,6 +44,13 @@ versioning follows [Semantic Versioning](https://semver.org/).
   The old check could only see the sources, which now state a build setting
   rather than a version; the new one measures what ships.
 
+- The sentence that counts your remaining attempts now takes the grammatical
+  number Serbian asks for — one form for 1 and 21, another for 2, a third for 5
+  and 11 — instead of a number pasted into one fixed sentence. The catalog
+  generator learned to read the plural forms out of the `.ts` sources, so the
+  two signing sentences that count files and confirmations, which until now
+  rendered their English source to a Serbian reader, are translated as well.
+
 ### Notes
 
 - There is no release workflow, `KEYS` file or notarized artifact here yet.

@@ -382,9 +382,12 @@
         <source>Continue</source>
         <translation>Continue</translation>
     </message>
-    <message id="libremac_credentials_outcome_invalidPin_attributed">
-        <source>The {who} was not correct — {count} attempt(s) left.</source>
-        <translation>The {who} was not correct — {count} attempt(s) left.</translation>
+    <message id="libremac_credentials_outcome_invalidPin_attributed" numerus="yes">
+        <source>The {who} was not correct — %n attempt(s) left.</source>
+        <translation>
+            <numerusform>The {who} was not correct — %n attempt left.</numerusform>
+            <numerusform>The {who} was not correct — %n attempts left.</numerusform>
+        </translation>
     </message>
     <message id="librescrs.pin.blocked.issuer">
         <source>Unblocking is done by the issuer.</source>

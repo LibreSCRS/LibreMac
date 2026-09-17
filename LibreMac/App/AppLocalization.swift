@@ -65,21 +65,24 @@ final class AppLocalization {
 
     /// Resolves an already-built text — the shape the error-copy tables and
     /// the agent-facing view models produce — against the chosen language.
-    func resolve(_ text: LocalizedText) -> String {
+    /// `count` picks the plural form for a key whose catalog entry carries
+    /// one, under the rules of the language the text is resolved in.
+    func resolve(_ text: LocalizedText, count: Int? = nil) -> String {
         // Reading `locale` is not redundant: it is what registers the
         // observation dependency that redraws a view when the language
         // changes. The cached bundle is deliberately untracked, so resolving
         // through it alone leaves every caller unaware that anything moved.
-        guard locale != nil, let cachedBundle else { return text.resolve() }
-        return text.resolve(bundle: cachedBundle)
+        guard locale != nil, let cachedBundle else { return text.resolve(count: count) }
+        return text.resolve(bundle: cachedBundle, count: count)
     }
 
     /// Resolves against the chosen language's bundle, falling back to the
     /// key's English default. An override naming a language the bundle does
     /// not carry resolves as if no override were set.
     func loc(_ key: String, _ fallback: String,
-             placeholders: [String: String] = [:]) -> String {
-        resolve(LocalizedText(key: key, defaultText: fallback, placeholders: placeholders))
+             placeholders: [String: String] = [:], count: Int? = nil) -> String {
+        resolve(LocalizedText(key: key, defaultText: fallback, placeholders: placeholders),
+                count: count)
     }
 
 }

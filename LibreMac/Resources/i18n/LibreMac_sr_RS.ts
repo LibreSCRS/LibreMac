@@ -382,9 +382,13 @@
         <source>Continue</source>
         <translation>Настави</translation>
     </message>
-    <message id="libremac_credentials_outcome_invalidPin_attributed">
-        <source>The {who} was not correct — {count} attempt(s) left.</source>
-        <translation>{who} није тачан — преостало покушаја: {count}.</translation>
+    <message id="libremac_credentials_outcome_invalidPin_attributed" numerus="yes">
+        <source>The {who} was not correct — %n attempt(s) left.</source>
+        <translation>
+            <numerusform>{who} није тачан — преостао је %n покушај.</numerusform>
+            <numerusform>{who} није тачан — преостала су %n покушаја.</numerusform>
+            <numerusform>{who} није тачан — преостало је %n покушаја.</numerusform>
+        </translation>
     </message>
     <message id="librescrs.pin.blocked.issuer">
         <source>Unblocking is done by the issuer.</source>

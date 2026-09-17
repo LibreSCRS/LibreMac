@@ -322,10 +322,14 @@ struct CredentialsView: View {
 
     private static func outcomeText(_ result: CredentialResult, presented: CredentialKind) -> String {
         if result.outcome == .invalidPin, let retries = result.retriesLeft {
+            // The count is a plural argument, not a `{count}` token: the
+            // catalog entry carries one Serbian form per grammatical number,
+            // and only the count reaching the formatter picks between them.
             return loc(
                 "libremac_credentials_outcome_invalidPin_attributed",
-                "The {who} was not correct — {count} attempt(s) left.",
-                placeholders: ["who": kindTitle(presented), "count": String(retries)])
+                "The {who} was not correct — %lld attempt(s) left.",
+                placeholders: ["who": kindTitle(presented)],
+                count: Int(retries))
         }
         return outcomeText(result.outcome, presented: presented)
     }
@@ -422,7 +426,8 @@ struct CredentialsView: View {
     /// a different instance would split the window's language in half.
     @MainActor
     private static func loc(_ key: String, _ fallback: String,
-                            placeholders: [String: String] = [:]) -> String {
-        AppLocalization.shared.loc(key, fallback, placeholders: placeholders)
+                            placeholders: [String: String] = [:],
+                            count: Int? = nil) -> String {
+        AppLocalization.shared.loc(key, fallback, placeholders: placeholders, count: count)
     }
 }

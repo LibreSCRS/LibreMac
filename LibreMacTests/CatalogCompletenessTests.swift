@@ -32,6 +32,11 @@ struct CatalogCompletenessTests {
     private static let srCatalog =
         repoRoot
         .appendingPathComponent("LibreMac/Resources/i18n/LibreMac_sr_RS.ts")
+    /// The generated catalog the app actually reads — the `.ts` pair above
+    /// is only its source.
+    private static let stringCatalog =
+        repoRoot
+        .appendingPathComponent("LibreMac/Resources/Localizable.xcstrings")
 
     // MARK: - Reference lists
 
@@ -232,24 +237,42 @@ struct CatalogCompletenessTests {
     /// file order.
     private static func ids(of url: URL) throws -> [String] {
         let text = try String(contentsOf: url, encoding: .utf8)
-        let pattern = try NSRegularExpression(pattern: "<message id=\"([^\"]+)\">")
+        let pattern = try NSRegularExpression(pattern: "<message id=\"([^\"]+)\"[^>]*>")
         let range = NSRange(text.startIndex..., in: text)
         return pattern.matches(in: text, range: range).map { match in
             String(text[Range(match.range(at: 1), in: text)!])
         }
     }
 
-    /// The `<translation>` body of every `<message id="...">`, keyed by id.
-    private static func translations(of url: URL) throws -> [String: String] {
+    /// The translated bodies of every `<message id="...">`, keyed by id — one
+    /// entry per `<numerusform>` for a numerus message, a single entry for a
+    /// plain one.
+    ///
+    /// The split is what makes every assertion below a PER-FORM assertion. A
+    /// numerus message's forms are separate sentences, so with the whole
+    /// `<translation>` body as one string a `contains` check passes the
+    /// moment ANY one form still carries the token: drop `{who}` from the
+    /// Serbian `few` form alone and the `one` form keeps the check green,
+    /// while every count from 2 to 4 renders a sentence that has stopped
+    /// saying which credential it is about.
+    private static func translationForms(of url: URL) throws -> [String: [String]] {
         let text = try String(contentsOf: url, encoding: .utf8)
         let pattern = try NSRegularExpression(
-            pattern: "<message id=\"([^\"]+)\">.*?<translation>(.*?)</translation>",
+            pattern: "<message id=\"([^\"]+)\"[^>]*>.*?<translation>(.*?)</translation>",
+            options: [.dotMatchesLineSeparators])
+        let formPattern = try NSRegularExpression(
+            pattern: "<numerusform>(.*?)</numerusform>",
             options: [.dotMatchesLineSeparators])
         let range = NSRange(text.startIndex..., in: text)
-        var out: [String: String] = [:]
+        var out: [String: [String]] = [:]
         for match in pattern.matches(in: text, range: range) {
             let id = String(text[Range(match.range(at: 1), in: text)!])
-            out[id] = String(text[Range(match.range(at: 2), in: text)!])
+            let body = String(text[Range(match.range(at: 2), in: text)!])
+            let bodyRange = NSRange(body.startIndex..., in: body)
+            let forms = formPattern.matches(in: body, range: bodyRange).map { formMatch in
+                String(body[Range(formMatch.range(at: 1), in: body)!])
+            }
+            out[id] = forms.isEmpty ? [body] : forms
         }
         return out
     }
@@ -281,10 +304,15 @@ struct CatalogCompletenessTests {
             "libremac_credentials_outcome_invalidPin_attributed",
         ]
         for (locale, url) in [("en", Self.enCatalog), ("sr", Self.srCatalog)] {
-            let table = try Self.translations(of: url)
+            let table = try Self.translationForms(of: url)
             for id in attributed {
-                let value = try #require(table[id], "\(id) absent from \(locale)")
-                #expect(value.contains("{who}"), "\(locale) \(id) lost {who}: \(value)")
+                let forms = try #require(table[id], "\(id) absent from \(locale)")
+                #expect(!forms.isEmpty, "\(locale) \(id) has no translated body")
+                for (index, form) in forms.enumerated() {
+                    #expect(
+                        form.contains("{who}"),
+                        "\(locale) \(id) form \(index) lost {who}: \(form)")
+                }
             }
         }
     }
@@ -307,16 +335,30 @@ struct CatalogCompletenessTests {
     /// it silently stops filling in at render time.
     @Test("every shared id keeps the same named placeholders in both locales")
     func placeholdersMatchAcrossLocales() throws {
-        let en = try Self.translations(of: Self.enCatalog)
-        let sr = try Self.translations(of: Self.srCatalog)
+        let en = try Self.translationForms(of: Self.enCatalog)
+        let sr = try Self.translationForms(of: Self.srCatalog)
         let sharedIds = Set(en.keys).intersection(sr.keys)
         #expect(!sharedIds.isEmpty)
         for id in sharedIds.sorted() {
-            let enPlaceholders = try Self.placeholders(in: en[id] ?? "")
-            let srPlaceholders = try Self.placeholders(in: sr[id] ?? "")
-            #expect(
-                enPlaceholders == srPlaceholders,
-                "\(id): en has \(enPlaceholders.sorted()), sr has \(srPlaceholders.sorted())")
+            // Compared per FORM against the en source's first form: the two
+            // locales need not carry the same NUMBER of forms (en has two
+            // plural categories, sr three), but every form of either is the
+            // same sentence about the same values and must fill in the same
+            // tokens. Comparing a per-message union instead would let one
+            // form of three drop a token unnoticed.
+            let enForms = try (en[id] ?? []).map { try Self.placeholders(in: $0) }
+            let srForms = try (sr[id] ?? []).map { try Self.placeholders(in: $0) }
+            let expected = try #require(enForms.first, "\(id): no en body")
+            for (index, found) in enForms.enumerated() {
+                #expect(
+                    found == expected,
+                    "\(id): en form \(index) has \(found.sorted()), en form 0 has \(expected.sorted())")
+            }
+            for (index, found) in srForms.enumerated() {
+                #expect(
+                    found == expected,
+                    "\(id): sr form \(index) has \(found.sorted()), en has \(expected.sorted())")
+            }
         }
     }
 
@@ -363,11 +405,15 @@ struct CatalogCompletenessTests {
             "prompter_batch_more",
         ]
         for (locale, url) in [("en", Self.enCatalog), ("sr", Self.srCatalog)] {
-            let table = try Self.translations(of: url)
+            let table = try Self.translationForms(of: url)
             for id in formatted {
-                let value = try #require(table[id], "\(id) absent from \(locale)")
-                let count = value.components(separatedBy: "%@").count - 1
-                #expect(count == 1, "\(locale) \(id) carries \(count) %@, expected exactly 1: \(value)")
+                let forms = try #require(table[id], "\(id) absent from \(locale)")
+                for form in forms {
+                    let count = form.components(separatedBy: "%@").count - 1
+                    #expect(
+                        count == 1,
+                        "\(locale) \(id) carries \(count) %@, expected exactly 1: \(form)")
+                }
             }
         }
     }
@@ -388,6 +434,77 @@ struct CatalogCompletenessTests {
         let missingInSr = Self.guidanceIds.subtracting(sr)
         #expect(missingInEn.isEmpty, "missing in en: \(missingInEn.sorted())")
         #expect(missingInSr.isEmpty, "missing in sr: \(missingInSr.sorted())")
+    }
+
+    // MARK: - Plural entries
+
+    /// The CLDR plural categories each shipped language needs, in the order
+    /// CLDR lists them. A form set that is not exactly this renders the wrong
+    /// grammatical number for some count and nothing else notices: the
+    /// sentence is well-formed, just wrong about 21.
+    private static let pluralCategories: [String: Set<String>] = [
+        "en": ["one", "other"],
+        "sr": ["one", "few", "other"],
+    ]
+
+    /// Reads the generated catalog and returns, per key, the plural form set
+    /// each locale carries. Keys without plural forms are absent.
+    private static func pluralForms() throws -> [String: [String: [String: String]]] {
+        let data = try Data(contentsOf: stringCatalog)
+        let root = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let strings = try #require(root["strings"] as? [String: Any])
+        var out: [String: [String: [String: String]]] = [:]
+        for (key, entry) in strings {
+            guard let entry = entry as? [String: Any],
+                  let localizations = entry["localizations"] as? [String: Any]
+            else { continue }
+            for (locale, localization) in localizations {
+                guard let localization = localization as? [String: Any],
+                      let variations = localization["variations"] as? [String: Any],
+                      let plural = variations["plural"] as? [String: Any]
+                else { continue }
+                var forms: [String: String] = [:]
+                for (category, unit) in plural {
+                    guard let unit = unit as? [String: Any],
+                          let stringUnit = unit["stringUnit"] as? [String: Any],
+                          let value = stringUnit["value"] as? String
+                    else { continue }
+                    forms[category] = value
+                }
+                out[key, default: [:]][locale] = forms
+            }
+        }
+        return out
+    }
+
+    /// The count-bearing sentence is rendered by the plural formatter, not by
+    /// `{count}` substitution: the formatter picks a form by the language's
+    /// rules, so a Serbian entry that drops `few` falls back to the form
+    /// Apple finds — and the sentence reads wrong only for the counts that
+    /// needed the missing form, which is as invisible as a translation bug
+    /// gets.
+    @Test("every plural entry carries the full form set its language needs, with %lld in each")
+    func pluralEntriesCarryEveryForm() throws {
+        let plurals = try Self.pluralForms()
+        #expect(!plurals.isEmpty, "no plural entry in the generated catalog at all")
+        #expect(
+            plurals["libremac_credentials_outcome_invalidPin_attributed"] != nil,
+            "the attempts sentence is not a plural entry")
+        for (key, perLocale) in plurals.sorted(by: { $0.key < $1.key }) {
+            for locale in Self.pluralCategories.keys.sorted() {
+                let forms = try #require(
+                    perLocale[locale], "\(key): plural in \(perLocale.keys.sorted()) but not \(locale)")
+                #expect(
+                    Set(forms.keys) == Self.pluralCategories[locale]!,
+                    "\(key) \(locale): forms \(forms.keys.sorted()), expected \(Self.pluralCategories[locale]!.sorted())")
+                for (category, value) in forms.sorted(by: { $0.key < $1.key }) {
+                    #expect(
+                        value.contains("%lld"),
+                        "\(key) \(locale) \(category) has no count argument: \(value)")
+                }
+            }
+        }
     }
 
     @Test("no LibreMac-owned id enters the LibreCelik lc- namespace")

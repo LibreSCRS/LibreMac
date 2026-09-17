@@ -148,6 +148,60 @@ struct AppLocalizationTests {
             "a view resolving a string is never redrawn on a language change")
     }
 
+    /// Serbian has three grammatical numbers where English has two, and the
+    /// rule is not "1 versus the rest": 21 takes the same form as 1, while 11
+    /// takes the same form as 5. A sentence that carries the count therefore
+    /// cannot be assembled by substituting a number into one template — the
+    /// count has to reach the formatter, and the formatter has to be told
+    /// which language's rules to apply. This asserts the RENDERED sentences,
+    /// because every part of that chain (catalog shape, format-before-
+    /// substitute order, the locale the rules come from) is invisible in the
+    /// catalog alone.
+    @Test("the attempts sentence takes the Serbian form each count calls for")
+    func attemptsSentenceFollowsSerbianPluralRules() {
+        let localization = AppLocalization(defaults: isolatedDefaults(#function))
+        localization.locale = "sr"
+
+        let expected: [Int: String] = [
+            1: "ПИН није тачан — преостао је 1 покушај.",
+            2: "ПИН није тачан — преостала су 2 покушаја.",
+            5: "ПИН није тачан — преостало је 5 покушаја.",
+            11: "ПИН није тачан — преостало је 11 покушаја.",
+            21: "ПИН није тачан — преостао је 21 покушај.",
+        ]
+        for (count, sentence) in expected.sorted(by: { $0.key < $1.key }) {
+            let rendered = localization.loc(
+                "libremac_credentials_outcome_invalidPin_attributed",
+                "The {who} was not correct — %lld attempt(s) left.",
+                placeholders: ["who": "ПИН"],
+                count: count)
+            #expect(rendered == sentence, "count \(count) rendered: \(rendered)")
+            #expect(!rendered.contains("{who}"), "count \(count) left {who} unsubstituted")
+        }
+    }
+
+    /// The English side of the same key: two forms, and the singular is the
+    /// one a user hits on their last attempt.
+    @Test("the attempts sentence takes the English singular for one attempt")
+    func attemptsSentenceFollowsEnglishPluralRules() {
+        let localization = AppLocalization(defaults: isolatedDefaults(#function))
+        localization.locale = "en"
+
+        let expected: [Int: String] = [
+            1: "The PIN was not correct — 1 attempt left.",
+            2: "The PIN was not correct — 2 attempts left.",
+            21: "The PIN was not correct — 21 attempts left.",
+        ]
+        for (count, sentence) in expected.sorted(by: { $0.key < $1.key }) {
+            let rendered = localization.loc(
+                "libremac_credentials_outcome_invalidPin_attributed",
+                "The {who} was not correct — %lld attempt(s) left.",
+                placeholders: ["who": "PIN"],
+                count: count)
+            #expect(rendered == sentence, "count \(count) rendered: \(rendered)")
+        }
+    }
+
     @Test("an unknown key still falls back rather than resolving to nothing")
     func unknownKeyFallsBack() {
         let localization = AppLocalization(defaults: isolatedDefaults(#function))
