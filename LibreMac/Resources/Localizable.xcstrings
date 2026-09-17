@@ -13810,6 +13810,176 @@
         }
       }
     },
+    "libremac_settings_trust_anchor_issuers" : {
+      "comment" : "libremac_settings_trust_anchor_issuers",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issuing countries"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Државе издаваоци"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchor_signer" : {
+      "comment" : "libremac_settings_trust_anchor_signer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publisher"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Објављивач"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchor_signer_pinned" : {
+      "comment" : "libremac_settings_trust_anchor_signer_pinned",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identity established"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Идентитет утврђен"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchor_signer_unpinned" : {
+      "comment" : "libremac_settings_trust_anchor_signer_unpinned",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identity seen but not established"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Идентитет виђен, али није утврђен"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchors" : {
+      "comment" : "libremac_settings_trust_anchors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Country-signing anchors"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сидра државних потписника"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchors_accepted" : {
+      "comment" : "libremac_settings_trust_anchors_accepted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accepted"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прихваћено"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchors_held" : {
+      "comment" : "libremac_settings_trust_anchors_held",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anchors held"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уграђена сидра"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchors_no_replay_refusal" : {
+      "comment" : "libremac_settings_trust_anchors_no_replay_refusal",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not every accepted list carried a signing time, so a later import cannot be refused for rolling the anchors back."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Није свака прихваћена листа носила време потписивања, па каснији увоз не може бити одбијен због враћања сидара уназад."
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchors_signed" : {
+      "comment" : "libremac_settings_trust_anchors_signed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписано"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_anchors_unreadable" : {
+      "comment" : "libremac_settings_trust_anchors_unreadable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent reported anchor state this app could not read."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Агент је пријавио стање сидара које ова апликација није могла да прочита."
+          }
+        }
+      }
+    },
     "libremac_settings_trust_clear" : {
       "comment" : "libremac_settings_trust_clear",
       "localizations" : {
@@ -13891,6 +14061,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Преузима се унапред"
+          }
+        }
+      }
+    },
+    "libremac_settings_trust_no_anchors" : {
+      "comment" : "libremac_settings_trust_no_anchors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No country-signing anchors installed — passports cannot be checked against the country that issued them."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нема уграђених сидара државних потписника — пасоши не могу да се провере према држави која их је издала."
           }
         }
       }

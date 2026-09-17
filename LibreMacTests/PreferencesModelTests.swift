@@ -394,4 +394,127 @@ struct PreferencesModelTests {
 
         #expect(model.tsaUrls == ["https://tsa.example/one", "https://tsa.example/two"])
     }
+
+    // MARK: - Country-signing anchors (read-only agent state)
+
+    /// The shape the agent sends: counts, the rollback flag, and the
+    /// publisher it pinned.
+    private static func anchorState(
+        anchors: UInt64? = 412, issuers: UInt64? = 61, replayRefusalActive: Bool? = true,
+        extra: [(String, CBORValue)] = []
+    ) -> CBORValue {
+        var pairs: [(Data, CBORValue)] = []
+        if let anchors { pairs.append((Data("anchors".utf8), .uint(anchors))) }
+        if let issuers { pairs.append((Data("issuers".utf8), .uint(issuers))) }
+        if let replayRefusalActive {
+            pairs.append((Data("replayRefusalActive".utf8), .bool(replayRefusalActive)))
+        }
+        pairs.append(contentsOf: extra.map { (Data($0.0.utf8), $0.1) })
+        return .map(pairs)
+    }
+
+    @Test("the anchor state the agent publishes populates the read-only row")
+    func anchorStatePopulatesTheRow() async {
+        let model = PreferencesModel(
+            client: FakeConfigClient(entries: [
+                "CscaAnchorState": Self.anchorState(extra: [
+                    ("signer", .text("a1b2c3")),
+                    ("signerPinned", .bool(true)),
+                    ("acceptedAt", .int(1_764_000_000)),
+                    ("origin", .text("import")),
+                ])
+            ]))
+
+        await model.load()
+
+        #expect(model.cscaAnchors.state?.anchors == 412)
+        #expect(model.cscaAnchors.state?.issuers == 61)
+        #expect(model.cscaAnchors.state?.replayRefusalActive == true)
+        #expect(model.cscaAnchors.state?.signer == "a1b2c3")
+        #expect(model.cscaAnchors.state?.signerPinned == true)
+        #expect(model.cscaAnchors.state?.acceptedAt == 1_764_000_000)
+        #expect(model.cscaAnchors.state?.origin == "import")
+    }
+
+    /// An empty map is this wire's "nothing has been imported". It must not
+    /// arrive as a zeroed report: a report of zero anchors would claim a list
+    /// was accepted and vouched for nobody, which is a different thing.
+    @Test("an empty anchor map reads as nothing installed, not as zero anchors")
+    func emptyAnchorMapIsNotAZeroedReport() async {
+        let model = PreferencesModel(
+            client: FakeConfigClient(entries: ["CscaAnchorState": .map([])]))
+
+        await model.load()
+
+        #expect(model.cscaAnchors == .nothingImported)
+    }
+
+    /// Its FALSE is the value the pane exists to surface, so it has to
+    /// survive the decode rather than being flattened into the true it shares
+    /// a default with.
+    @Test("a false rollback-refusal flag survives the decode")
+    func falseReplayRefusalSurvives() async {
+        let model = PreferencesModel(
+            client: FakeConfigClient(entries: [
+                "CscaAnchorState": Self.anchorState(replayRefusalActive: false)
+            ]))
+
+        await model.load()
+
+        #expect(model.cscaAnchors.state?.replayRefusalActive == false)
+        #expect(model.cscaAnchors.state?.anchors == 412, "the flag must not cost the counts")
+    }
+
+    /// A field that never ARRIVED is not the false that warns. Decoding a
+    /// missing flag as false would let the pane make the affirmative "this
+    /// cannot be checked" claim out of a gap in the frame.
+    @Test("a missing rollback-refusal flag decodes to nil, not to the false that warns")
+    func missingReplayRefusalIsNotFalse() async {
+        let model = PreferencesModel(
+            client: FakeConfigClient(entries: [
+                "CscaAnchorState": Self.anchorState(replayRefusalActive: nil)
+            ]))
+
+        await model.load()
+
+        #expect(model.cscaAnchors.state?.replayRefusalActive == nil)
+        #expect(model.cscaAnchors.state?.anchors == 412, "the absent flag must not cost the counts")
+    }
+
+    /// Present but undecodable is NOT "nothing imported". Collapsing the two
+    /// would let a decode failure render as a positive claim that this
+    /// computer holds no anchors — the mirror image of the zeroed report the
+    /// wire refuses to send.
+    @Test("an unreadable anchor value is neither a report nor nothing installed")
+    func unreadableAnchorValueIsItsOwnState() async {
+        let notAMap = PreferencesModel(
+            client: FakeConfigClient(entries: ["CscaAnchorState": .text("nonsense")]))
+        await notAMap.load()
+        #expect(notAMap.cscaAnchors == .unreadable)
+
+        let noCounts = PreferencesModel(
+            client: FakeConfigClient(entries: [
+                "CscaAnchorState": Self.anchorState(anchors: nil)
+            ]))
+        await noCounts.load()
+        #expect(noCounts.cscaAnchors == .unreadable)
+        #expect(
+            noCounts.cscaAnchors != .nothingImported,
+            "a decode failure is not evidence of an empty store")
+    }
+
+    /// A later unreachable read must not leave the old anchor report on
+    /// screen as if it were current — the same rule every other row follows.
+    @Test("a later unreachable read clears the anchor row")
+    func laterFailureClearsAnchors() async {
+        let fake = FakeConfigClient(entries: ["CscaAnchorState": Self.anchorState()])
+        let model = PreferencesModel(client: fake)
+        await model.load()
+        #expect(model.cscaAnchors.state != nil)
+
+        fake.failure = .notConnected
+        await model.load()
+
+        #expect(model.cscaAnchors == .nothingImported)
+    }
 }

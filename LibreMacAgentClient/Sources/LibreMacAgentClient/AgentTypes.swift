@@ -652,6 +652,172 @@ public struct TslSource: Sendable, Equatable {
     }
 }
 
+/// What the agent believes about its country-signing anchors — the value of
+/// the read-only `CscaAnchorState` config key, and the same dict
+/// `ImportCscaMasterList` replies with (minus the `kind` discriminator only a
+/// reply arm needs). Mirrors the CDDL `csca-anchor-state` group field-for-field.
+///
+/// A client that has just started has no import reply to read, which is the
+/// whole reason the config key exists: without it a freshly launched host
+/// could only say that what passports are checked against cannot be known.
+///
+/// `anchors` counts anchors INCLUDING CSCA link certificates — link
+/// certificates are anchors like any other — so it is not a count of
+/// self-signed roots. `issuers` is the distinct issuing countries among them.
+public struct CscaAnchorState: Sendable, Equatable {
+    /// Anchors held, INCLUDING link certificates.
+    public var anchors: UInt64
+    /// Distinct issuing countries among those anchors.
+    public var issuers: UInt64
+    /// Whether a later import can be refused for rolling the anchors back.
+    /// Its FALSE is the value worth showing: it means at least one accepted
+    /// list carried no signing time, so "is this older than what I hold"
+    /// cannot be answered at all, and a surface that stays silent leaves a
+    /// person unable to tell "this is safe" from "this cannot be checked".
+    /// The agent computes it across EVERY accepted publisher and reports
+    /// false if ANY of them was undated, so it is not a fact about one list.
+    ///
+    /// Optional although the schema requires it, and the nil is load-bearing:
+    /// a field that did not arrive must not be rendered as the false that
+    /// warns, because that would turn a gap in the frame into a claim about
+    /// what this computer can check.
+    public var replayRefusalActive: Bool?
+    /// Lowercase hex SHA-256 over the publisher's SubjectPublicKeyInfo.
+    /// Absent when the import took in several publishers — there is then no
+    /// single publisher to name.
+    public var signer: String?
+    /// Whether the import ESTABLISHED the publisher's identity rather than
+    /// merely observing it. False after a trust-on-first-import.
+    public var signerPinned: Bool?
+    /// Seconds since the epoch when the AGENT accepted the list.
+    public var acceptedAt: Int64?
+    /// Seconds since the epoch the list says it was SIGNED. Absent when the
+    /// list carried no signing time, which CMS permits; there is no zero
+    /// sentinel, because a list signed at the epoch and a list with no date
+    /// must not read alike.
+    public var signedAt: Int64?
+    /// Where the anchors came from. Carried so this type mirrors the contract
+    /// group in full, but not rendered: "import" is the only value the agent
+    /// sends, so a row for it would tell a person nothing they could act on.
+    public var origin: String?
+
+    public init(
+        anchors: UInt64, issuers: UInt64, replayRefusalActive: Bool?,
+        signer: String? = nil, signerPinned: Bool? = nil,
+        acceptedAt: Int64? = nil, signedAt: Int64? = nil, origin: String? = nil
+    ) {
+        self.anchors = anchors
+        self.issuers = issuers
+        self.replayRefusalActive = replayRefusalActive
+        self.signer = signer
+        self.signerPinned = signerPinned
+        self.acceptedAt = acceptedAt
+        self.signedAt = signedAt
+        self.origin = origin
+    }
+
+    /// Decodes the wire map. An EMPTY map is this wire's "nothing has been
+    /// imported" and yields nil — absent is not a zeroed report, because a
+    /// zeroed report would claim a list was accepted and vouched for nobody,
+    /// which is a different thing and a false one.
+    ///
+    /// `replayRefusalActive` is required by the schema, but a map missing it
+    /// decodes to nil rather than to false and rather than failing the value
+    /// closed: the counts still stand, and a caller is left unable to make the
+    /// affirmative "this cannot be checked" claim out of a field that never
+    /// arrived.
+    public init?(cbor: CBORValue) {
+        guard case .map(let pairs) = cbor, !pairs.isEmpty else { return nil }
+        func value(_ key: String) -> CBORValue? {
+            let wanted = Data(key.utf8)
+            for (k, v) in pairs where k == wanted { return v }
+            return nil
+        }
+        func count(_ key: String) -> UInt64? {
+            switch value(key) {
+            case .uint(let u): return u
+            case .int(let i): return i >= 0 ? UInt64(i) : nil
+            default: return nil
+            }
+        }
+        func stamp(_ key: String) -> Int64? {
+            switch value(key) {
+            case .int(let i): return i
+            case .uint(let u): return u <= UInt64(Int64.max) ? Int64(u) : nil
+            default: return nil
+            }
+        }
+        // A report without its counts is not a report.
+        guard let anchors = count("anchors"), let issuers = count("issuers") else { return nil }
+        self.anchors = anchors
+        self.issuers = issuers
+        if case .bool(let active)? = value("replayRefusalActive") {
+            self.replayRefusalActive = active
+        } else {
+            self.replayRefusalActive = nil
+        }
+        if case .text(let s)? = value("signer"), !s.isEmpty {
+            self.signer = s
+        } else {
+            self.signer = nil
+        }
+        if case .bool(let p)? = value("signerPinned") {
+            self.signerPinned = p
+        } else {
+            self.signerPinned = nil
+        }
+        self.acceptedAt = stamp("acceptedAt")
+        self.signedAt = stamp("signedAt")
+        if case .text(let o)? = value("origin"), !o.isEmpty {
+            self.origin = o
+        } else {
+            self.origin = nil
+        }
+    }
+}
+
+/// What the agent said about its country-signing anchors, including the two
+/// answers that are not a report at all.
+///
+/// The three cases are kept apart because collapsing any two of them makes a
+/// claim the agent did not: "nothing is installed" is a statement about what
+/// this computer trusts, and deriving it from a value that merely failed to
+/// decode is the mirror image of the zeroed-report mistake this wire is built
+/// to avoid — the agent clears its state rather than zeroing it for exactly
+/// the same reason.
+public enum CscaAnchorReport: Sendable, Equatable {
+    /// The agent published the empty map that means nothing has been
+    /// imported. A real, readable answer, and the only one that licenses
+    /// telling a person that no anchors are installed.
+    case nothingImported
+    /// The agent published SOMETHING this build could not read — not a map,
+    /// or a map without usable counts. A conforming agent does not produce
+    /// this; a surface that renders it as `none` would still be converting a
+    /// decode failure into a security claim.
+    case unreadable
+    /// A report that decoded.
+    case held(CscaAnchorState)
+
+    /// Classifies one raw config value.
+    public init(cbor: CBORValue) {
+        if case .map(let pairs) = cbor, pairs.isEmpty {
+            self = .nothingImported
+        } else if let state = CscaAnchorState(cbor: cbor) {
+            self = .held(state)
+        } else {
+            self = .unreadable
+        }
+    }
+
+    /// The decoded report, or nil in both of the cases that carry none. Only
+    /// for callers that have already decided what the other two should say —
+    /// it deliberately cannot tell them apart.
+    public var state: CscaAnchorState? {
+        if case .held(let state) = self { return state }
+        return nil
+    }
+}
+
 // MARK: - Credential wire enums (Credentials1 seam)
 
 /// Client-side verb vocabulary for `ManagePin` — the closed CDDL

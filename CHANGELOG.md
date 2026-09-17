@@ -10,6 +10,18 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The Trust settings now show the country-signing anchors the agent actually
+  holds: how many there are, how many issuing countries they cover, when the
+  list was signed and accepted, who published it and whether that publisher's
+  identity was established. A host that has never watched an import can now say
+  what passports are checked against instead of leaving it unknown. If any
+  accepted list carried no signing time the window says so, because a later
+  import cannot then be refused for rolling the anchors back. "Nothing
+  installed" is shown only when the agent reports exactly that — never as a
+  report of zero anchors, and never because a value could not be read, which
+  says so in its own words instead. The display is read-only; nothing is
+  installed from this window.
+
 - The Settings screen fills in the country-signing row rather than only
   declaring it, so the configuration key the agent publishes is visible and
   editable where a user would look for it.

@@ -6,6 +6,7 @@
 // the agent on the device owner's own authentication, so each one asks — this
 // pane is deliberately not a place where edits accumulate silently.
 
+import Foundation
 import LibreMacAgentClient
 import SwiftUI
 
@@ -27,6 +28,7 @@ struct TrustPane: View {
             case .ready:
                 tsaSection
                 sourcesSection
+                anchorsSection
             }
         }
         // Grouped, not the default column style: the column style sizes its
@@ -132,6 +134,96 @@ struct TrustPane: View {
         }
     }
 
+    /// What the agent holds to check a passport's issuing country against.
+    /// Read-only: nothing here is installed from this window, and the agent
+    /// would refuse a write to it in any case. Shown so that a host which has
+    /// never seen an import can still say what is installed, rather than
+    /// leaving a person to assume.
+    @ViewBuilder
+    private var anchorsSection: some View {
+        Section(loc("libremac_settings_trust_anchors", "Country-signing anchors")) {
+            switch model.cscaAnchors {
+            case .held(let state):
+                held(state)
+            case .nothingImported:
+                Text(
+                    loc(
+                        "libremac_settings_trust_no_anchors",
+                        "No country-signing anchors installed — passports cannot be checked against the country that issued them.")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            case .unreadable:
+                // NOT the sentence above. "Nothing is installed" is a claim
+                // about what this computer trusts, and a value that failed to
+                // decode is no evidence for it.
+                Text(
+                    loc(
+                        "libremac_settings_trust_anchors_unreadable",
+                        "The agent reported anchor state this app could not read.")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func held(_ state: CscaAnchorState) -> some View {
+        LabeledContent(loc("libremac_settings_trust_anchors_held", "Anchors held")) {
+            Text(number(state.anchors)).foregroundStyle(.secondary)
+        }
+        LabeledContent(loc("libremac_settings_trust_anchor_issuers", "Issuing countries")) {
+            Text(number(state.issuers)).foregroundStyle(.secondary)
+        }
+        if let acceptedAt = state.acceptedAt {
+            LabeledContent(loc("libremac_settings_trust_anchors_accepted", "Accepted")) {
+                Text(stamp(acceptedAt)).foregroundStyle(.secondary)
+            }
+        }
+        // When the list says it was signed, as distinct from when this
+        // computer took it. Absent whenever the publisher left it out, which
+        // is also what the rollback line below reports.
+        if let signedAt = state.signedAt {
+            LabeledContent(loc("libremac_settings_trust_anchors_signed", "Signed")) {
+                Text(stamp(signedAt)).foregroundStyle(.secondary)
+            }
+        }
+        // An import that took in several publishers names none of them, but
+        // whether their identity was ESTABLISHED is a fact about all of them
+        // and survives on its own — so the two are shown independently rather
+        // than the second hanging off the first.
+        if state.signer != nil || state.signerPinned != nil {
+            LabeledContent(loc("libremac_settings_trust_anchor_signer", "Publisher")) {
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let signer = state.signer {
+                        Text(signer)
+                            .textSelection(.enabled)
+                            .font(.system(.caption, design: .monospaced))
+                    }
+                    if let pinned = state.signerPinned {
+                        Text(signerLabel(pinned)).font(.caption)
+                    }
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        // Its FALSE is the value worth saying out loud: at least one accepted
+        // list carried no signing time, so "is this older than what I hold"
+        // cannot be answered at all. Staying silent would leave a person
+        // unable to tell "this is safe" from "this cannot be checked" — and a
+        // field that never ARRIVED is not that false, so nil says nothing.
+        if state.replayRefusalActive == false {
+            Label(
+                loc("libremac_settings_trust_anchors_no_replay_refusal",
+                    "Not every accepted list carried a signing time, so a later import cannot be refused for rolling the anchors back."),
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
     // MARK: - Pieces
 
     @ViewBuilder
@@ -190,6 +282,34 @@ struct TrustPane: View {
 
     private func sourcesValue(_ sources: [TslSource]) -> CBORValue {
         .array(sources.map(\.cbor))
+    }
+
+    /// Whether the import ESTABLISHED the publisher's identity or merely
+    /// observed it — a pinned publisher against a trust-on-first-import.
+    private func signerLabel(_ pinned: Bool) -> String {
+        pinned
+            ? loc("libremac_settings_trust_anchor_signer_pinned", "Identity established")
+            : loc("libremac_settings_trust_anchor_signer_unpinned", "Identity seen but not established")
+    }
+
+    /// A count in the window's chosen language, so its grouping separator
+    /// matches the date beside it rather than following the system's locale.
+    private func number(_ value: UInt64) -> String {
+        guard let chosen = localization.locale else { return value.formatted(.number) }
+        return value.formatted(.number.locale(Locale(identifier: chosen)))
+    }
+
+    /// Epoch seconds as a date a person reads. Rendered in the language the
+    /// window is showing rather than the system's, so a date does not stay
+    /// English beside Serbian labels; reading `localization.locale` here is
+    /// also what redraws this row when the language changes.
+    private func stamp(_ seconds: Int64) -> String {
+        let date = Date(timeIntervalSince1970: TimeInterval(seconds))
+        var style = Date.FormatStyle(date: .abbreviated, time: .shortened)
+        if let chosen = localization.locale {
+            style = style.locale(Locale(identifier: chosen))
+        }
+        return date.formatted(style)
     }
 
     private func loc(_ key: String, _ fallback: String) -> String {

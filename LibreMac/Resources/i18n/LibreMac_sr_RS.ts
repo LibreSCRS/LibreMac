@@ -544,6 +544,50 @@
         <source>Last used</source>
         <translation>Последње коришћено</translation>
     </message>
+    <message id="libremac_settings_trust_anchors">
+        <source>Country-signing anchors</source>
+        <translation>Сидра државних потписника</translation>
+    </message>
+    <message id="libremac_settings_trust_no_anchors">
+        <source>No country-signing anchors installed — passports cannot be checked against the country that issued them.</source>
+        <translation>Нема уграђених сидара државних потписника — пасоши не могу да се провере према држави која их је издала.</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_held">
+        <source>Anchors held</source>
+        <translation>Уграђена сидра</translation>
+    </message>
+    <message id="libremac_settings_trust_anchor_issuers">
+        <source>Issuing countries</source>
+        <translation>Државе издаваоци</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_accepted">
+        <source>Accepted</source>
+        <translation>Прихваћено</translation>
+    </message>
+    <message id="libremac_settings_trust_anchor_signer">
+        <source>Publisher</source>
+        <translation>Објављивач</translation>
+    </message>
+    <message id="libremac_settings_trust_anchor_signer_pinned">
+        <source>Identity established</source>
+        <translation>Идентитет утврђен</translation>
+    </message>
+    <message id="libremac_settings_trust_anchor_signer_unpinned">
+        <source>Identity seen but not established</source>
+        <translation>Идентитет виђен, али није утврђен</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_no_replay_refusal">
+        <source>Not every accepted list carried a signing time, so a later import cannot be refused for rolling the anchors back.</source>
+        <translation>Није свака прихваћена листа носила време потписивања, па каснији увоз не може бити одбијен због враћања сидара уназад.</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_unreadable">
+        <source>The agent reported anchor state this app could not read.</source>
+        <translation>Агент је пријавио стање сидара које ова апликација није могла да прочита.</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_signed">
+        <source>Signed</source>
+        <translation>Потписано</translation>
+    </message>
     <message id="libremac_settings_trust_add_tsa">
         <source>Add a server…</source>
         <translation>Додај сервер…</translation>

@@ -207,6 +207,17 @@ struct CatalogCompletenessTests {
         "libremac_settings_last_tsa",
         "libremac_settings_trust_add_tsa",
         "libremac_settings_trust_add_tsa_title",
+        "libremac_settings_trust_anchors",
+        "libremac_settings_trust_no_anchors",
+        "libremac_settings_trust_anchors_held",
+        "libremac_settings_trust_anchor_issuers",
+        "libremac_settings_trust_anchors_accepted",
+        "libremac_settings_trust_anchor_signer",
+        "libremac_settings_trust_anchor_signer_pinned",
+        "libremac_settings_trust_anchor_signer_unpinned",
+        "libremac_settings_trust_anchors_no_replay_refusal",
+        "libremac_settings_trust_anchors_unreadable",
+        "libremac_settings_trust_anchors_signed",
     ]
 
     /// Ids the settings window renders but does NOT own — they come from the

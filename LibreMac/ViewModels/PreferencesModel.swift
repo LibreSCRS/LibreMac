@@ -40,6 +40,12 @@ final class PreferencesModel {
     /// The authority the agent actually used last. Read-only agent state, so
     /// it is shown rather than offered for editing.
     var lastTsaUrl = ""
+    /// What country-signing anchors the agent holds. Read-only agent state.
+    /// Three-valued on purpose: "nothing imported" is not a zeroed report, and
+    /// a value that failed to decode is not "nothing imported" either — the
+    /// pane must not tell a person no anchors are installed because a frame
+    /// was unreadable.
+    var cscaAnchors: CscaAnchorReport = .nothingImported
     var pluginDir = ""
     var tslCacheDir = ""
     var aiaCacheDir = ""
@@ -203,6 +209,12 @@ final class PreferencesModel {
             // harmless gap.
             cscaSources = items.compactMap(CscaSource.init(cbor:))
         }
+        // Read-only agent state. Present-but-empty is the wire's "nothing has
+        // been imported", so it clears the row; absent leaves it alone, like
+        // every other name this snapshot does not carry.
+        if let state = entries["CscaAnchorState"] {
+            cscaAnchors = CscaAnchorReport(cbor: state)
+        }
         // Entries this build does not know are simply not shown. Nothing is
         // written back wholesale — a write names one key — so an older client
         // cannot erase a newer agent's key.
@@ -216,6 +228,7 @@ final class PreferencesModel {
         tslSources = []
         cscaSources = []
         lastTsaUrl = ""
+        cscaAnchors = .nothingImported
         pluginDir = ""
         tslCacheDir = ""
         aiaCacheDir = ""

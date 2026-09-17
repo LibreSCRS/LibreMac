@@ -543,6 +543,50 @@
         <source>Last used</source>
         <translation>Last used</translation>
     </message>
+    <message id="libremac_settings_trust_anchors">
+        <source>Country-signing anchors</source>
+        <translation>Country-signing anchors</translation>
+    </message>
+    <message id="libremac_settings_trust_no_anchors">
+        <source>No country-signing anchors installed — passports cannot be checked against the country that issued them.</source>
+        <translation>No country-signing anchors installed — passports cannot be checked against the country that issued them.</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_held">
+        <source>Anchors held</source>
+        <translation>Anchors held</translation>
+    </message>
+    <message id="libremac_settings_trust_anchor_issuers">
+        <source>Issuing countries</source>
+        <translation>Issuing countries</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_accepted">
+        <source>Accepted</source>
+        <translation>Accepted</translation>
+    </message>
+    <message id="libremac_settings_trust_anchor_signer">
+        <source>Publisher</source>
+        <translation>Publisher</translation>
+    </message>
+    <message id="libremac_settings_trust_anchor_signer_pinned">
+        <source>Identity established</source>
+        <translation>Identity established</translation>
+    </message>
+    <message id="libremac_settings_trust_anchor_signer_unpinned">
+        <source>Identity seen but not established</source>
+        <translation>Identity seen but not established</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_no_replay_refusal">
+        <source>Not every accepted list carried a signing time, so a later import cannot be refused for rolling the anchors back.</source>
+        <translation>Not every accepted list carried a signing time, so a later import cannot be refused for rolling the anchors back.</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_unreadable">
+        <source>The agent reported anchor state this app could not read.</source>
+        <translation>The agent reported anchor state this app could not read.</translation>
+    </message>
+    <message id="libremac_settings_trust_anchors_signed">
+        <source>Signed</source>
+        <translation>Signed</translation>
+    </message>
     <message id="libremac_settings_trust_add_tsa">
         <source>Add a server…</source>
         <translation>Add a server…</translation>
