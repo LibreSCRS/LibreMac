@@ -49,14 +49,24 @@ jobs:
         run: |
           set -o pipefail
           recorded=$(tr -d '[:space:]' < LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract/wire-vocabulary.provenance)
-          gh api repos/LibreSCRS/LibreDarwin/contents/cmake/FindOrUseLibreAgent.cmake \
-            --jq '.content' | base64 -d > /tmp/FindOrUseLibreAgent.cmake
-          # `|| true`: the step runs under `bash -e`, and a no-match from grep
-          # exits 1. Without this the step DIES here instead of reporting --
-          # and "no 40-hex SHA pinned" is precisely the split this check exists
-          # to report, so the one case it must handle was the one that killed it.
-          pinned=$(grep -Eo 'GIT_TAG[[:space:]]+[0-9a-f]{40}' /tmp/FindOrUseLibreAgent.cmake | awk '{print $2}' || true)
-          if [ "$recorded" = "$pinned" ]; then
+          # The revision lives in a file of its own, cmake/libreagent.pin. The
+          # FetchContent call reads that file into a variable and pins with
+          # `GIT_TAG ${LIBREAGENT_PIN}`, so it carries no SHA of its own: asking
+          # the CMake file for a 40-hex literal finds nothing and reports a
+          # split on every run.
+          #
+          # `|| true`: the step runs under `bash -e`, so a failed fetch would
+          # kill it here instead of reporting -- and "no 40-hex SHA pinned" is
+          # precisely the split this check exists to report, so the one case it
+          # must handle was the one that killed it.
+          pinned=$(gh api repos/LibreSCRS/LibreDarwin/contents/cmake/libreagent.pin \
+            --jq '.content' | base64 -d | tr -d '[:space:]' || true)
+          if ! printf '%s' "$pinned" | grep -Eq '^[0-9a-f]{40}$'; then
+            # Empty, or a tag or branch name: nothing the recorded revision can
+            # be shown to equal, so report the split and say why.
+            echo "split=yes" >> "$GITHUB_OUTPUT"
+            echo "recorded=$recorded pinned='$pinned' (not a 40-character revision)"
+          elif [ "$recorded" = "$pinned" ]; then
             echo "split=no" >> "$GITHUB_OUTPUT"
           else
             echo "split=yes" >> "$GITHUB_OUTPUT"
