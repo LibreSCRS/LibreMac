@@ -12,7 +12,9 @@ import Foundation
 //
 // Every expectation here is derived -- from the manifest, from `CaseIterable`,
 // or from a switch the compiler forces to be exhaustive. Writing the expected
-// values out by hand would just add one more copy to keep in step.
+// values out by hand would just add one more copy to keep in step. The single
+// set that is spelled out says so where it stands, and says why it has no type
+// to be derived from.
 
 private struct Manifest: Decodable {
     struct NumericEntry: Decodable {
@@ -121,23 +123,66 @@ private func expectTokenMirror<T: CaseIterable & RawRepresentable>(
             "\(rule): the mirror does not match the contract", sourceLocation: sourceLocation)
 }
 
-// The three sign-option vocabularies need their own shape. What the contract
-// publishes is the RESOLVED form of each -- what a signature can actually be --
-// while the mirrors here are the REQUEST form, so each mirror carries exactly
-// one member the contract does not publish: `auto`, the deferral sentinel that
-// asks the agent to resolve the value from its own configuration. The contract
-// draws the same line (`requested-level = sign-level / "auto"`, and `sign-meta`
-// reports only resolved forms), and says why the requested forms are not
-// published: a rule that names another rule is not a closed list of literals,
-// and spelling the members out a second time would reintroduce the hand-copied
-// vocabulary this manifest exists to remove.
+// Each of the three sign-option vocabularies exists on the wire in two shapes,
+// and the contract publishes BOTH. The RESOLVED rule (`sign-level`) is what a
+// signature can actually be; the REQUEST rule (`requested-level`) is what a
+// caller may ask for, and it is the resolved rule plus exactly one added
+// literal: the deferral sentinel that asks the agent to resolve the value from
+// its own configuration. The mirrors in this package are the request form, so
+// each is held against the request rule as an ordinary token mirror -- which is
+// what finally puts the sentinel's own spelling under this gate.
 //
-// So the asymmetry is asserted in BOTH directions instead of filtered away. A
-// contract that later published `auto` as a resolved value -- meaning a result
-// could carry it -- would fail here rather than be absorbed silently, which is
-// the whole reason these tests exist.
+// The resolved rules keep a check of their own, so the asymmetry is asserted in
+// BOTH directions instead of filtered away. A contract that published the
+// sentinel as a resolved value -- meaning a RESULT could carry it -- would fail
+// there rather than be absorbed silently, which is the whole reason these tests
+// exist.
 
-private let deferralSentinel = "auto"
+// Which resolved rule each request rule widens. The sentinel itself is not
+// written here: it is whatever the contract adds, read back off the manifest.
+private let requestFormBases = [
+    "requested-format": "sign-format",
+    "requested-level": "sign-level",
+    "requested-packaging": "packaging-mode",
+]
+
+// The added literal, taken from the contract rather than copied into this file.
+// All three request rules must add exactly one member to their resolved rule,
+// and must add the SAME one: anything else means the shape this file reads as
+// "one deferral sentinel" has changed, and every assertion built on it is void.
+private func deferralSentinel(sourceLocation: SourceLocation = #_sourceLocation) throws -> String {
+    let manifest = try loadManifest()
+    var added: Set<String> = []
+    for (requested, resolved) in requestFormBases.sorted(by: { $0.key < $1.key }) {
+        let wide = Set(try #require(
+            manifest.vocabularies[requested]?.tokens,
+            "the manifest carries no token vocabulary '\(requested)'", sourceLocation: sourceLocation))
+        let narrow = Set(try #require(
+            manifest.vocabularies[resolved]?.tokens,
+            "the manifest carries no token vocabulary '\(resolved)'", sourceLocation: sourceLocation))
+        let extra = wide.subtracting(narrow)
+        try #require(
+            extra.count == 1,
+            "\(requested): adds \(extra.sorted()) to \(resolved), which is not one deferral sentinel",
+            sourceLocation: sourceLocation)
+        added.formUnion(extra)
+    }
+    try #require(
+        added.count == 1,
+        "the request forms disagree on the deferral sentinel: \(added.sorted())",
+        sourceLocation: sourceLocation)
+    return try #require(added.first, sourceLocation: sourceLocation)
+}
+
+// The sentinel this package sends and the one the contract adds are one value.
+// It is spelled once per request-form enum here and once per request rule
+// there; this is where the two sides meet.
+@Test func theDeferralSentinelIsTheContractsOwn() throws {
+    let sentinel = try deferralSentinel()
+    #expect(SignatureFormat.auto.rawValue == sentinel)
+    #expect(SignatureLevel.auto.rawValue == sentinel)
+    #expect(Packaging.auto.rawValue == sentinel)
+}
 
 private func expectRequestFormMirror<T: CaseIterable & RawRepresentable>(
     _ type: T.Type, _ rule: String, sourceLocation: SourceLocation = #_sourceLocation
@@ -147,16 +192,48 @@ private func expectRequestFormMirror<T: CaseIterable & RawRepresentable>(
         "the manifest carries no vocabulary '\(rule)'", sourceLocation: sourceLocation)
     let published = Set(try #require(vocab.tokens, sourceLocation: sourceLocation))
     let declared = Set(T.allCases.map(\.rawValue))
+    let sentinel = try deferralSentinel(sourceLocation: sourceLocation)
 
-    #expect(!published.contains(deferralSentinel),
-            "\(rule): the contract now publishes '\(deferralSentinel)' as a resolved value, so it can reach a result -- this mirror's request-only reading of it no longer holds",
+    #expect(!published.contains(sentinel),
+            "\(rule): the contract now publishes '\(sentinel)' as a resolved value, so it can reach a result -- this mirror's request-only reading of it no longer holds",
             sourceLocation: sourceLocation)
-    #expect(declared.contains(deferralSentinel),
+    #expect(declared.contains(sentinel),
             "\(rule): the mirror lost its deferral sentinel, so a caller can no longer ask the agent to choose",
             sourceLocation: sourceLocation)
-    #expect(declared.subtracting([deferralSentinel]) == published,
+    #expect(declared.subtracting([sentinel]) == published,
             "\(rule): the mirror's resolved members do not match the contract",
             sourceLocation: sourceLocation)
+}
+
+// The wider config rule is the settable keys plus the ones the agent owns and
+// only ever reports. This package has no type for the wider set and needs none:
+// the only request that names a config key, `ResetConfig`, is reached through
+// `AgentClient.resetConfig`, which takes a `SettableConfigKey` -- so no typed
+// path in this package sends one of these five (the raw `send(_:)` of the token
+// client accepts any request, which is what the wire intends). They are
+// therefore spelled out, in the one
+// place they are spelled at all, rather than mirrored by an enum no caller
+// would have a use for. A sixth key appended on the agent side lands here as a
+// failure to read and decide about, which is the whole point of publishing the
+// wider rule.
+private let readOnlyConfigKeys: Set<String> = [
+    "LastTsaUrl", "CscaAnchorState", "TslCacheDir", "AiaCacheDir", "PluginDir",
+]
+
+private func expectConfigKeyMirror(sourceLocation: SourceLocation = #_sourceLocation) throws {
+    let vocab = try #require(
+        try loadManifest().vocabularies["config-key"],
+        "the manifest carries no vocabulary 'config-key'", sourceLocation: sourceLocation)
+    let published = Set(try #require(vocab.tokens, sourceLocation: sourceLocation))
+    let settable = Set(SettableConfigKey.allCases.map(\.rawValue))
+
+    // The settable half stays derived; only the read-only half is written out.
+    #expect(published == settable.union(readOnlyConfigKeys),
+            "config-key: the contract's wider key set is not the settable mirror plus the read-only keys named here",
+            sourceLocation: sourceLocation)
+    // A key that moved from read-only to settable is a different question --
+    // one this package answers with a new `SettableConfigKey` case, not here.
+    #expect(settable.isDisjoint(with: readOnlyConfigKeys), sourceLocation: sourceLocation)
 }
 
 private struct BitPair: Hashable {
@@ -207,6 +284,10 @@ private let vocabularyChecks: [String: @Sendable () throws -> Void] = [
     "sign-format": { try expectRequestFormMirror(SignatureFormat.self, "sign-format") },
     "sign-level": { try expectRequestFormMirror(SignatureLevel.self, "sign-level") },
     "packaging-mode": { try expectRequestFormMirror(Packaging.self, "packaging-mode") },
+    "requested-format": { try expectTokenMirror(SignatureFormat.self, "requested-format") },
+    "requested-level": { try expectTokenMirror(SignatureLevel.self, "requested-level") },
+    "requested-packaging": { try expectTokenMirror(Packaging.self, "requested-packaging") },
+    "config-key": { try expectConfigKeyMirror() },
 ]
 
 @Test(arguments: vocabularyChecks.keys.sorted())
@@ -217,10 +298,10 @@ func mirrorMatchesTheContract(_ rule: String) throws {
 
 // Note this deliberately does NOT exempt the `cddlOnly` vocabularies. That flag
 // marks a rule with no upstream C++ *enum* to compare against (`cred-verb` and
-// `settable-config-key` are string constants agent-side), which is a statement
-// about the agent, not about this client -- both are mirrored here like any
-// other. Reading it as "no mirror expected" would punch a hole in exactly the
-// check this test exists to be.
+// the two config-key rules are string constants agent-side), which is a
+// statement about the agent, not about this client -- all three are mirrored
+// here like any other. Reading it as "no mirror expected" would punch a hole
+// in exactly the check this test exists to be.
 @Test func everyPublishedVocabularyIsChecked() throws {
     let published = Set(try loadManifest().vocabularies.keys)
     let checked = Set(vocabularyChecks.keys)

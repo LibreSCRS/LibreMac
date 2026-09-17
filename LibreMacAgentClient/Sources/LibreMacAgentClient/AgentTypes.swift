@@ -541,10 +541,10 @@ public struct Capabilities: OptionSet, Sendable, Equatable {
 /// `settable-config-key`. The raw value IS the wire token. Deliberately
 /// narrower than every other config key on the wire: `TslCacheDir` /
 /// `AiaCacheDir` / `PluginDir` are file-only (a wire-settable `PluginDir`
-/// is a `dlopen` code-exec vector) and `LastTsaUrl` is read-only agent
-/// state, so none of the four are constructible here — see
+/// is a `dlopen` code-exec vector) and `LastTsaUrl` / `CscaAnchorState` are
+/// read-only agent state, so none of the five are constructible here — see
 /// `AgentRequest.resetConfig`'s own doc comment for the wider rule those
-/// four belong to.
+/// five belong to.
 public enum SettableConfigKey: String, Sendable, Equatable, CaseIterable {
     case defaultLevel = "DefaultLevel"
     case defaultReason = "DefaultReason"

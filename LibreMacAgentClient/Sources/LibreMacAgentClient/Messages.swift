@@ -124,12 +124,13 @@ public enum AgentRequest: Sendable, Equatable {
     case getConfig
     case setConfig(key: SettableConfigKey, value: CBORValue)
     /// `key` stays a raw wire token, not `SettableConfigKey`: `ResetConfig`
-    /// addresses the WIDER CDDL `config-key` rule (`settable-config-key`
-    /// plus the read-only keys `LastTsaUrl`/`TslCacheDir`/`AiaCacheDir`/
-    /// `PluginDir`), and the contract-side vocabulary discovery that
-    /// `SettableConfigKey` exists to support deliberately does not resolve
-    /// that wider rule. Narrowing this to `SettableConfigKey` would make it
-    /// impossible to reset a read-only key, which the wire allows.
+    /// addresses the WIDER CDDL `config-key` rule — `settable-config-key`
+    /// plus the read-only keys `LastTsaUrl`/`CscaAnchorState`/`TslCacheDir`/
+    /// `AiaCacheDir`/`PluginDir` — which the contract publishes as a union of
+    /// the settable set, so the wider key set is now checked against the
+    /// mirror like any other vocabulary. Narrowing this to `SettableConfigKey`
+    /// would make it impossible to reset a read-only key, which the wire
+    /// allows.
     case resetConfig(key: String)
     case cancelOp(op: UInt64)
     case getSignResult(op: UInt64)

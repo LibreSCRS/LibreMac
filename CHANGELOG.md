@@ -16,6 +16,13 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The vocabulary gate now covers the request forms of the sign options and the
+  wider config key set, which the contract publishes as unions of the closed
+  groups they extend. The sentinel that asks the agent to choose a level, format
+  or packaging is no longer a spelling typed into the gate — it is read back off
+  the contract — and a config key appended on the agent side now fails here
+  instead of passing unnoticed.
+
 - The wire vocabulary mirror gained a name for a dismissed prompt, matching the
   agent and both hosts, and every surface that renders one now tells the two
   apart: the token extension answers CryptoTokenKit `canceledByUser` instead of
