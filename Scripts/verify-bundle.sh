@@ -14,6 +14,8 @@
 # ad-hoc signed — i.e. codesign reports TeamIdentifier=not set).
 set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 APP_PATH="${1:?usage: verify-bundle.sh <path-to-LibreMac.app>}"
 
 FAIL=0
@@ -70,6 +72,56 @@ for bin in librescrs-agent librescrs-prompter; do
         fail "$bin missing LC_RPATH @executable_path/../Frameworks (got: $(echo "$rpaths" | tr '\n' ';'))"
     fi
 done
+
+# ---------------------------------------------------------------- LibreMiddleware soname load commands
+# Contents/Frameworks is the same install prefix bundle-agent.sh staged from,
+# so it carries exactly the libLibreSCRS_<Name>.<soname>.dylib names
+# lm-soname.sh looks for -- deriving the expected soname from the bundle
+# itself means this check can only ever compare the executables against what
+# they actually shipped with, never against an unrelated build tree the
+# caller happens to point at.
+lm_soname="$(bash "$SCRIPT_DIR/lm-soname.sh" "$FRAMEWORKS" 2>/tmp/verify-bundle-lm-soname.err)"
+if [ -z "$lm_soname" ]; then
+    fail "cannot determine the LibreMiddleware soname from $FRAMEWORKS: $(cat /tmp/verify-bundle-lm-soname.err)"
+else
+    # Every Mach-O actually present in Contents/MacOS, not a hardcoded pair --
+    # a third staged executable is covered without editing this list.
+    macos_machos=()
+    for f in "$MACOS"/*; do
+        [ -f "$f" ] || continue
+        otool -h "$f" >/dev/null 2>&1 && macos_machos+=("$f")
+    done
+    # ${a[@]+...} rather than a bare "${a[@]}": bash 3.2 -- which is what
+    # /bin/bash on macOS still is -- treats an EMPTY array as unset under
+    # `set -u` and aborts the whole script, taking every assertion after this
+    # loop and the summary with it. A bundle with nothing Mach-O in
+    # Contents/MacOS is exactly the broken bundle this script exists to
+    # report on, so it must survive to report it.
+    for path in ${macos_machos[@]+"${macos_machos[@]}"} "$FRAMEWORKS"/*.dylib; do
+        [ -f "$path" ] || continue
+        # A universal binary repeats every load command once per slice, so
+        # dedupe: it is the same load command either way, not a second one.
+        # The candidate regex only requires the mandatory @rpath/libLibreSCRS_
+        # prefix and .dylib suffix (one dot, e.g. the unversioned development
+        # link name) -- the soname itself is validated separately below, so
+        # every non-conforming form (missing soname segment, wrong soname)
+        # lands in $bad rather than being silently dropped from $loaded.
+        # All three dylib-naming load commands, not LC_LOAD_DYLIB alone: a
+        # weak or re-exported link resolves through the same @rpath and
+        # carries the same soname obligation, so matching only the plain kind
+        # would let a wrong-soname name ride in unjudged.
+        loaded="$(otool -l "$path" | grep -E -A2 'cmd LC_(LOAD|LOAD_WEAK|REEXPORT)_DYLIB' \
+            | sed -n 's/^ *name \(@rpath\/libLibreSCRS_[^ ]*\.dylib\).*/\1/p' \
+            | sort -u)"
+        [ -n "$loaded" ] || continue
+        bad="$(echo "$loaded" | grep -vE "^@rpath/libLibreSCRS_[A-Za-z0-9]+\.${lm_soname}\.dylib\$" || true)"
+        if [ -n "$bad" ]; then
+            fail "$(basename "$path") dylib load command $(echo "$bad" | paste -sd';' -) -- expected libLibreSCRS_<Name>.$lm_soname.dylib (LibreMiddleware soname $lm_soname)"
+        else
+            pass "$(basename "$path") dylib load command libLibreSCRS_* names match soname $lm_soname"
+        fi
+    done
+fi
 
 # ---------------------------------------------------------------- pkcs11 dylib
 if [ -f "$FRAMEWORKS/librescrs-pkcs11.dylib" ]; then
