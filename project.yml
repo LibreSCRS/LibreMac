@@ -12,6 +12,12 @@ configs:
   Release: release
 settings:
   base:
+    # The one place the marketing version is stated. Scripts/generate-project.sh
+    # exports LIBREMAC_VERSION from the VERSION file and xcodegen substitutes it
+    # here at generate time; both Info.plists then reference
+    # $(MARKETING_VERSION) rather than repeating the number. Project-level so
+    # the app AND the nested token extension inherit the same value.
+    MARKETING_VERSION: ${LIBREMAC_VERSION}
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
@@ -48,7 +54,7 @@ targets:
       path: LibreMac/Info.plist
       properties:
         CFBundleDisplayName: LibreMac
-        CFBundleShortVersionString: 5.0.0
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: 1
         LSUIElement: true
         NSHumanReadableCopyright: "Copyright (c) 2026 hirashix0. LGPL-2.1-or-later."

@@ -32,6 +32,18 @@ versioning follows [Semantic Versioning](https://semver.org/).
   extension, and the name the host gives the agent when it connects. All three said
   0.1.0 before, which is a version this project never had.
 
+- The bundle's marketing version is now derived from `VERSION` instead of being
+  typed a second and third time: the project spec takes it from the environment
+  at generation time, and both the app and the token extension reference it
+  rather than repeating a number. A hand-typed copy could disagree with
+  `VERSION`, and nothing read the number Xcode actually stamped.
+
+- With no hand-typed version left to read, the check that compared the project
+  spec and the two `Info.plist` files against `VERSION` is gone, replaced by one
+  that reads the number back off the built app and its nested token extension.
+  The old check could only see the sources, which now state a build setting
+  rather than a version; the new one measures what ships.
+
 ### Notes
 
 - There is no release workflow, `KEYS` file or notarized artifact here yet.

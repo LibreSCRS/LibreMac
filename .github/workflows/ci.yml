@@ -29,14 +29,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prove the version-surface check still fails when it should
-        run: ./ci/scripts/check-version-surfaces.selftest.sh
-
-      - name: Every surface states the version in VERSION
-        # VERSION had no reader at all here: the bundle said 0.1.0 and the host
-        # announced itself to the agent as LibreMac/0.1.0.
-        run: ./ci/scripts/check-version-surfaces.sh
-
       - name: Prove the release-lockstep check still fails when it should
         run: ./ci/scripts/check-release-lockstep.selftest.sh
 
@@ -108,6 +100,42 @@ jobs:
       - name: Generate Xcode project
         run: ./Scripts/generate-project.sh
 
+      - name: The generated project stamps the version in VERSION
+        # Every version surface in this repo is now DERIVED from VERSION at
+        # generate time -- project.yml takes MARKETING_VERSION from the
+        # LIBREMAC_VERSION that Scripts/generate-project.sh exports, and both
+        # Info.plists reference $(MARKETING_VERSION) rather than repeating a
+        # number. There is consequently no literal left for a static reader to
+        # compare, which is why the version check lives on this job and not on
+        # the ubuntu `lint` job: that runner has no xcodegen and no Xcode, so it
+        # can neither generate this project nor build the bundle that carries
+        # the only literal there is.
+        #
+        # This step measures the first half of the derivation. With the
+        # substitution broken the project carries the unexpanded
+        # ${LIBREMAC_VERSION} (measured: xcodegen exits 0 and writes the
+        # placeholder through) or a stale number, and this grep finds nothing.
+        #
+        # Both spellings are accepted because the pbxproj serializer QUOTES any
+        # value that is not a bare word -- a pre-release VERSION such as
+        # 5.1.0-rc1 is written `MARKETING_VERSION = "5.1.0-rc1";` (the same
+        # reason this file holds `CODE_SIGN_IDENTITY = "-";` and
+        # `DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";`), so matching only the
+        # unquoted form would fail the next release candidate on a tree with
+        # nothing wrong with it. -F is deliberate: the version is data, not a
+        # pattern, and as a regex `5.0.0` also matches `5X0Y0`.
+        run: |
+          want="$(head -n1 VERSION | tr -d '[:space:]')"
+          hits=$(grep -cF -e "MARKETING_VERSION = $want;" \
+                          -e "MARKETING_VERSION = \"$want\";" \
+                          LibreMac.xcodeproj/project.pbxproj) || hits=0
+          echo "MARKETING_VERSION = $want appears on $hits line(s) in project.pbxproj"
+          if [ "$hits" -lt 1 ]; then
+            echo "::error::the generated project does not stamp MARKETING_VERSION = $want"
+            grep -n "MARKETING_VERSION" LibreMac.xcodeproj/project.pbxproj || true
+            exit 1
+          fi
+
       - name: Build and test (Debug)
         # CODE_SIGNING_ALLOWED=NO: the runner has no dev team, and the App
         # Groups entitlement needs a provisioning profile otherwise. Universal
@@ -123,9 +151,40 @@ jobs:
         # of the extension against ctkd + a real card is a signed-build,
         # Developer-ID-gated step and stays out of this CI job; see
         # Packaging/HARDWARE-ACCEPTANCE.md.
+        #
+        # -derivedDataPath pins where the products land so the step below can
+        # name LibreMac.app without a second `xcodebuild -showBuildSettings`
+        # invocation to go looking for it.
         run: |
           xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Debug \
-            build test CODE_SIGNING_ALLOWED=NO
+            build test CODE_SIGNING_ALLOWED=NO -derivedDataPath DerivedData -jobs 4
+
+      - name: The built app and its token extension state the version in VERSION
+        # The second half: what Xcode actually stamped. Both Info.plists in the
+        # tree hold $(MARKETING_VERSION), not a number, so the built bundle is
+        # the only place the literal exists -- reading the source plists would
+        # measure the placeholder, and that is the whole reason this replaced a
+        # static surface check. The extension is checked separately from its
+        # host: it inherits MARKETING_VERSION from the project-level setting,
+        # and an override on either target would ship an app and a nested appex
+        # claiming different versions.
+        run: |
+          want="$(head -n1 VERSION | tr -d '[:space:]')"
+          app="DerivedData/Build/Products/Debug/LibreMac.app"
+          rc=0
+          for plist in "$app/Contents/Info" \
+                       "$app/Contents/PlugIns/LibreMacToken.appex/Contents/Info"; do
+            # || got="": without it `bash -e` exits on the first missing plist
+            # and the second bundle is never reported.
+            got="$(defaults read "$PWD/$plist" CFBundleShortVersionString)" || got=""
+            if [ "$got" = "$want" ]; then
+              echo "  -> $plist.plist states $want"
+            else
+              echo "::error::$plist.plist states '$got' but VERSION says '$want'."
+              rc=1
+            fi
+          done
+          exit "$rc"
 
   vocabulary-consumers:
     # WireVocabularyConformanceTests proves the mirror CARRIES the contract's
