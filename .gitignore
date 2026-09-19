@@ -20,6 +20,3 @@ Package.resolved
 # Local config
 *.local.cmake
 *.local.xcconfig
-
-# Generated artefacts
-LibreMac/Resources/Localizable.xcstrings
