@@ -4,7 +4,7 @@
 import Foundation
 
 /// Wire protocol version negotiated with the agent. Mirrors the peer
-/// agent's `LibreSCRS::Darwin::wire::kProtocolVersion`.
+/// agent's `LibreSCRS::Agent::Wire::kProtocolVersion`.
 public let kProtocolVersion: UInt32 = 1
 
 /// Byte size of the fixed frame header: `[UInt32 bodyLen LE][UInt32 fdCount
