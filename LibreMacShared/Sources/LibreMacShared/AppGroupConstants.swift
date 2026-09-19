@@ -8,7 +8,6 @@ import Foundation
 public enum AppGroupConstants {
     public static let appGroupId = "group.org.librescrs.LibreMac"
     public static let preferencesSuiteName = "group.org.librescrs.LibreMac.preferences"
-    public static let keychainAccessGroup = "group.org.librescrs.LibreMac"
 
     public enum DefaultsKeys {
         public static let preferredLocale = "org.librescrs.LibreMac.preferredLocale"
