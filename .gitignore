@@ -22,4 +22,4 @@ Package.resolved
 *.local.xcconfig
 
 # Generated artefacts
-LibreMac/Resources/Localizable.xcstrings.generated
+LibreMac/Resources/Localizable.xcstrings
