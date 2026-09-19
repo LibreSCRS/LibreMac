@@ -20,8 +20,9 @@ LibreMac itself is **LibreMiddleware-free**, like LibreKDE:
 
 - The **menu bar host** is a native SwiftUI client of the agent.
 - The **CryptoTokenKit extension** is a thin PKCS#11→Keychain bridge; the
-  host, not the extension, ATR-gates and builds the identities. The
-  extension never drives the card — the agent does. It needs no
+  host, not the extension, builds the identities — publishing only
+  signing-capable certificates whose SHA-256(DER) matches the claimed id.
+  The extension never drives the card — the agent does. It needs no
   Apple-gated entitlement — just `keychain-access-groups` and `app-sandbox`.
 
 PIN consent uses the protected authentication path
