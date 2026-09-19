@@ -49,6 +49,20 @@ jobs:
       - name: Run every self-test
         run: ./ci/scripts/run-selftests.sh
 
+      # This repository ships in the first release and was outside every
+      # meta-check: nothing measured that its gate scripts are reachable, that
+      # its jobs carry a bound, or that a step can run where it was placed. All
+      # three read only the tracked files and the workflows as data, so an
+      # ubuntu runner answers in seconds.
+      - name: Every shipped gate is reachable
+        run: ./ci/scripts/check-gates-wired.sh
+
+      - name: Every job carries a bound
+        run: ./ci/scripts/check-job-timeouts.sh
+
+      - name: Every step can run where it was placed
+        run: ./ci/scripts/workflow-step-order.py
+
   bundle-scripts:
     # bundle-agent.sh runs nowhere in CI (see the note above), so the one thing
     # in it that is pure shell -- which LibreMiddleware soname to stage -- gets
