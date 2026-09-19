@@ -3,7 +3,7 @@
 macOS-native integration for [LibreSCRS](https://github.com/LibreSCRS) smart card stack.
 
 LibreMac is a SwiftUI menu bar host plus a CryptoTokenKit token extension.
-The extension publishes a present card's signing identities (Serbian eID RSA
+The host publishes a present card's signing identities (Serbian eID RSA
 signing certificates) to the Keychain, where Safari, Mail.app, and other
 Keychain clients can use them. Planned, not yet shipped: further card
 families and PAM login. eMRTD documents carry no Keychain-usable PKI
@@ -19,8 +19,9 @@ a Unix-domain socket in an App-Group container, launchd, and a macOS prompter.
 LibreMac itself is **LibreMiddleware-free**, like LibreKDE:
 
 - The **menu bar host** is a native SwiftUI client of the agent.
-- The **CryptoTokenKit extension** is a thin PKCS#11→Keychain bridge. It
-  ATR-gates only and never drives the card; the agent does. It needs no
+- The **CryptoTokenKit extension** is a thin PKCS#11→Keychain bridge; the
+  host, not the extension, ATR-gates and builds the identities. The
+  extension never drives the card — the agent does. It needs no
   Apple-gated entitlement — just `keychain-access-groups` and `app-sandbox`.
 
 PIN consent uses the protected authentication path
