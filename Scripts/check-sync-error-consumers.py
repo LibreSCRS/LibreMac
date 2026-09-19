@@ -524,9 +524,15 @@ PERTURBATIONS = [
 
 
 def self_test(root):
+    # The first case is the control: the shipped tree must be green, or no
+    # perturbation below means anything. Every other case is a perturbation
+    # that must come back red, so the red-proved count is their number.
+    cases = 1 + len(PERTURBATIONS)
+    red = len(PERTURBATIONS)
     rc, _ = check(root, quiet=True)
     if rc != 0:
         print("SELF-TEST FAIL: the tree is already red; fix it before trusting the self-test")
+        print(f"selftest: {cases} cases, {red} red-proved")
         return 1
     ok = True
     for name, perturb in PERTURBATIONS:
@@ -546,6 +552,7 @@ def self_test(root):
                                     f"got rc={prc} {failures}"))
             ok = ok and hit
     print("SELF-TEST PASS" if ok else "SELF-TEST FAIL")
+    print(f"selftest: {cases} cases, {red} red-proved")
     return 0 if ok else 1
 
 

@@ -46,6 +46,10 @@ HELPER="${1:-$(cd "$(dirname "$0")/../.." && pwd)/Scripts/lm-soname.sh}"
 WORK="$(mktemp -d /var/tmp/lm-soname-selftest.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
+# red-proved: a verdict site where the helper, the staging block or the whole
+# run had to come back non-zero over a perturbed input. Every recorded verdict
+# is one case, so the case count is pass + fail.
+red=0
 
 mkprefix() { # <dir> <soname>...   real file's triple differs from the soname
     local d="$1"; shift; mkdir -p "$d"
@@ -58,6 +62,7 @@ mkprefix() { # <dir> <soname>...   real file's triple differs from the soname
 }
 check() { # <label> <want-rc> <want-stdout> <helper> <prefix>
     local label="$1" wrc="$2" wout="$3" h="$4" p="$5" out rc
+    if [ "$wrc" != 0 ]; then red=$((red + 1)); fi
     out="$("$h" "$p" 2>/dev/null)"; rc=$?
     if [ "$rc" = "$wrc" ] && [ "$out" = "$wout" ]; then
         echo "  ok    $label (rc=$rc out='$out')"; pass=$((pass+1))
@@ -75,6 +80,7 @@ check "missing prefix -> error" 1 "" "$HELPER" "$WORK/nope"
 # No argument at all is a usage error (2), not a measurement (1): a caller that
 # forgot the prefix has not been told anything about a prefix.
 out="$("$HELPER" 2>/dev/null)"; rc=$?
+red=$((red + 1))
 if [ "$rc" = 2 ] && [ -z "$out" ]; then
     echo "  ok    no argument -> usage (rc=$rc)"; pass=$((pass+1))
 else
@@ -265,6 +271,7 @@ r3_perturbation() {  # r3_perturbation <label> <fragment> <mode> <selector> [<te
     local label="$1" copy
     perturbed_copy "$label" R3 "${@:2}" || return
     copy="$PCOPY"
+    red=$((red + 1))
     if r3_verdict "$copy" > /dev/null; then
         echo "  FAIL  R3 perturbation ($label) still passes -- R3 does not measure what it claims"; fail=$((fail+1))
     else
@@ -356,6 +363,7 @@ r4_perturbation() {  # r4_perturbation <label> <prefix> <want-rc> <want-staged> 
     shift 4
     perturbed_copy "$label" R4 "$@" || return
     copy="$PCOPY"
+    red=$((red + 1))
     dest=$(mktemp -d "$WORK/staged4.XXXXXX")
     out="$(lm_stage "$copy" "$prefix" "$dest")"; rc=$?
     got="$(staged_names "$dest" | tr '\n' ' ')"; got="${got% }"
@@ -652,6 +660,7 @@ r5_perturbation() {  # r5_perturbation <label> <fragment> <mode> <selector> [<te
             caught=1
         fi
     done
+    red=$((red + 1))
     if [ "$caught" = 1 ]; then
         echo "  ok    R5 perturbation ($label) is caught"; pass=$((pass+1))
     else
@@ -765,6 +774,7 @@ if cmp -s "$BA" "$nomarker"; then
     echo "  FAIL  the marker perturbation edited nothing -- bundle-agent.sh no longer carries the BEGIN marker"; fail=$((fail+1))
 else
     lm_stage "$nomarker" "$WORK/five" "$WORK/staged-nomarker" > /dev/null; rc=$?
+    red=$((red + 1))
     if [ "$rc" = 3 ] && ! r3_verdict "$nomarker" > /dev/null; then
         echo "  ok    a bundle-agent.sh with no staging markers is refused, not measured"; pass=$((pass+1))
     else
@@ -773,4 +783,5 @@ else
 fi
 
 echo "lm-soname.selftest: $pass passed, $fail failed"
+printf 'selftest: %s cases, %s red-proved\n' "$((pass + fail))" "$red"
 [ "$fail" -eq 0 ]
