@@ -15,18 +15,26 @@
 // decoder rather than a fixture snapshot. No card or reader is required —
 // an empty reader list from `GetState` is a PASS.
 //
-// To run against a real locally built LibreDarwin agent:
+// To run against a real locally built LibreDarwin agent. The agent takes no
+// socket or container override: it always binds agent.sock in the App-Group
+// container, the same socket an installed agent serves. So stop the installed
+// one first -- otherwise the one started here unlinks and re-binds the socket
+// under it -- and re-register it afterwards:
 //
-//   CONT="$(mktemp -d)/agent-container"
-//   mkdir -p "$CONT"
-//   LIBRESCRS_AGENT_CONTAINER="$CONT" \
-//     /path/to/LibreDarwin/build-release/agent/librescrs-agent &
+//   launchctl bootout "gui/$UID/org.librescrs.agent" 2>/dev/null || true
+//   SOCK="$HOME/Library/Group Containers/group.org.librescrs.LibreMac/agent.sock"
+//   /path/to/LibreDarwin/build-release/agent/librescrs-agent &
 //   AGENT_PID=$!
-//   until [ -S "$CONT/agent.sock" ]; do sleep 0.1; done
-//   LIBRESCRS_AGENT_SOCK="$CONT/agent.sock" \
+//   for _ in $(seq 1 50); do [ -S "$SOCK" ] && break; sleep 0.1; done
+//   LIBRESCRS_AGENT_SOCK="$SOCK" \
 //     swift test --package-path LibreMac/LibreMacAgentClient --filter RealAgentSmoke
 //   kill "$AGENT_PID"
-//   rm -rf "$(dirname "$CONT")"
+//   # re-register the installed agent (the host app, or LibreDarwin's
+//   # packaging/install-dev.sh launchd for a development agent)
+//
+// The wait is bounded: an agent that fails to start is a failed run, not a
+// shell that waits forever. No plugin directory is needed; the smoke never
+// asks for a card.
 //
 // The prompter socket is not needed for this smoke — Hello, GetState, and
 // GetConfig never reach the prompter or PC/SC.
