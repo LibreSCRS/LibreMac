@@ -5,13 +5,14 @@
 # Verifies a LibreMac .app bundle-agent.sh has staged and signed correctly,
 # plus that the Xcode-nested Contents/PlugIns/LibreMacToken.appex carries its
 # expected entitlements. Each assertion prints PASS/FAIL/SKIP and the script
-# exits non-zero if any hard assertion fails. Some assertions are intrinsically
-# best-effort on an ad-hoc-signed / no-Developer-ID machine and are recorded
-# rather than gated: the WHOLE-BUNDLE signature (the host .app itself may be
-# unsigned under CODE_SIGNING_ALLOWED=NO), `spctl -a` (Gatekeeper always
-# rejects ad-hoc signatures — that is expected, not a bug), and the appex
-# Team-signed check (skipped honestly, never claimed, when the appex is only
-# ad-hoc signed — i.e. codesign reports TeamIdentifier=not set).
+# exits non-zero if any hard assertion fails. The whole-bundle signature is a
+# hard assertion: bundle-agent.sh signs the host last, so a bundle that does
+# not verify end to end was touched after its seal. Two assertions are
+# intrinsically best-effort on an ad-hoc-signed / no-Developer-ID machine and
+# are recorded rather than gated: `spctl -a` (Gatekeeper always rejects ad-hoc
+# signatures — that is expected, not a bug), and the appex Team-signed check
+# (skipped honestly, never claimed, when the appex is only ad-hoc signed —
+# i.e. codesign reports TeamIdentifier=not set).
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -126,6 +127,16 @@ fi
 # ---------------------------------------------------------------- pkcs11 dylib
 if [ -f "$FRAMEWORKS/librescrs-pkcs11.dylib" ]; then
     pass "librescrs-pkcs11.dylib present in Contents/Frameworks (LM resolvePkcs11Module candidate 3)"
+    # Present is not enough: a prefix reused across an ABI bump carries the
+    # previous release's module too, and that one links libraries this bundle
+    # does not ship. It has to name the soname the libraries were staged at.
+    if [ -n "$lm_soname" ]; then
+        if otool -L "$FRAMEWORKS/librescrs-pkcs11.dylib" | grep -qE "libLibreSCRS_[A-Za-z0-9]+\.${lm_soname}\.dylib"; then
+            pass "librescrs-pkcs11.dylib links LibreMiddleware soname $lm_soname"
+        else
+            fail "librescrs-pkcs11.dylib does not link any libLibreSCRS_<Name>.$lm_soname.dylib (otool -L: $(otool -L "$FRAMEWORKS/librescrs-pkcs11.dylib" | grep libLibreSCRS_ | tr -s ' \t' ' ' | paste -sd';' -))"
+        fi
+    fi
 else
     fail "librescrs-pkcs11.dylib missing from Contents/Frameworks"
 fi
@@ -242,6 +253,34 @@ else
     fail "LibreMacToken.appex missing from Contents/PlugIns"
 fi
 
+# ---------------------------------------------------------------- unexpanded build variables
+# Xcode expands $(AppIdentifierPrefix) and friends when it signs; codesign
+# does not. An entitlement that still carries "$(" was signed by something
+# other than Xcode from a source .entitlements file, and names a keychain group
+# no process holds.
+signed_five=("$APP_PATH" "$TOKEN_APPEX" "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter" "$FRAMEWORKS/librescrs-pkcs11.dylib")
+for code in "${signed_five[@]}"; do
+    [ -e "$code" ] || continue
+    if codesign -d --entitlements - --xml "$code" 2>/dev/null | grep -qF '$('; then
+        fail "$(basename "$code") carries an unexpanded \$( build variable in its entitlements"
+    else
+        pass "$(basename "$code") entitlements carry no unexpanded build variable"
+    fi
+done
+
+# ---------------------------------------------------------------- hardened runtime
+# Every signature bundle-agent.sh makes carries --options runtime, and Xcode's
+# carries it through ENABLE_HARDENED_RUNTIME. A hardened host with a nested
+# executable that is not hardened is a notarization reject.
+for code in "${signed_five[@]}"; do
+    [ -e "$code" ] || continue
+    if codesign -dv --verbose=4 "$code" 2>&1 | grep -E '^CodeDirectory .*flags=' | grep -q 'runtime'; then
+        pass "$(basename "$code") is signed with the hardened runtime"
+    else
+        fail "$(basename "$code") is not signed with the hardened runtime ($(codesign -dv --verbose=4 "$code" 2>&1 | grep -E '^CodeDirectory ' | head -1))"
+    fi
+done
+
 # ---------------------------------------------------------------- per-component signature
 for bin in "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter"; do
     [ -x "$bin" ] || continue
@@ -251,21 +290,30 @@ for bin in "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter"; do
         fail "codesign --verify --strict $(basename "$bin"): $(cat /tmp/verify-bundle-codesign.err)"
     fi
 done
+lib_failed=0
+lib_count=0
 for lib in "$FRAMEWORKS"/*.dylib "$PLUGINS"/*.dylib; do
     [ -f "$lib" ] || continue
-    if codesign --verify --strict "$lib" 2>/tmp/verify-bundle-codesign.err; then
-        :
-    else
+    lib_count=$((lib_count + 1))
+    if ! codesign --verify --strict "$lib" 2>/tmp/verify-bundle-codesign.err; then
         fail "codesign --verify --strict $(basename "$lib"): $(cat /tmp/verify-bundle-codesign.err)"
+        lib_failed=$((lib_failed + 1))
     fi
 done
-pass "codesign --verify --strict on all staged Frameworks/PlugIns dylibs"
+if [ "$lib_count" -eq 0 ]; then
+    fail "no staged dylib under Contents/Frameworks or Contents/PlugIns/librescrs to verify"
+elif [ "$lib_failed" -eq 0 ]; then
+    pass "codesign --verify --strict on all $lib_count staged Frameworks/PlugIns dylibs"
+fi
 
-# ---------------------------------------------------------------- whole-bundle signature (best-effort)
-if codesign --verify --strict "$APP_PATH" >/tmp/verify-bundle-app.err 2>&1; then
-    pass "codesign --verify --strict on the whole bundle"
+# ---------------------------------------------------------------- whole-bundle signature
+# --deep here is verification, not signing: it walks every nested signature the
+# host's seal covers. bundle-agent.sh signs the host last, so this holds unless
+# something touched the bundle after it.
+if codesign --verify --strict --deep "$APP_PATH" >/tmp/verify-bundle-app.err 2>&1; then
+    pass "codesign --verify --strict --deep on the whole bundle"
 else
-    skip "codesign --verify --strict on the whole bundle (host app unsigned/ad-hoc — expected under CODE_SIGNING_ALLOWED=NO): $(cat /tmp/verify-bundle-app.err | tail -1)"
+    fail "codesign --verify --strict --deep on the whole bundle: $(tail -1 /tmp/verify-bundle-app.err)"
 fi
 
 # ---------------------------------------------------------------- lipo arch check

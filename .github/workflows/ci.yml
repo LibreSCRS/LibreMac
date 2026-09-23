@@ -11,8 +11,11 @@ name: CI
 #
 # Deferred: CI does NOT assemble or verify the agent bundle — that needs the
 # LibreDarwin build tree plus a signing identity. Until LibreDarwin ships
-# release artifacts, the release checklist runs Scripts/bundle-agent.sh +
-# Scripts/verify-bundle.sh locally.
+# release artifacts, the release checklist (README) runs
+# Scripts/bundle-agent.sh + Scripts/verify-bundle.sh locally. bundle-agent.sh
+# signs the host .app as its last step; nothing re-signs the bundle after it.
+# The bundle-scripts job below runs the whole script under stubs and holds it
+# to that order.
 
 on:
   push:

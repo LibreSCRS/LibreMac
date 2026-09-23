@@ -49,6 +49,26 @@ Quick start:
 open LibreMac.xcodeproj
 ```
 
+## Release checklist
+
+CI does not assemble the bundle that ships the agent: that needs a LibreDarwin
+build tree and a signing identity. It is assembled and checked locally:
+
+```bash
+xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Release build
+./Scripts/bundle-agent.sh <path-to>/LibreMac.app <LibreDarwin build dir> <LibreMiddleware lib dir>
+./Scripts/verify-bundle.sh <path-to>/LibreMac.app
+```
+
+`bundle-agent.sh` stages the agent, the prompter and the LibreMiddleware
+libraries into the app Xcode built, signs each of them with the hardened
+runtime, and signs the host `.app` itself as its **last** step. Do not sign the
+bundle again after it, and do not copy anything into it: the host's signature
+seals the bundle, and a change after the seal is a bundle that no longer
+verifies. The token extension keeps the signature Xcode gave it, because only
+Xcode expands `$(AppIdentifierPrefix)` in its keychain entitlement.
+`verify-bundle.sh` fails on a bundle that does not verify end to end.
+
 ## License
 
 LGPL-2.1-or-later. See [LICENSE](LICENSE).

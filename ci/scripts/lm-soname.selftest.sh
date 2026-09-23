@@ -26,10 +26,13 @@
 # back to a hard-coded soname integer, in any spelling this repository's own
 # staging block is written in today, or losing the call to lm-soname.sh that
 # discovers it. R3 reads bundle-agent.sh as text; R4 and R5 run it, under
-# stubs for the Apple tools it shells out to, and check what got STAGED. What
-# R5 does not do is read those stubs' recorded argv past the file each tool
-# acted on: recorded_targets() below keeps the LAST word of a stubbed call --
-# the file -- and nothing before it. Known door, measured on a git-archive
+# stubs for the Apple tools it shells out to, and check what got STAGED. Of
+# the stubs' recorded argv R5 reads the file each tool acted on (the LAST word
+# of a call, recorded_targets() below), the ORDER of the calls, and one flag:
+# every codesign call must carry `--options runtime`, and the last one must be
+# the host .app, with no relink and no copy after it -- anything that touches
+# the bundle after the host is signed breaks the host's seal. Nothing else
+# before the file is read. Known door, measured on a git-archive
 # copy: an install_name_tool -change that rewrites a shipped executable's
 # LC_LOAD_DYLIB entry to a WRONG soname -- stale, or fetched at runtime from
 # the wrong place rather than typed as a literal integer R3a can see -- passes
@@ -52,13 +55,22 @@ pass=0; fail=0
 red=0
 
 mkprefix() { # <dir> <soname>...   real file's triple differs from the soname
-    local d="$1"; shift; mkdir -p "$d"
+    local d="$1"; shift; mkdir -p "$d" "$d/pkcs11"
     local c s
     for c in Auth Card Plugin Trust; do
         : > "$d/libLibreSCRS_$c.4.2.0.dylib"
         for s in "$@"; do ln -sf "libLibreSCRS_$c.4.2.0.dylib" "$d/libLibreSCRS_$c.$s.dylib"; done
         ln -sf "libLibreSCRS_$c.$1.dylib" "$d/libLibreSCRS_$c.dylib"
     done
+    # The PKCS#11 module is versioned the same way (VERSION + SOVERSION), one
+    # real file per soname here, each SAYING which soname it is, so a case can
+    # tell which one was staged: every copy is `cp -L`, and an empty file is the
+    # same bytes whichever link it came through.
+    for s in "$@"; do
+        printf 'pkcs11 soname %s\n' "$s" > "$d/pkcs11/librescrs-pkcs11.$s.0.0.dylib"
+        ln -sf "librescrs-pkcs11.$s.0.0.dylib" "$d/pkcs11/librescrs-pkcs11.$s.dylib"
+    done
+    ln -sf "librescrs-pkcs11.$1.dylib" "$d/pkcs11/librescrs-pkcs11.dylib"
 }
 check() { # <label> <want-rc> <want-stdout> <helper> <prefix>
     local label="$1" wrc="$2" wout="$3" h="$4" p="$5" out rc
@@ -347,8 +359,10 @@ r4_case() {  # r4_case <label> <bundle-agent.sh> <prefix> <want-rc> <want-staged
     fi
 }
 
-FOUR="libLibreSCRS_Auth.4.dylib libLibreSCRS_Card.4.dylib libLibreSCRS_Plugin.4.dylib libLibreSCRS_Trust.4.dylib"
-FIVE="libLibreSCRS_Auth.5.dylib libLibreSCRS_Card.5.dylib libLibreSCRS_Plugin.5.dylib libLibreSCRS_Trust.5.dylib"
+# The PKCS#11 module is staged by the block too, under the one name LM's module
+# lookup accepts; which soname it was taken from is asserted by R5.
+FOUR="libLibreSCRS_Auth.4.dylib libLibreSCRS_Card.4.dylib libLibreSCRS_Plugin.4.dylib libLibreSCRS_Trust.4.dylib librescrs-pkcs11.dylib"
+FIVE="libLibreSCRS_Auth.5.dylib libLibreSCRS_Card.5.dylib libLibreSCRS_Plugin.5.dylib libLibreSCRS_Trust.5.dylib librescrs-pkcs11.dylib"
 r4_case "R4: the block over a 5.0 prefix stages the .5 names" "$BA" "$WORK/five"  0 "$FIVE"
 r4_case "R4: the block over a 4.x prefix stages the .4 names" "$BA" "$WORK/four"  0 "$FOUR"
 r4_case "R4: the block over a prefix reused across a bump stages nothing" "$BA" "$WORK/dirty" 1 ""
@@ -393,7 +407,7 @@ r4_perturbation "the soname hard-coded inside the block" "$WORK/five" 1 "" 'libL
 # release it stages the real file and the development link beside the soname,
 # three names where one was wanted.
 r4_perturbation "the glob drops the soname" "$WORK/five" 0 \
-    "libLibreSCRS_Auth.4.2.0.dylib libLibreSCRS_Auth.5.dylib libLibreSCRS_Auth.dylib libLibreSCRS_Card.4.2.0.dylib libLibreSCRS_Card.5.dylib libLibreSCRS_Card.dylib libLibreSCRS_Plugin.4.2.0.dylib libLibreSCRS_Plugin.5.dylib libLibreSCRS_Plugin.dylib libLibreSCRS_Trust.4.2.0.dylib libLibreSCRS_Trust.5.dylib libLibreSCRS_Trust.dylib" \
+    "libLibreSCRS_Auth.4.2.0.dylib libLibreSCRS_Auth.5.dylib libLibreSCRS_Auth.dylib libLibreSCRS_Card.4.2.0.dylib libLibreSCRS_Card.5.dylib libLibreSCRS_Card.dylib libLibreSCRS_Plugin.4.2.0.dylib libLibreSCRS_Plugin.5.dylib libLibreSCRS_Plugin.dylib libLibreSCRS_Trust.4.2.0.dylib libLibreSCRS_Trust.5.dylib libLibreSCRS_Trust.dylib librescrs-pkcs11.dylib" \
     'libLibreSCRS_*.dylib)' subst 's|libLibreSCRS_\*\."\$lm_soname"\.dylib|libLibreSCRS_*.dylib|'
 
 # R5 -- the WHOLE script, run, under every host identity it ships to. R4 runs
@@ -465,6 +479,15 @@ make_stubs() {  # make_stubs <dir> <host-name>
         } > "$d/$tool"
         chmod +x "$d/$tool"
     done
+    # cp is recorded and then really run: the staging needs its copies, and the
+    # ORDER needs to see one that lands after the host was signed.
+    { echo '#!/bin/sh'
+      echo 'printf "cp" >> "$LM_SELFTEST_CALLS"'
+      echo 'for a in "$@"; do printf " %s" "$a" >> "$LM_SELFTEST_CALLS"; done'
+      echo 'printf "\n" >> "$LM_SELFTEST_CALLS"'
+      echo "exec $(printf '%q' "$REAL_CP") \"\$@\""
+    } > "$d/cp"
+    chmod +x "$d/cp"
     if [ -n "$host" ]; then
         { echo '#!/bin/sh'
           echo "case \"\${1-}\" in -m) echo arm64 ;; -r) echo 24.0.0 ;; *) echo $host ;; esac"
@@ -480,6 +503,8 @@ make_stubs() {  # make_stubs <dir> <host-name>
         chmod +x "$d/sw_vers"
     fi
 }
+REAL_CP="$(command -v cp)"
+[ -n "$REAL_CP" ] || { echo "FATAL: no cp on PATH -- cannot run the bundler" >&2; exit 2; }
 STUBS="$WORK/stubs"                 ; make_stubs "$STUBS" ""
 STUBS_DARWIN="$WORK/stubs-darwin"   ; make_stubs "$STUBS_DARWIN" Darwin
 
@@ -493,8 +518,13 @@ chmod +x "$LDPREFIX/agent/librescrs-agent" "$LDPREFIX/prompter/librescrs-prompte
 echo 'CMAKE_PROJECT_VERSION:STATIC=5.0.0' > "$LDPREFIX/CMakeCache.txt"
 
 mkprefix "$WORK/whole" 5
-mkdir -p "$WORK/whole/pkcs11" "$WORK/whole/librescrs/plugins"
-: > "$WORK/whole/pkcs11/librescrs-pkcs11.dylib"
+mkdir -p "$WORK/whole/librescrs/plugins"
+# The previous release's module beside the current one: install() overwrites
+# but never deletes, so a prefix that has seen an ABI bump carries both, and a
+# bundler that takes the first match stages the one whose libraries it did not
+# ship. Sorted, the stale one comes first.
+printf 'pkcs11 soname 4\n' > "$WORK/whole/pkcs11/librescrs-pkcs11.4.0.0.dylib"
+ln -sf librescrs-pkcs11.4.0.0.dylib "$WORK/whole/pkcs11/librescrs-pkcs11.4.dylib"
 : > "$WORK/whole/librescrs/plugins/librescrs-eid.dylib"
 : > "$WORK/whole/librescrs/plugins/librescrs-emrtd.dylib"
 : > "$WORK/whole/libStale.4.dylib"
@@ -508,6 +538,7 @@ mkdir -p "$WORK/share/librescrs/certificates"
 
 # The calls log is created by the CALLER and handed in: whole_run is used inside
 # a command substitution, so anything it assigns dies with the subshell.
+APPEX_FIXTURE='<key>keychain-access-groups</key><array><string>ABCDE12345.org.librescrs.LibreMac</string></array>'
 whole_run() {  # whole_run <bundle-agent.sh> <lm-lib-prefix> <app> <stub-dir> <calls-log> [<ostype>] -> rc; stdout = the script's
     local ba="$1" prefix="$2" app="$3" stubs="$4" calls="$5" ostype="${6-}" root
     root=$(mktemp -d "$WORK/root.XXXXXX")
@@ -518,7 +549,13 @@ whole_run() {  # whole_run <bundle-agent.sh> <lm-lib-prefix> <app> <stub-dir> <c
     : > "$root/Packaging/org.librescrs.agent.plist"
     : > "$root/Packaging/org.librescrs.prompter.plist"
     : > "$root/LibreMac/LibreMacToken/LibreMacToken.entitlements"
-    mkdir -p "$app/Contents/PlugIns/LibreMacToken.appex"
+    : > "$root/LibreMac/LibreMac.entitlements"
+    # What Xcode leaves: the extension already signed, its keychain group
+    # EXPANDED from $(AppIdentifierPrefix). codesign does not expand that
+    # variable, so a re-sign from the source .entitlements would ship the
+    # literal; the bundler must leave these bytes alone.
+    mkdir -p "$app/Contents/PlugIns/LibreMacToken.appex/Contents"
+    printf '%s\n' "$APPEX_FIXTURE" > "$app/Contents/PlugIns/LibreMacToken.appex/Contents/entitlements.xcent"
     if [ -n "$ostype" ]; then
         PATH="$stubs:$PATH" LM_SELFTEST_CALLS="$calls" OSTYPE="$ostype" \
             "$root/Scripts/bundle-agent.sh" "$app" "$LDPREFIX" "$prefix" 2>&1
@@ -545,28 +582,55 @@ recorded_targets() {  # recorded_targets <tool> <calls.log> -> sorted unique bas
         | sed 's|.*/||' | sort -u | tr '\n' ' ')"
     printf '%s' "${out% }"
 }
-WHOLE="Frameworks/libLibreSCRS_Auth.5.dylib Frameworks/libLibreSCRS_Card.5.dylib Frameworks/libLibreSCRS_Plugin.5.dylib Frameworks/libLibreSCRS_Trust.5.dylib Frameworks/librescrs-pkcs11.dylib Library/LaunchAgents/org.librescrs.agent.plist Library/LaunchAgents/org.librescrs.prompter.plist MacOS/librescrs-agent MacOS/librescrs-prompter PlugIns/librescrs/librescrs-eid.dylib PlugIns/librescrs/librescrs-emrtd.dylib Resources/certificates/x.pem Resources/librescrs-agent.version"
+WHOLE="Frameworks/libLibreSCRS_Auth.5.dylib Frameworks/libLibreSCRS_Card.5.dylib Frameworks/libLibreSCRS_Plugin.5.dylib Frameworks/libLibreSCRS_Trust.5.dylib Frameworks/librescrs-pkcs11.dylib Library/LaunchAgents/org.librescrs.agent.plist Library/LaunchAgents/org.librescrs.prompter.plist MacOS/librescrs-agent MacOS/librescrs-prompter PlugIns/LibreMacToken.appex/Contents/entitlements.xcent PlugIns/librescrs/librescrs-eid.dylib PlugIns/librescrs/librescrs-emrtd.dylib Resources/certificates/x.pem Resources/librescrs-agent.version"
 # What each tool must have been handed, per tool. CODESIGNED is the inside-out
-# signing pass in full -- every staged dylib, the token extension and both
-# executables -- and RELINKED is the rpath fixup, which is the part of the
-# relink work this host can run at all.
+# signing pass in full -- every staged dylib, both executables and the host
+# .app, and NOT the token extension, which keeps the signature Xcode gave it --
+# and RELINKED is the rpath fixup, which is the part of the relink work this
+# host can run at all.
 #
 # The bundler's Homebrew dependency closure is NOT exercised here and is not
 # claimed to be: it acts only on a dependency whose install name begins
 # /opt/homebrew/, a path this host cannot create, and the `cp -L` that follows
 # would have to find a real dylib there. That half stays the Apple host's, and
 # it is written down rather than left to be discovered as a finding.
-CODESIGNED="LibreMacToken.appex libLibreSCRS_Auth.5.dylib libLibreSCRS_Card.5.dylib libLibreSCRS_Plugin.5.dylib libLibreSCRS_Trust.5.dylib librescrs-agent librescrs-eid.dylib librescrs-emrtd.dylib librescrs-pkcs11.dylib librescrs-prompter"
+CODESIGNED="LibreMac.app libLibreSCRS_Auth.5.dylib libLibreSCRS_Card.5.dylib libLibreSCRS_Plugin.5.dylib libLibreSCRS_Trust.5.dylib librescrs-agent librescrs-eid.dylib librescrs-emrtd.dylib librescrs-pkcs11.dylib librescrs-prompter"
 RELINKED="librescrs-agent librescrs-prompter"
+# Every recorded call, whole and in the order it was made: the sequence is the
+# evidence for "the host is signed last", which a sorted set cannot carry.
+recorded_calls_in_order() {  # recorded_calls_in_order <calls.log> -> one call per line
+    cat "$1" 2>/dev/null
+}
 # 0 when every tool was invoked on exactly the files it must have been handed
-# -- which FILE each stub's last argument names, not what any other argument
-# told the real tool to do to it (see the threat model at the top).
+# -- which FILE each stub's last argument names -- and the signing pass has the
+# shape a sealed bundle needs: every codesign carries the hardened runtime, the
+# last one is the host .app, and nothing relinks or copies after it. Beyond
+# that one flag, what an argument told the real tool to do is not read (see
+# the threat model at the top).
 tools_agree() {  # tools_agree <calls.log> -> prints the first mismatch
-    local got
+    local got calls last_sign n
     got="$(recorded_targets codesign "$1")"
     [ "$got" = "$CODESIGNED" ] || { printf 'codesign\n  want: %s\n  got:  %s' "$CODESIGNED" "$got"; return 1; }
     got="$(recorded_targets install_name_tool "$1")"
     [ "$got" = "$RELINKED" ] || { printf 'install_name_tool\n  want: %s\n  got:  %s' "$RELINKED" "$got"; return 1; }
+    calls="$(recorded_calls_in_order "$1")"
+    got="$(printf '%s\n' "$calls" | awk '$1 == "codesign"' | grep -v -- ' --options runtime ' || true)"
+    [ -z "$got" ] || { printf 'codesign without the hardened runtime:\n%s' "$got"; return 1; }
+    last_sign="$(printf '%s\n' "$calls" | awk '$1 == "codesign" { n = NR } END { print n + 0 }')"
+    got="$(printf '%s\n' "$calls" | awk -v n="$last_sign" 'NR == n { print $NF }' | sed 's|.*/||')"
+    [ "$got" = "LibreMac.app" ] || { printf 'the last codesign is not the host .app\n  got: %s' "$got"; return 1; }
+    got="$(printf '%s\n' "$calls" | awk -v n="$last_sign" 'NR > n && ($1 == "install_name_tool" || $1 == "cp")')"
+    [ -z "$got" ] || { printf 'the bundle was touched after the host was signed:\n%s' "$got"; return 1; }
+    return 0
+}
+# 0 when the bundle carries the token extension exactly as Xcode left it, and
+# the PKCS#11 module of the soname the libraries were staged at.
+bundle_contents_agree() {  # bundle_contents_agree <app> -> prints the first mismatch
+    local got
+    got="$(cat "$1/Contents/PlugIns/LibreMacToken.appex/Contents/entitlements.xcent" 2>/dev/null)"
+    [ "$got" = "$APPEX_FIXTURE" ] || { printf 'the token extension was altered\n  want: %s\n  got:  %s' "$APPEX_FIXTURE" "$got"; return 1; }
+    got="$(cat "$1/Contents/Frameworks/librescrs-pkcs11.dylib" 2>/dev/null)"
+    [ "$got" = "pkcs11 soname 5" ] || { printf 'the PKCS#11 module is not the soname-5 one\n  got: %s' "$got"; return 1; }
     return 0
 }
 
@@ -604,10 +668,18 @@ r5_case() {  # r5_case <label> <bundle-agent.sh> <want-rc> <want-listing>
             fail=$((fail+1))
         fi
         if got="$(tools_agree "$calls")"; then
-            echo "  ok    codesign and install_name_tool were each handed exactly the staged files [host=$id]"
+            echo "  ok    codesign and install_name_tool were each handed exactly the staged files, the host signed last with the hardened runtime [host=$id]"
             pass=$((pass+1))
         else
-            echo "  FAIL  a tool was handed something other than the staged files [host=$id]"
+            echo "  FAIL  a tool was handed something other than the staged files, or the signing pass is out of shape [host=$id]"
+            printf '%s\n' "$got" | sed 's/^/          /'
+            fail=$((fail+1))
+        fi
+        if got="$(bundle_contents_agree "$app")"; then
+            echo "  ok    the token extension is untouched and the PKCS#11 module is the soname-5 one [host=$id]"
+            pass=$((pass+1))
+        else
+            echo "  FAIL  the bundle holds the right names with the wrong contents [host=$id]"
             printf '%s\n' "$got" | sed 's/^/          /'
             fail=$((fail+1))
         fi
@@ -656,7 +728,8 @@ r5_perturbation() {  # r5_perturbation <label> <fragment> <mode> <selector> [<te
         calls=$(mktemp "$WORK/calls5.XXXXXX")
         out="$(whole_run "$copy" "$WORK/whole" "$app" "${IDENT_STUBS[$i]}" "$calls" "${IDENT_OSTYPE[$i]}")"; rc=$?
         got="$(bundled_files "$app")"
-        if [ "$rc" != 0 ] || [ "$got" != "$WHOLE" ] || ! tools_agree "$calls" > /dev/null; then
+        if [ "$rc" != 0 ] || [ "$got" != "$WHOLE" ] || ! tools_agree "$calls" > /dev/null \
+            || ! bundle_contents_agree "$app" > /dev/null; then
             caught=1
         fi
     done
@@ -731,6 +804,33 @@ r5_perturbation "the rpath fixup does nothing" 'install_name_tool() { :; }' \
     after '^# END LM dylib staging$' \
     'install_name_tool() { :; }'
 
+# The signing pass put back the way it was, one piece at a time, and two ways
+# to touch the bundle after its seal. Each stages the right files; only the
+# per-tool set, the call ORDER, the one flag read out of the argv or the bytes
+# of what was staged can tell them from the shipped script.
+r5_perturbation "the token extension signed again from its source entitlements" \
+    'LibreMacToken/LibreMacToken.entitlements" "$TOKEN_APPEX"' \
+    before '^# The host LAST' \
+    'codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none --entitlements "$REPO_ROOT/LibreMac/LibreMacToken/LibreMacToken.entitlements" "$TOKEN_APPEX"'
+r5_perturbation "the host left unsigned" ': \' \
+    subst 's|^codesign --force -s "\$CODESIGN_IDENTITY" --options runtime --timestamp=none \\$|: \\|'
+r5_perturbation "a dylib signed without the hardened runtime" '-s "$CODESIGN_IDENTITY" --timestamp=none "$lib"' \
+    subst 's|--options runtime --timestamp=none "\$lib"|--timestamp=none "$lib"|'
+r5_perturbation "a copy into the bundle after the host is signed" '# after the seal' \
+    after 'LibreMac/LibreMac.entitlements" "\$APP_PATH"$' \
+    'cp "$REPO_ROOT/Packaging/org.librescrs.agent.plist" "$LAUNCHAGENTS/org.librescrs.agent.plist" # after the seal'
+r5_perturbation "a relink after the host is signed" '2>/dev/null || true # after the seal' \
+    after 'LibreMac/LibreMac.entitlements" "\$APP_PATH"$' \
+    'install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/librescrs-agent" 2>/dev/null || true # after the seal'
+r5_perturbation "an executable signed again after the host" '"$MACOS/librescrs-agent" # after the seal' \
+    after 'LibreMac/LibreMac.entitlements" "\$APP_PATH"$' \
+    'codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none --identifier org.librescrs.agent --entitlements "$ENTS_DIR/agent.plist" "$MACOS/librescrs-agent" # after the seal'
+r5_perturbation "the extension's entitlements overwritten from the source file" '"$TOKEN_APPEX/Contents/entitlements.xcent"' \
+    before '^# The host LAST' \
+    'cp "$REPO_ROOT/LibreMac/LibreMacToken/LibreMacToken.entitlements" "$TOKEN_APPEX/Contents/entitlements.xcent"'
+r5_perturbation "the PKCS#11 module taken at the previous soname" 'librescrs-pkcs11.4.dylib"' \
+    subst 's|librescrs-pkcs11\.\$lm_soname\.dylib"$|librescrs-pkcs11.4.dylib"|'
+
 # And the control: an edit outside the block that stages nothing must leave both
 # runs identical, or "caught" would mean nothing more than "the file changed".
 r5_control() {  # r5_control <label> <fragment> <mode> <selector> [<text>]
@@ -744,7 +844,8 @@ r5_control() {  # r5_control <label> <fragment> <mode> <selector> [<text>]
         got="$(bundled_files "$app")"
         [ "$i" = 0 ] || [ "$got" = "$prev" ] || diverged=1
         prev="$got"
-        if [ "$rc" != 0 ] || [ "$got" != "$WHOLE" ]; then
+        if [ "$rc" != 0 ] || [ "$got" != "$WHOLE" ] || ! tools_agree "$calls" > /dev/null \
+            || ! bundle_contents_agree "$app" > /dev/null; then
             bad=1
             echo "          [host=${IDENT_NAMES[$i]}] rc=$rc got: $got"
         fi
