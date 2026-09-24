@@ -117,6 +117,16 @@ struct LibreMacApp: App {
         }
         .defaultSize(width: 520, height: 360)
 
+        // A window, not menu content: a menu cannot hold the text fields the
+        // typed paths need.
+        Window(loc("libremac_sign_title", "Sign"), id: "sign") {
+            SignView(coordinator: appDelegate.signing)
+                .environment(appDelegate.monitor)
+                .environment(AppLocalization.shared)
+                .id(localeKey)
+        }
+        .windowResizability(.contentSize)
+
         Settings {
             PreferencesView(model: appDelegate.preferences)
                 .environment(AppLocalization.shared)
@@ -150,8 +160,7 @@ struct LibreMacApp: App {
 
         if appDelegate.monitor.canSign {
             Divider()
-            SignDemoView(coordinator: appDelegate.signing)
-                .environment(appDelegate.monitor)
+            SignMenuItem()
         }
 
         CredentialsMenuItem()
@@ -188,6 +197,20 @@ struct LibreMacApp: App {
     /// one instance this app ever creates.
     private func loc(_ key: String, _ fallback: String) -> String {
         AppLocalization.shared.loc(key, fallback)
+    }
+}
+
+/// The "Sign a file…" menu item, which opens the sign window. A separate view
+/// for the same reason as `CredentialsMenuItem`: `openWindow` resolves only in
+/// a view hierarchy. The window promotes the app itself when it appears.
+private struct SignMenuItem: View {
+    @Environment(AppLocalization.self) private var localization
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(localization.loc("libremac_sign_button", "Sign a file…")) {
+            openWindow(id: "sign")
+        }
     }
 }
 

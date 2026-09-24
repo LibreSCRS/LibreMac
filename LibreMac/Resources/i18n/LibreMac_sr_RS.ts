@@ -182,6 +182,38 @@
         <source>The selected file could not be opened for signing.</source>
         <translation>Изабрану датотеку није могуће отворити за потписивање.</translation>
     </message>
+    <message id="libremac_sign_action">
+        <source>Sign</source>
+        <translation>Потпиши</translation>
+    </message>
+    <message id="libremac_sign_input_label">
+        <source>File to sign:</source>
+        <translation>Датотека за потписивање:</translation>
+    </message>
+    <message id="libremac_sign_output_label">
+        <source>Save signed file as:</source>
+        <translation>Сачувај потписану датотеку као:</translation>
+    </message>
+    <message id="libremac_sign_typed_paths_hint">
+        <source>Typed paths work inside Downloads and the folders you have chosen; use Browse… for others.</source>
+        <translation>Укуцане путање раде унутар фасцикле Преузимања и фасцикли које сте изабрали; за остале користите Прегледај…</translation>
+    </message>
+    <message id="libremac_sign_dest_fallback_downloads">
+        <source>The default output folder could not be used, so the signed file is offered in Downloads.</source>
+        <translation>Подразумевана излазна фасцикла није могла да се користи, па се потписана датотека нуди у фасцикли Преузимања.</translation>
+    </message>
+    <message id="libremac_sign_not_permitted">
+        <source>LibreMac is not allowed to use that location. Typed paths work inside Downloads and the folders you have chosen; use Browse… for others.</source>
+        <translation>LibreMac нема дозволу да користи ту локацију. Укуцане путање раде унутар фасцикле Преузимања и фасцикли које сте изабрали; за остале користите Прегледај…</translation>
+    </message>
+    <message id="libremac_sign_path_not_absolute">
+        <source>Type a full path, starting with / or ~.</source>
+        <translation>Укуцајте пуну путању, која почиње са / или ~.</translation>
+    </message>
+    <message id="libremac_sign_no_card">
+        <source>Insert a card with a signing certificate to sign.</source>
+        <translation>Убаците картицу са сертификатом за потписивање.</translation>
+    </message>
     <message id="libremac_sign_no_artifact">
         <source>The signature completed but no signed file was returned.</source>
         <translation>Потписивање је завршено али потписана датотека није враћена.</translation>
@@ -492,9 +524,13 @@
         <source>Signing agent not reachable</source>
         <translation>Агент за потписивање није доступан</translation>
     </message>
-    <message id="libremac_settings_output_footer">
-        <source>Leave empty to save each signed file beside the one it was made from.</source>
-        <translation>Оставите празно да се сваки потписан фајл сачува поред оног од ког је настао.</translation>
+    <message id="libremac_settings_output_placeholder">
+        <source>Downloads</source>
+        <translation>Преузимања</translation>
+    </message>
+    <message id="libremac_settings_output_footer_sandboxed">
+        <source>Leave empty to offer signed files in Downloads. A folder chosen with Browse… stays usable after LibreMac restarts; a typed folder works only inside Downloads.</source>
+        <translation>Оставите празно да се потписане датотеке нуде у фасцикли Преузимања. Фасцикла изабрана са Прегледај… остаје употребљива и после поновног покретања програма LibreMac; укуцана фасцикла ради само унутар фасцикле Преузимања.</translation>
     </message>
     <message id="libremac_settings_signing_footer">
         <source>Used for every signature unless a request asks for something else.</source>

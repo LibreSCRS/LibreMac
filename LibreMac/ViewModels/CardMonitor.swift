@@ -56,7 +56,7 @@ public final class CardMonitor {
     private nonisolated let registryTapContinuation: AsyncStream<RegistrySnapshot>.Continuation
     private nonisolated let quiescenceTapContinuation: AsyncStream<QuiesceReason>.Continuation
 
-    // MARK: - Derived signing inputs (read by SigningCoordinator / SignDemoView)
+    // MARK: - Derived signing inputs (read by SigningCoordinator / SignView)
 
     /// The active card iff it is PKI-capable — the card a sign op targets. An
     /// identity-only active card (passport, vehicle) yields `nil`, so Sign hides.

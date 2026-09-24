@@ -192,7 +192,8 @@ struct CatalogCompletenessTests {
         "libremac_settings_path_unset",
         "libremac_settings_agent_owned_paths",
         "libremac_settings_agent_unavailable_title",
-        "libremac_settings_output_footer",
+        "libremac_settings_output_footer_sandboxed",
+        "libremac_settings_output_placeholder",
         "libremac_settings_signing_footer",
         "libremac_settings_action_cancel",
         "libremac_settings_action_add",
@@ -230,7 +231,6 @@ struct CatalogCompletenessTests {
         ("lc-settings-tab-signing", "Signing"),
         ("lc-settings-language", "Language:"),
         ("lc-settings-default-output", "Default output folder:"),
-        ("lc-settings-output-placeholder", "Same as input file"),
         ("lc-settings-default-level", "Default level:"),
         ("lc-settings-cache-dir", "Cache folder:"),
         ("lc-settings-tab-trust", "Trust"),
@@ -427,6 +427,42 @@ struct CatalogCompletenessTests {
                 }
             }
         }
+    }
+
+    /// Every id the sign window and the signing coordinator render, typed
+    /// paths included.
+    private static let signIds: Set<String> = [
+        "libremac_sign_title",
+        "libremac_sign_button",
+        "libremac_sign_action",
+        "libremac_sign_input_label",
+        "libremac_sign_output_label",
+        "libremac_sign_typed_paths_hint",
+        "libremac_sign_dest_fallback_downloads",
+        "libremac_sign_not_permitted",
+        "libremac_sign_path_not_absolute",
+        "libremac_sign_no_card",
+        "libremac_sign_input_unreadable",
+        "libremac_sign_write_failed",
+        "libremac_sign_no_artifact",
+        "libremac_sign_pick_input",
+        "libremac_sign_pick_output",
+        "libremac_sign_preparing",
+        "libremac_sign_confirm",
+        "libremac_sign_working",
+        "libremac_sign_done",
+        "libremac_sign_done_level",
+        "libremac_sign_chain_incomplete",
+        "libremac_sign_another",
+        "libremac_sign_retry",
+    ]
+
+    @Test("every sign window id exists in both catalogs")
+    func signIdsAreComplete() throws {
+        let en = Set(try Self.ids(of: Self.enCatalog))
+        let sr = Set(try Self.ids(of: Self.srCatalog))
+        #expect(Self.signIds.subtracting(en).isEmpty, "missing in en: \(Self.signIds.subtracting(en))")
+        #expect(Self.signIds.subtracting(sr).isEmpty, "missing in sr: \(Self.signIds.subtracting(sr))")
     }
 
     @Test("every settings refusal id exists in both catalogs")

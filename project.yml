@@ -81,6 +81,11 @@ targets:
         com.apple.security.application-groups:
           - group.org.librescrs.LibreMac
         com.apple.security.files.user-selected.read-write: true
+        # Typed paths: Downloads by entitlement, the chosen default output
+        # folder by security-scoped bookmark (the panel's grant ends with the
+        # process; the bookmark carries it across a relaunch).
+        com.apple.security.files.downloads.read-write: true
+        com.apple.security.files.bookmarks.app-scope: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.librescrs.LibreMac

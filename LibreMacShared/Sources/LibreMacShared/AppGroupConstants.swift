@@ -15,6 +15,12 @@ public enum AppGroupConstants {
         /// Where signed files are offered by default. Client-local: the agent
         /// has no say in where this host puts a file it wrote.
         public static let defaultOutputFolder = "org.librescrs.LibreMac.defaultOutputFolder"
+        /// Security-scoped bookmark for the folder above, stored when it is
+        /// chosen with the panel. The path alone is not enough under the App
+        /// Sandbox: the grant a panel gives ends with the process, and only
+        /// the bookmark carries it across a relaunch.
+        public static let defaultOutputFolderBookmark =
+            "org.librescrs.LibreMac.defaultOutputFolderBookmark"
     }
 
     /// Launchd/`SMAppService` identities for the per-user agent and its

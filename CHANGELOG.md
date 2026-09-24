@@ -10,6 +10,18 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The sign window takes typed paths. The file to sign and the place to save the
+  signed copy are two text fields; Browse… next to each is only a convenience,
+  because the system file panel service crashes on this macOS release and a
+  panel that fails now leaves the fields as they were instead of ending the
+  sign. The menu item "Sign a file…" opens this window. The app stays in the
+  App Sandbox, so a typed path works inside Downloads and inside the folder
+  you chose as the default output folder; anywhere else the window says the
+  location is not permitted and to use Browse…, instead of failing with an
+  unreadable-file error. Both files are opened before the card is asked, so a
+  destination that cannot be written is reported before you confirm a
+  signature, not after.
+
 - The Trust settings now show the country-signing anchors the agent actually
   holds: how many there are, how many issuing countries they cover, when the
   list was signed and accepted, who published it and whether that publisher's
@@ -27,6 +39,21 @@ versioning follows [Semantic Versioning](https://semver.org/).
   editable where a user would look for it.
 
 ### Changed
+
+- The "Default output folder" setting now takes effect. It used to be stored
+  and never read. A folder chosen with Browse… is remembered as a
+  security-scoped bookmark, so it stays writable after LibreMac restarts, and
+  the sign window offers `<folder>/<name>.p7s` there. When no folder is set, or
+  the one set cannot be written (typed outside Downloads, moved, or its
+  bookmark no longer resolves), the signed file is offered in Downloads and the
+  window says so. An empty setting now means Downloads, not "beside the input
+  file": the sandbox does not grant the input's folder. What this host cannot
+  do is sign a file anywhere on disk by typing alone; for that, use Browse…, or
+  LibreCelik.app, which is a full client of the same agent without these
+  limits.
+
+- The app's entitlements add `com.apple.security.files.downloads.read-write`
+  and `com.apple.security.files.bookmarks.app-scope`, for the two points above.
 
 - The vocabulary gate now covers the request forms of the sign options and the
   wider config key set, which the contract publishes as unions of the closed
@@ -106,6 +133,26 @@ versioning follows [Semantic Versioning](https://semver.org/).
   of the socket — any process running as you can raise the credential window
   — and that a Developer-ID build checks the peer's designated requirement
   instead.
+
+### Напомене о издању (српски)
+
+- Прозор за потписивање прима укуцане путање: датотеку за потписивање и место
+  где се чува потписана копија. Дугме Прегледај… је само помоћ, јер системски
+  сервис за отварање и чување датотека на овом издању macOS-а пада; ако панел
+  не успе, поља остају каква су била. Програм остаје у App Sandbox-у, па
+  укуцана путања ради унутар фасцикле Преузимања и унутар изабране
+  подразумеване излазне фасцикле; за друге локације прозор каже да приступ
+  није дозвољен и упућује на Прегледај…. Обе датотеке се отварају пре него што
+  се картица пита, па се неупотребљиво одредиште пријављује пре потврде
+  потписа, а не после.
+- Подешавање „Подразумевана излазна фасцикла" сада делује (до сада је чувано,
+  а нико га није читао). Фасцикла изабрана са Прегледај… памти се као
+  security-scoped bookmark и остаје уписива и после поновног покретања; ако
+  није подешена или се не може користити, потписана датотека се нуди у
+  фасцикли Преузимања и прозор то каже. Празно подешавање сада значи
+  Преузимања, а не „поред улазне датотеке". Потпис датотеке било где на диску
+  само куцањем овај програм не уме; за то постоји Прегледај… или LibreCelik.app
+  као пун клијент истог агента.
 
 ### Notes
 

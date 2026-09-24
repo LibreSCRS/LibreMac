@@ -4,7 +4,9 @@
 // Client-local preferences only. Nothing on this pane goes over the socket:
 // the language is this host's own choice, and the default output folder is
 // where this host offers to put a file the agent handed back. The agent has
-// no say in either.
+// no say in either. A folder chosen with Browse… is remembered as a
+// security-scoped bookmark as well as a path, because under the App Sandbox
+// only the bookmark still grants access after a relaunch.
 
 import AppKit
 import LibreMacShared
@@ -43,7 +45,7 @@ struct GeneralPane: View {
                             "", text: $outputFolder,
                             prompt: Text(
                                 localization.loc(
-                                    "lc-settings-output-placeholder", "Same as input file"))
+                                    "libremac_settings_output_placeholder", "Downloads"))
                         )
                         .labelsHidden()
                         Button(localization.loc("libremac_settings_browse", "Browse…")) {
@@ -54,8 +56,8 @@ struct GeneralPane: View {
             } footer: {
                 Text(
                     localization.loc(
-                        "libremac_settings_output_footer",
-                        "Leave empty to save each signed file beside the one it was made from.")
+                        "libremac_settings_output_footer_sandboxed",
+                        "Leave empty to offer signed files in Downloads. A folder chosen with Browse… stays usable after LibreMac restarts; a typed folder works only inside Downloads.")
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -72,8 +74,17 @@ struct GeneralPane: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        if panel.runModal() == .OK, let url = panel.url {
-            outputFolder = url.path
+        // A panel that crashes or is cancelled changes nothing; the field
+        // still takes a typed folder.
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try SigningCoordinator.rememberOutputFolder(url, in: .standard)
+        } catch {
+            // No bookmark: keep the path, which still works inside Downloads.
+            // The sign window says so when it falls back.
+            UserDefaults.standard.removeObject(
+                forKey: AppGroupConstants.DefaultsKeys.defaultOutputFolderBookmark)
         }
+        outputFolder = url.path
     }
 }
