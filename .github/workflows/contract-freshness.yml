@@ -81,7 +81,10 @@ jobs:
           PINNED: ${{ steps.pin.outputs.pinned }}
         run: |
           set -o pipefail
-          vendored=$(grep -oE '[0-9]+' \
+          # Parsed by key, not by a loose digit scan: the vendored file is
+          # `max-sequential-ms <n>`, and a future second number in it must
+          # not silently join this one.
+          vendored=$(awk '$1 == "max-sequential-ms" { print $2; exit }' \
             LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract/prompt-policy.txt)
           if ! printf '%s' "$PINNED" | grep -Eq '^[0-9a-f]{40}$'; then
             # No usable pin to compare against -- the step above already
@@ -90,8 +93,17 @@ jobs:
             echo "split=no" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          policy=$(gh api "repos/LibreSCRS/LibreAgent/contents/include/LibreSCRS/Agent/operations/PromptPolicy.h?ref=$PINNED" \
-            --jq '.content' | base64 -d || true)
+          # `if !` (not `|| true`): a failed fetch must be told apart from a
+          # fetch that succeeded but found neither the marker nor the
+          # fallback below, and this form still keeps `bash -e` from killing
+          # the step, because the substitution runs as the condition of an
+          # `if`, which -e never treats as fatal.
+          if ! policy=$(gh api "repos/LibreSCRS/LibreAgent/contents/include/LibreSCRS/Agent/operations/PromptPolicy.h?ref=$PINNED" \
+              --jq '.content' | base64 -d); then
+            echo "split=yes" >> "$GITHUB_OUTPUT"
+            echo "vendored=$vendored upstream='' (fetch of PromptPolicy.h at $PINNED failed)"
+            exit 0
+          fi
           # The agent may one day declare a dedicated sequential-chain budget
           # next to `kLongestDeadline`, marked with a `// budget-ms:` comment
           # so a reader (and this check) does not have to parse the C++
@@ -99,15 +111,26 @@ jobs:
           # single longest deadline is the only number vendored here, so
           # this check falls back to reading `kLongestDeadline` itself --
           # which is why it works both before and after that constant lands.
-          upstream=$(printf '%s\n' "$policy" | grep -m1 '// budget-ms:' \
-            | sed -n 's#.*// budget-ms:[[:space:]]*\([0-9][0-9]*\).*#\1#p')
+          #
+          # Neither pattern is pre-filtered through `grep -m1`: `sed -n`
+          # exits 0 whether or not a line matches, but `grep -m1` exits 1 on
+          # no match, and under `bash -e` (GitHub's default for `run:`
+          # blocks) plus the `pipefail` set above, a `grep -m1 pattern |
+          # sed ...` pipeline with no match would kill the step before it
+          # ever reached the fallback -- which is exactly what happens on
+          # today's pin, since it carries no marker yet. The capture group
+          # accepts a C++ digit separator (`300'000`) and strips it after.
+          upstream=$(printf '%s\n' "$policy" \
+            | sed -n "s#.*// budget-ms:[[:space:]]*\([0-9']*\).*#\1#p" \
+            | head -n1 | tr -d "'")
           if [ -z "$upstream" ]; then
-            upstream=$(printf '%s\n' "$policy" | grep -m1 'kLongestDeadline' \
-              | sed -n "s/.*kLongestDeadline{\([0-9']*\)}.*/\1/p" | tr -d "'")
+            upstream=$(printf '%s\n' "$policy" \
+              | sed -n "s/.*kLongestDeadline{\([0-9']*\)}.*/\1/p" \
+              | head -n1 | tr -d "'")
           fi
-          if [ -z "$upstream" ]; then
+          if [ -z "$vendored" ] || [ -z "$upstream" ]; then
             echo "split=yes" >> "$GITHUB_OUTPUT"
-            echo "vendored=$vendored upstream='' (neither // budget-ms: nor kLongestDeadline found at $PINNED)"
+            echo "vendored='$vendored' upstream='$upstream' (neither // budget-ms: nor kLongestDeadline found at $PINNED, or prompt-policy.txt is not in the max-sequential-ms <n> shape)"
           elif [ "$vendored" = "$upstream" ]; then
             echo "split=no" >> "$GITHUB_OUTPUT"
           else
@@ -116,7 +139,7 @@ jobs:
           fi
 
       - name: Report
-        if: steps.compare.outputs.stale == 'yes' || steps.pin.outputs.split == 'yes' || steps.budget.outputs.split == 'yes'
+        if: always() && (steps.compare.outputs.stale == 'yes' || steps.pin.outputs.split == 'yes' || steps.budget.outputs.split == 'yes')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
