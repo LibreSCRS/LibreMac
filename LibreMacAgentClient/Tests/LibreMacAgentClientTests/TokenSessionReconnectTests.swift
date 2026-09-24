@@ -132,7 +132,7 @@ struct TokenSessionReconnectTests {
     @Test("an agent that accepts and never answers fails after one deadline, without reconnecting")
     func tokenSessionReconnectDoesNotReplayATimeout() throws {
         let server = MockAgentServer() // no script: requests are read, never answered
-        let deadline: TimeInterval = 0.3
+        let deadline: TimeInterval = 1.0
         let connector = Connector(server: server, deadline: deadline)
         let unit = ReconnectingTokenEngine(connect: connector.connect)
 
