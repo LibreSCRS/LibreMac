@@ -8,11 +8,13 @@ import LibreMacAgentClient
 // passed. The certId is threaded in by the session's beginAuthFor (read from the
 // token's keychain key), NOT from the constraint.
 final class TokenAuthOperation: TKTokenAuthOperation {
-    private let engine: TokenOpEngine
+    // The session's connection, not a snapshot of it: a login that finds the
+    // connection closed rebuilds it for the sign that follows as well.
+    private let agent: ReconnectingTokenEngine
     private let certId: String
 
-    init(engine: TokenOpEngine, certId: String) {
-        self.engine = engine
+    init(agent: ReconnectingTokenEngine, certId: String) {
+        self.agent = agent
         self.certId = certId
         super.init()
     }
@@ -27,7 +29,7 @@ final class TokenAuthOperation: TKTokenAuthOperation {
 
     override func finish() throws {
         do {
-            try engine.login(certId: certId)
+            try agent.withEngine { try $0.login(certId: certId) }
         } catch let TokenOpError.mapped(code) {
             throw NSError(tkError: code)
         }

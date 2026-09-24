@@ -30,6 +30,10 @@ final class MockAgentServer: @unchecked Sendable {
     private var isUp = true
     private var connection: SocketConnection?
     private var rawServeFd: Int32 = -1
+    /// Serve fds severed by `dropRawConnection()`: shut down but still open,
+    /// so the number cannot be reused under the serve thread that is still
+    /// reading it. That thread closes the fd itself once its read returns.
+    private var droppedRawFds: Set<Int32> = []
 
     private let requestsContinuation: AsyncStream<DecodedRequest>.Continuation
     /// Every request the currently (or most recently) connected client has
@@ -182,7 +186,7 @@ final class MockAgentServer: @unchecked Sendable {
         Thread.detachNewThread { [weak self] in
             let reassembler = FrameReassembler()
             var buffer = [UInt8](repeating: 0, count: 4096)
-            while true {
+            serving: while true {
                 let n = read(peerFd, &buffer, buffer.count)
                 if n <= 0 { break }
                 guard let frames = try? reassembler.pump(bytes: Data(buffer[0..<n])) else { break }
@@ -191,9 +195,40 @@ final class MockAgentServer: @unchecked Sendable {
                     self?.recordRequest(decoded)
                     self?.requestsContinuation.yield(decoded)
                     self?.onRequest?(decoded.req, requestTag(decoded.request))
+                    // A script that dropped this connection ends it here: the
+                    // agent never reads past the frame it closed on.
+                    if self?.wasDropped(peerFd) ?? true { break serving }
                 }
             }
+            self?.closeIfDropped(peerFd)
         }
+    }
+
+    /// Severs the raw-fd path's current connection the way the agent closing
+    /// its end does: the client's next read sees EOF and its next write fails.
+    /// Safe to call from inside `onRequest`; frames the script already wrote
+    /// stay readable ahead of the EOF.
+    func dropRawConnection() {
+        lock.lock()
+        let fd = rawServeFd
+        rawServeFd = -1
+        if fd >= 0 { droppedRawFds.insert(fd) }
+        lock.unlock()
+        guard fd >= 0 else { return }
+        Darwin.shutdown(fd, SHUT_RDWR)
+    }
+
+    private func wasDropped(_ fd: Int32) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return droppedRawFds.contains(fd)
+    }
+
+    private func closeIfDropped(_ fd: Int32) {
+        lock.lock()
+        let dropped = droppedRawFds.remove(fd) != nil
+        lock.unlock()
+        if dropped { Darwin.close(fd) }
     }
 
     /// Frame-encodes `reply` and writes it onto the raw-fd path's serve fd

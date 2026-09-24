@@ -57,8 +57,15 @@ public final class TokenAgentClient: TokenTransport {
         let req = nextReq
         nextReq &+= 1
         let body = request.encode(req: req)
-        try writeAll(try Frame.encodeHeader(bodyLength: body.count, fdCount: 0))
-        try writeAll(body)
+        // A write that fails leaves at most part of the frame with the agent,
+        // which dispatches only whole frames and discards the rest when this
+        // fd closes: the request was never acted on (`notDelivered`).
+        do {
+            try writeAll(try Frame.encodeHeader(bodyLength: body.count, fdCount: 0))
+            try writeAll(body)
+        } catch TokenTransportError.ioFailed {
+            throw TokenTransportError.notDelivered
+        }
         while true {
             let frame = try nextFrame()
             guard let env = try? AgentMessages.decodeReply(frame.body), env.req == req else {

@@ -4,30 +4,22 @@ import CryptoTokenKit
 import LibreMacAgentClient
 
 final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
-    // One `TokenAgentClient` per session, connected lazily on the first delegate
+    // One agent connection per session, opened lazily on the first delegate
     // call rather than at init: eager connection at init would either block the
     // session's creation on the socket round trip or, if pre-created with a
     // placeholder fd, silently wrap a broken connection that only fails later at
-    // an unrelated call site. Deferring the connect means a failure surfaces as
-    // the thrown `TKError.communicationError` from the delegate call that needed
-    // it (`signData` / `beginAuthFor`). The client (and its socket) is released —
-    // and the fd closed via `TokenAgentClient.deinit` — when the session itself
-    // deallocates.
-    private var lazyEngine: TokenOpEngine?
+    // an unrelated call site. ctkd keeps this session alive across agent
+    // restarts, so a connection the agent closed is rebuilt once per operation
+    // (see `ReconnectingTokenEngine` for when replaying is safe); a failure that
+    // cannot be recovered surfaces as `TKError.communicationError` from the
+    // delegate call that needed it (`signData` / `beginAuthFor`). The connection
+    // is closed via `TokenAgentClient.deinit` when it fails or when the session
+    // itself deallocates.
+    private let agent = ReconnectingTokenEngine(connect: { try TokenAgentClient() })
 
     override init(token: TKToken) {
         super.init(token: token)
         self.delegate = self
-    }
-
-    private func engine() throws -> TokenOpEngine {
-        if let lazyEngine { return lazyEngine }
-        guard let client = try? TokenAgentClient() else {
-            throw NSError(tkError: .communicationError)
-        }
-        let engine = TokenOpEngine(transport: client)
-        lazyEngine = engine
-        return engine
     }
 
     // Advertise only RSA sign — exactly what the agent can service over the card.
@@ -46,7 +38,9 @@ final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
             // reliable way to tell a non-repudiation key from an
             // authentication key, so a uniform per-signature prompt is the
             // only safe default.
-            return try engine().sign(certId: certId, digestInfo: dataToSign, requireFreshAuth: true)
+            return try agent.withEngine {
+                try $0.sign(certId: certId, digestInfo: dataToSign, requireFreshAuth: true)
+            }
         } catch let TokenOpError.mapped(code) {
             throw NSError(tkError: code)
         }
@@ -64,6 +58,6 @@ final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
             throw NSError(tkError: .objectNotFound)
         }
         let certId = try objectIDString(key.objectID)
-        return TokenAuthOperation(engine: try engine(), certId: certId)
+        return TokenAuthOperation(agent: agent, certId: certId)
     }
 }

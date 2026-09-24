@@ -30,6 +30,18 @@ struct TokenAgentClientTests {
         #expect(e == Data([0x01, 0x00, 0x01]))
     }
 
+    @Test("a request written to a connection the peer already closed is reported as not delivered")
+    func writeToClosedPeerIsNotDelivered() {
+        var pair: [Int32] = [0, 0]
+        #expect(socketpair(AF_UNIX, SOCK_STREAM, 0, &pair) == 0)
+        // Wrap first: SO_NOSIGPIPE cannot be set on an already-disconnected fd.
+        let client = TokenAgentClient(connectedFd: pair[1], ioTimeout: 0.2)
+        close(pair[0])
+        #expect(throws: TokenTransportError.notDelivered) {
+            _ = try client.send(.getState)
+        }
+    }
+
     @Test("a peer that never replies surfaces ioFailed instead of hanging forever")
     func silentPeerSurfacesIoFailed() {
         let server = MockAgentServer() // no onRequest script: requests are read but never answered

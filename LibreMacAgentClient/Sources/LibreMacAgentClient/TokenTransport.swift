@@ -12,8 +12,13 @@ public protocol TokenTransport {
     func send(_ request: AgentRequest) throws -> AgentReply
 }
 
+/// `notDelivered` is kept apart from `ioFailed` because it answers the one
+/// question a reconnect has to ask: the request's frame never left this
+/// process whole, so the agent — which dispatches only complete frames — never
+/// acted on it. `ioFailed` and `closed` arrive after the whole frame was
+/// written, when the agent may already be acting on it.
 public enum TokenTransportError: Error, Equatable {
-    case connectFailed, ioFailed, decodeFailed, closed
+    case connectFailed, ioFailed, decodeFailed, closed, notDelivered
 }
 
 /// Platform-neutral error the extension turns into a TKError (keeps the package CTK-free).
