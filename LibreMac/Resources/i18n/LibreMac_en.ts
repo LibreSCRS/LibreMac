@@ -226,6 +226,10 @@
         <source>{name} already exists. Replace it?</source>
         <translation>{name} already exists. Replace it?</translation>
     </message>
+    <message id="libremac_sign_replace_after_discard">
+        <source>{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again.</source>
+        <translation>{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again.</translation>
+    </message>
     <message id="libremac_sign_replace">
         <source>Replace</source>
         <translation>Replace</translation>

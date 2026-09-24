@@ -58,8 +58,10 @@ public final class SigningCoordinator {
         /// The destination already exists. Nothing was signed; signing again
         /// with `replacing:` set to exactly this URL replaces it — and only
         /// it. Asked before the card is, the way the save panel this replaces
-        /// asked.
-        case confirmReplace(destination: URL)
+        /// asked. `signatureDiscarded` is true when the file appeared while the
+        /// card was signing: that signature was not saved, and the question
+        /// has to say so.
+        case confirmReplace(destination: URL, signatureDiscarded: Bool = false)
     }
 
     public private(set) var stage: Stage = .idle
@@ -194,14 +196,17 @@ public final class SigningCoordinator {
         // The destination must not be the input: by path (it may not exist
         // yet under another spelling), and by identity (a hard link, a
         // symlink, or a spelling that differs only in case on APFS).
+        // `destinationInfo` is the destination itself (`lstat`, a link stays a
+        // link); `targetInfo` is what it leads to, for the identity check.
         var inputInfo = stat()
         var destinationInfo = stat()
+        var targetInfo = stat()
         let destinationExists = lstat(destinationURL.path, &destinationInfo) == 0
         if Self.canonical(inputURL) == Self.canonical(destinationURL)
             || (fstat(input.fileDescriptor, &inputInfo) == 0
-                && stat(destinationURL.path, &destinationInfo) == 0
-                && inputInfo.st_dev == destinationInfo.st_dev
-                && inputInfo.st_ino == destinationInfo.st_ino)
+                && stat(destinationURL.path, &targetInfo) == 0
+                && inputInfo.st_dev == targetInfo.st_dev
+                && inputInfo.st_ino == targetInfo.st_ino)
         {
             stage = .failed(message: Self.localized(
                 "libremac_sign_dest_is_input",
@@ -288,9 +293,25 @@ public final class SigningCoordinator {
             try output.synchronize()
             // Unconfirmed: exclusive, so a file that appeared at that name
             // while the card was busy is never replaced without asking.
-            try moveItem(temporaryURL, destinationURL, !replaceConfirmed)
+            do {
+                try moveItem(temporaryURL, destinationURL, !replaceConfirmed)
+            } catch let error as POSIXError
+                where !replaceConfirmed && (error.code == .ENOTSUP || error.code == .EINVAL)
+            {
+                // The volume has no exclusive rename (exFAT, measured: ENOTSUP
+                // for every name). Look, then rename plainly if nothing is
+                // there. That leaves a window between the look and the rename
+                // in which a new file could be replaced; it is accepted,
+                // because refusing would make every new file on such a volume
+                // fail after the user has already confirmed the signature.
+                var present = stat()
+                guard lstat(destinationURL.path, &present) != 0 else {
+                    throw POSIXError(.EEXIST)
+                }
+                try moveItem(temporaryURL, destinationURL, false)
+            }
         } catch let error as POSIXError where error.code == .EEXIST && !replaceConfirmed {
-            stage = .confirmReplace(destination: destinationURL)
+            stage = .confirmReplace(destination: destinationURL, signatureDiscarded: true)
             return
         } catch {
             stage = .failed(message: Self.writeFailedMessage)

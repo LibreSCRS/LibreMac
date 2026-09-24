@@ -14507,6 +14507,23 @@
         }
       }
     },
+    "libremac_sign_replace_after_discard" : {
+      "comment" : "libremac_sign_replace_after_discard",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датотека {name} се појавила током потписивања, па потпис није сачуван. Да ли да је замените? Картица ће поново бити затражена."
+          }
+        }
+      }
+    },
     "libremac_sign_replace_prompt" : {
       "comment" : "libremac_sign_replace_prompt",
       "localizations" : {

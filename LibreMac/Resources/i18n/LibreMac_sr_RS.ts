@@ -226,6 +226,10 @@
         <source>{name} already exists. Replace it?</source>
         <translation>Датотека {name} већ постоји. Да ли да је замените?</translation>
     </message>
+    <message id="libremac_sign_replace_after_discard">
+        <source>{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again.</source>
+        <translation>Датотека {name} се појавила током потписивања, па потпис није сачуван. Да ли да је замените? Картица ће поново бити затражена.</translation>
+    </message>
     <message id="libremac_sign_replace">
         <source>Replace</source>
         <translation>Замени</translation>

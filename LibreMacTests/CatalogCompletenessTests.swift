@@ -445,6 +445,7 @@ struct CatalogCompletenessTests {
         "libremac_sign_dest_is_input",
         "libremac_sign_dest_not_a_file",
         "libremac_sign_replace_prompt",
+        "libremac_sign_replace_after_discard",
         "libremac_sign_replace",
         "libremac_settings_action_cancel",
         "libremac_sign_input_unreadable",

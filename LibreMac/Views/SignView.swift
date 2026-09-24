@@ -134,12 +134,17 @@ struct SignView: View {
             Button(loc("libremac_sign_retry", "Try again")) {
                 coordinator.reset()
             }
-        case .confirmReplace(let destination):
+        case let .confirmReplace(destination, signatureDiscarded):
             // Inline, not a system sheet: the panel service is what crashes.
             Label(
-                localization.loc(
-                    "libremac_sign_replace_prompt", "{name} already exists. Replace it?",
-                    placeholders: ["name": destination.lastPathComponent]),
+                signatureDiscarded
+                    ? localization.loc(
+                        "libremac_sign_replace_after_discard",
+                        "{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again.",
+                        placeholders: ["name": destination.lastPathComponent])
+                    : localization.loc(
+                        "libremac_sign_replace_prompt", "{name} already exists. Replace it?",
+                        placeholders: ["name": destination.lastPathComponent]),
                 systemImage: "exclamationmark.triangle.fill"
             )
             .foregroundStyle(.orange)
