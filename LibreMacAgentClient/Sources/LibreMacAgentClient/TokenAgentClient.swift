@@ -14,33 +14,34 @@ public final class TokenAgentClient: TokenTransport {
     private var nextReq: UInt64 = 1
     private let reassembler = FrameReassembler()
     private var pending: [Frame] = []
+    private let ioTimeout: TimeInterval
 
-    /// Upper bound on any single blocking `read`/`write` (SO_RCVTIMEO /
-    /// SO_SNDTIMEO). Any inbound traffic re-arms it, so it is the
-    /// blocking-seam analog of `OperationDriver.opStallTimeout`'s
-    /// no-progress watchdog — but generous where that one is exempt: an
+    /// Upper bound on one request, from its first written byte to its reply.
+    /// It is one deadline for the whole exchange: inbound events do not
+    /// extend it, since until the agent can be told not to broadcast them a
+    /// steady trickle would otherwise keep a stuck request waiting forever.
+    /// It is generous where `OperationDriver.opStallTimeout` is exempt: an
     /// operator-facing wait (PIN entry happens agent-side) sends this seam
     /// no phase events to exempt it with, so the bound must outlast a slow
     /// operator while still surfacing a hung agent as
     /// `TokenTransportError.timedOut` instead of wedging the ctkd thread
     /// forever. Pinned to `PromptBudget.maxSequential` plus margin, not a
     /// bare literal: a request may chain more than one prompt (CAN entry
-    /// followed by a PIN change), and this seam gets no phase events to
-    /// re-arm it mid-chain, so it must outlive the whole chain, not just
-    /// one prompt.
+    /// followed by a PIN change), and nothing extends it mid-chain, so it
+    /// must outlive the whole chain, not just one prompt.
     public static let defaultIoTimeout: TimeInterval = PromptBudget.maxSequential + 30
 
     /// Wraps an already-connected fd and takes ownership of it: the fd is
     /// closed on `deinit`. Also suppresses `SIGPIPE` on the fd (see
     /// `setNoSigPipe`) before any `write` can reach it, and bounds every
-    /// blocking read/write with `ioTimeout` (see `defaultIoTimeout`).
+    /// request with `ioTimeout` (see `defaultIoTimeout`).
     /// Internal: the fd has not met a `PeerVerifier`, so production reaches a
     /// connection only through `init(socketPath:verifier:)`.
     init(connectedFd: Int32, ioTimeout: TimeInterval = TokenAgentClient.defaultIoTimeout) {
         self.fd = connectedFd
         self.ownsFd = true
+        self.ioTimeout = ioTimeout
         Self.setNoSigPipe(connectedFd)
-        Self.setIoDeadline(connectedFd, seconds: ioTimeout)
     }
 
     /// Connects via the shared `connectUnixSocket(path:verifier:)` helper
@@ -83,18 +84,19 @@ public final class TokenAgentClient: TokenTransport {
         let req = nextReq
         nextReq &+= 1
         let body = request.encode(req: req)
+        let deadline = ContinuousClock.now + .seconds(ioTimeout)
         // A write that fails leaves at most part of the frame with the agent,
         // which dispatches only whole frames and discards the rest when this
         // fd closes: the request was never acted on (`notDelivered`). A write
         // deadline stays `timedOut`: the agent is there but not reading.
         do {
-            try writeAll(try Frame.encodeHeader(bodyLength: body.count, fdCount: 0))
-            try writeAll(body)
+            try writeAll(try Frame.encodeHeader(bodyLength: body.count, fdCount: 0), until: deadline)
+            try writeAll(body, until: deadline)
         } catch TokenTransportError.ioFailed {
             throw TokenTransportError.notDelivered
         }
         while true {
-            let frame = try nextFrame()
+            let frame = try nextFrame(until: deadline)
             guard let env = try? AgentMessages.decodeReply(frame.body), env.req == req else {
                 continue // event or non-matching reply — discard
             }
@@ -107,17 +109,19 @@ public final class TokenAgentClient: TokenTransport {
         fd = -1
     }
 
-    private func nextFrame() throws -> Frame {
+    private func nextFrame(until deadline: ContinuousClock.Instant) throws -> Frame {
         while pending.isEmpty {
+            try armRemaining(SO_RCVTIMEO, until: deadline)
             var buf = [UInt8](repeating: 0, count: 4096)
             let n = read(fd, &buf, buf.count)
             if n == 0 { throw TokenTransportError.closed }
             if n < 0 {
                 let failure = errno
                 if failure == EINTR { continue }
-                // EAGAIN/EWOULDBLOCK here means the SO_RCVTIMEO deadline
-                // expired (the fd is otherwise blocking): a hung agent
-                // surfaces as timedOut rather than wedging the ctkd thread.
+                // EAGAIN/EWOULDBLOCK here means SO_RCVTIMEO, set to what is
+                // left of the request's deadline, expired (the fd is otherwise
+                // blocking): a hung agent surfaces as timedOut rather than
+                // wedging the ctkd thread.
                 if failure == EAGAIN || failure == EWOULDBLOCK { throw TokenTransportError.timedOut }
                 throw TokenTransportError.ioFailed
             }
@@ -134,10 +138,11 @@ public final class TokenAgentClient: TokenTransport {
         return pending.removeFirst()
     }
 
-    private func writeAll(_ data: Data) throws {
+    private func writeAll(_ data: Data, until deadline: ContinuousClock.Instant) throws {
         try data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
             var off = 0
             while off < raw.count {
+                try armRemaining(SO_SNDTIMEO, until: deadline)
                 let n = write(fd, raw.baseAddress!.advanced(by: off), raw.count - off)
                 if n < 0 {
                     let failure = errno
@@ -161,13 +166,21 @@ public final class TokenAgentClient: TokenTransport {
         _ = setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
     }
 
-    /// Bounds every blocking `read`/`write` on `fd` (SO_RCVTIMEO /
-    /// SO_SNDTIMEO): expiry returns -1 with EAGAIN/EWOULDBLOCK, which the
-    /// IO loops map to `TokenTransportError.timedOut`.
-    private static func setIoDeadline(_ fd: Int32, seconds: TimeInterval) {
-        let whole = Int(seconds)
-        var tv = timeval(tv_sec: whole, tv_usec: Int32((seconds - TimeInterval(whole)) * 1_000_000))
-        _ = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
-        _ = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+    /// The shortest timeout ever armed. A zero `timeval` would mean "no
+    /// timeout" to the kernel, the opposite of a nearly spent deadline.
+    static let minimumArmedTimeout: Duration = .milliseconds(1)
+
+    /// Sets `option` (SO_RCVTIMEO or SO_SNDTIMEO) to what is left of
+    /// `deadline`, so the next blocking `read`/`write` cannot outlast the
+    /// request. A spent deadline is `timedOut` without touching the fd.
+    /// Expiry returns -1 with EAGAIN/EWOULDBLOCK, which the IO loops map to
+    /// `TokenTransportError.timedOut`.
+    private func armRemaining(_ option: Int32, until deadline: ContinuousClock.Instant) throws {
+        let remaining = deadline - ContinuousClock.now
+        guard remaining > .zero else { throw TokenTransportError.timedOut }
+        let armed = max(remaining, Self.minimumArmedTimeout)
+        let (seconds, attoseconds) = armed.components
+        var tv = timeval(tv_sec: Int(seconds), tv_usec: Int32(attoseconds / 1_000_000_000_000))
+        _ = setsockopt(fd, SOL_SOCKET, option, &tv, socklen_t(MemoryLayout<timeval>.size))
     }
 }

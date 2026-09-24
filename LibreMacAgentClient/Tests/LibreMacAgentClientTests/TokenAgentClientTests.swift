@@ -51,6 +51,37 @@ struct TokenAgentClientTests {
         }
     }
 
+    /// The deadline belongs to the request, not to each read. Until the agent
+    /// can be told not to broadcast, events keep reaching this connection while
+    /// an operation is stuck; if each one re-armed the read timeout, a steady
+    /// trickle of them would wedge the ctkd thread forever.
+    @Test("a peer that streams events but never replies still times out after one deadline")
+    func eventStreamDoesNotExtendTheDeadline() {
+        let server = MockAgentServer() // requests are read, never answered
+        let deadline: TimeInterval = 0.5
+        let client = TokenAgentClient(connectedFd: server.connectedFd(), ioTimeout: deadline)
+
+        // Events every 0.1 s until the send returns. The pump is also capped,
+        // so a client that ignores the deadline fails the elapsed-time
+        // expectation below instead of hanging the suite.
+        let stop = DispatchSemaphore(value: 0)
+        let stopped = DispatchSemaphore(value: 0)
+        let cap = Date().addingTimeInterval(4)
+        Thread.detachNewThread {
+            while Date() < cap, stop.wait(timeout: .now() + 0.1) == .timedOut {
+                server.sendEventRaw(.cardRemoved(handle: "reader/0"))
+            }
+            stopped.signal()
+        }
+
+        let start = Date()
+        #expect(throws: TokenTransportError.timedOut) { _ = try client.send(.getState) }
+        let elapsed = Date().timeIntervalSince(start)
+        stop.signal()
+        stopped.wait()
+        #expect(elapsed < 2 * deadline, "timed out after \(elapsed) s, deadline \(deadline) s")
+    }
+
     /// A write that stops part-way leaves the start of a frame with the agent.
     /// If a later request were written on the same fd, its bytes would complete
     /// that frame into a request nobody sent. The client must write nothing

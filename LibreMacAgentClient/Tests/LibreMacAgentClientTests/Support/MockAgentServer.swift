@@ -193,6 +193,10 @@ final class MockAgentServer: @unchecked Sendable {
         var pair: [Int32] = [0, 0]
         let result = socketpair(AF_UNIX, SOCK_STREAM, 0, &pair)
         precondition(result == 0, "socketpair failed: \(String(cString: strerror(errno)))")
+        // A script may keep writing after the client closed its end; that
+        // write must fail with EPIPE, not kill the test process with SIGPIPE.
+        var on: Int32 = 1
+        _ = setsockopt(pair[0], SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
         lock.lock()
         rawServeFd = pair[0]
         lock.unlock()

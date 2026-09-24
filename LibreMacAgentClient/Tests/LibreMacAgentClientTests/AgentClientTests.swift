@@ -191,6 +191,38 @@ struct AgentClientTests {
         await client.stop()
     }
 
+    /// The timeout is armed once per request; events arriving meanwhile do
+    /// not push it back, so an agent that keeps broadcasting but never
+    /// answers still fails the request on time.
+    @Test("a request times out on schedule while the agent keeps sending events")
+    func timeoutHoldsWhileEventsStream() async {
+        let mock = MockAgentServer()
+        let timeout: TimeInterval = 0.5
+        let client = makeTestClient(mock: mock, propTimeout: timeout)
+        _ = await startAndHandshake(mock, client)
+
+        let pump = Task.detached {
+            let cap = Date().addingTimeInterval(4)
+            while !Task.isCancelled, Date() < cap {
+                mock.sendEvent(.cardRemoved(handle: "c-none"))
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+        let start = Date()
+        do {
+            _ = try await client.getConfig()
+            Issue.record("expected .timeout")
+        } catch {
+            #expect((error as? AgentClientError) == .timeout)
+        }
+        let elapsed = Date().timeIntervalSince(start)
+        pump.cancel()
+        _ = await pump.value
+        #expect(elapsed < 2 * timeout, "timed out after \(elapsed) s, timeout \(timeout) s")
+
+        await client.stop()
+    }
+
     // MARK: - Death sweep — the step ordering is the contract
 
     @Test("death sweep: the live operation finishes vanished strictly before the registry clears and availability publishes false")
