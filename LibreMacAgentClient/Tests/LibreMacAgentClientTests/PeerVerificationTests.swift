@@ -21,6 +21,7 @@ private final class TestListener {
         directory = String(cString: made)
         path = directory + "/s"
         fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
         let bytes = Array(path.utf8)
@@ -246,21 +247,24 @@ struct PeerVerificationTests {
         #expect(designatedRequirement(teamId: "ABCDE.12345", signingId: "org.librescrs.agent") == nil)
     }
 
-    @Test("the compiled-in team id is the project's DEVELOPMENT_TEAM")
-    func configuredTeamIdMatchesTheProject() throws {
-        let projectYml = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("project.yml")
-        let text = try String(contentsOf: projectYml, encoding: .utf8)
-        let values = text.split(separator: "\n").compactMap { line -> String? in
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard trimmed.hasPrefix("DEVELOPMENT_TEAM:") else { return nil }
-            return trimmed.dropFirst("DEVELOPMENT_TEAM:".count)
-                .trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-        }
-        #expect(values.count == 1, "project.yml states DEVELOPMENT_TEAM once")
-        #expect(values.first == AgentPeerIdentity.configuredTeamIdentifier)
-        #expect(AgentPeerIdentity.configuredTeamIdentifier.allSatisfy { $0.isASCII && ($0.isUppercase || $0.isNumber) })
+    @Test("App Groups: string entries count, other entries are skipped, a non-array names none")
+    func appGroupsFromEntitlement() {
+        let mixed: [Any] = ["group.org.librescrs.LibreMac", 7, "group.other"]
+        #expect(appGroups(fromEntitlement: mixed as CFArray) == ["group.org.librescrs.LibreMac", "group.other"])
+        #expect(appGroups(fromEntitlement: ["group.org.librescrs.LibreMac"] as CFArray) == ["group.org.librescrs.LibreMac"])
+        #expect(appGroups(fromEntitlement: "group.org.librescrs.LibreMac" as CFString) == [])
+        #expect(appGroups(fromEntitlement: nil) == [])
+    }
+
+    @Test("the team comes from the Info.plist value; empty, absent or not a string names none")
+    func teamIdFromInfoPlist() {
+        #expect(AgentPeerIdentity.teamId(fromInfoValue: "ABCDE12345") == "ABCDE12345")
+        #expect(AgentPeerIdentity.teamId(fromInfoValue: "") == nil)
+        #expect(AgentPeerIdentity.teamId(fromInfoValue: nil) == nil)
+        #expect(AgentPeerIdentity.teamId(fromInfoValue: 12345) == nil)
+        // This test runner is no LibreMac bundle and carries no team.
+        #expect(Bundle.main.object(forInfoDictionaryKey: AgentPeerIdentity.teamIdInfoKey) == nil)
+        #expect(AgentPeerIdentity.configuredTeamId == nil)
     }
 
     // MARK: - The token path

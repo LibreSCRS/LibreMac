@@ -27,13 +27,15 @@
 //   # The client speaks only to a process that presents the agent's signing
 //   # identifier and App Group. The linker's ad-hoc signature carries neither
 //   # (it says "librescrs-agent" and no entitlements), so sign the dev build
-//   # the way Scripts/bundle-agent.sh signs the bundled one:
+//   # the way Scripts/bundle-agent.sh signs the bundled one -- after EVERY
+//   # build: relinking replaces this signature with the linker's again.
 //   ENTS="$(mktemp)"
 //   printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
 //     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
 //     '<plist version="1.0"><dict><key>com.apple.security.application-groups</key>' \
 //     '<array><string>group.org.librescrs.LibreMac</string></array></dict></plist>' > "$ENTS"
 //   codesign --force -s - --identifier org.librescrs.agent --entitlements "$ENTS" "$AGENT"
+//   rm -f "$ENTS"
 //   "$AGENT" &
 //   AGENT_PID=$!
 //   for _ in $(seq 1 50); do [ -S "$SOCK" ] && break; sleep 0.1; done

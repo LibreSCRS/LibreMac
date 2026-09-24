@@ -171,7 +171,7 @@ block_bounds() {  # block_bounds <bundle-agent.sh> -> "<begin> <end>"
 }
 
 r3_verdict() {  # r3_verdict <bundle-agent.sh> -> 0 ok, 1 broken (reason on stdout)
-    local ba="$1" assigns bl el
+    local ba="$1" assigns bl el line
     if [ ! -f "$ba" ]; then
         echo "no bundle-agent.sh at $ba -- cannot judge the consumer"; return 1
     fi
@@ -182,9 +182,12 @@ r3_verdict() {  # r3_verdict <bundle-agent.sh> -> 0 ok, 1 broken (reason on stdo
     if grep -nE 'libLibreSCRS_[A-Za-z0-9_*]*\.[0-9]+\.dylib' "$ba"; then
         echo "bundle-agent.sh still hard-codes a soname integer"; return 1
     fi
-    mapfile -t assigns < <(grep -nE '^[[:space:]]*lm_soname=' "$ba")
+    # A read loop, not mapfile: bash 3.2 (the macOS /bin/bash) has no mapfile,
+    # and an empty array under `set -u` must be expanded with the `+` guard.
+    assigns=()
+    while IFS= read -r line; do assigns+=("$line"); done < <(grep -nE '^[[:space:]]*lm_soname=' "$ba")
     if [ "${#assigns[@]}" -ne 1 ]; then
-        printf '%s\n' "${assigns[@]}"
+        printf '%s\n' ${assigns[@]+"${assigns[@]}"}
         echo "bundle-agent.sh assigns lm_soname ${#assigns[@]} time(s); the soname comes from the helper and from nowhere else"
         return 1
     fi
@@ -475,10 +478,21 @@ make_stubs() {  # make_stubs <dir> <host-name>
           echo 'printf "%s" "${0##*/}" >> "$LM_SELFTEST_CALLS"'
           echo 'for a in "$@"; do printf " %s" "$a" >> "$LM_SELFTEST_CALLS"; done'
           echo 'printf "\n" >> "$LM_SELFTEST_CALLS"'
+          # The team a real `codesign -dv` reports for what it signed; R6 sets
+          # it, every other case leaves it empty and the stub says nothing.
+          [ "$tool" != codesign ] || \
+              echo '[ -z "${LM_SELFTEST_SIGNED_TEAM-}" ] || echo "TeamIdentifier=$LM_SELFTEST_SIGNED_TEAM" >&2'
           echo 'exit 0'
         } > "$d/$tool"
         chmod +x "$d/$tool"
     done
+    # The team the built Info.plists name (LibreSCRSTeamID). Empty unless R6
+    # sets one; absent altogether when R6 asks for a bundle built without it.
+    { echo '#!/bin/sh'
+      echo '[ -z "${LM_SELFTEST_NO_TEAM_KEY-}" ] || exit 1'
+      echo 'printf "%s\n" "${LM_SELFTEST_TEAM-}"'
+    } > "$d/plutil"
+    chmod +x "$d/plutil"
     # cp is recorded and then really run: the staging needs its copies, and the
     # ORDER needs to see one that lands after the host was signed.
     { echo '#!/bin/sh'
@@ -866,6 +880,45 @@ r5_control() {  # r5_control <label> <fragment> <mode> <selector> [<text>]
 }
 r5_control "a line outside the block that stages nothing" 'bundle-agent: staging bounded' \
     after '^# END LM dylib staging$' 'echo "bundle-agent: staging bounded" >&2'
+
+# R6 -- the signing identity against the team the clients enforce. The host and
+# the token extension require the agent to meet the designated requirement of
+# the team their Info.plists name (LibreSCRSTeamID, from LIBRESCRS_TEAM_ID in
+# project.yml). A bundle whose signer is some other team ships clients that
+# refuse their own agent; a team-signed bundle whose clients name no team ships
+# clients that never check who signed the agent; an ad-hoc bundle that names a
+# team can never pass. Each must stop the bundler before the host is sealed.
+# The team `codesign -dv` reports and the one the Info.plists carry come from
+# the stubs above.
+r6_case() {  # r6_case <label> <identity> <plist-team|-absent-> <signed-team> <want-rc> <want-text>
+    local label="$1" identity="$2" team="$3" signed="$4" wrc="$5" want="$6" app calls out rc nokey="" sealed
+    [ "$team" != "-absent-" ] || { team=""; nokey=1; }
+    app="$(mktemp -d "$WORK/app6.XXXXXX")/LibreMac.app"
+    calls=$(mktemp "$WORK/calls6.XXXXXX")
+    out="$(CODESIGN_IDENTITY="$identity" LM_SELFTEST_TEAM="$team" LM_SELFTEST_SIGNED_TEAM="$signed" \
+        LM_SELFTEST_NO_TEAM_KEY="$nokey" whole_run "$BA" "$WORK/whole" "$app" "$STUBS" "$calls")"; rc=$?
+    sealed=0
+    awk '$1 == "codesign" { print $NF }' "$calls" | grep -q 'LibreMac\.app$' && sealed=1
+    [ "$wrc" = 0 ] || red=$((red + 1))
+    if [ "$rc" = "$wrc" ] && [ "$sealed" = "$((1 - (wrc != 0)))" ] && printf '%s\n' "$out" | grep -qF -- "$want"; then
+        echo "  ok    R6: $label (rc=$rc)"; pass=$((pass+1))
+    else
+        echo "  FAIL  R6: $label: rc=$rc (want $wrc), host sealed=$sealed, want text: $want"
+        printf '%s\n' "$out" | sed 's/^/          /'
+        fail=$((fail+1))
+    fi
+}
+TEAM_ID_A=ABCDE12345
+TEAM_ID_B=ZYXWV98765
+TEAM_IDENTITY="Developer ID Application: Example ($TEAM_ID_A)"
+r6_case "ad hoc, no team named: bundles" - "" "" 0 "bundle-agent: done"
+r6_case "team identity, the same team named: bundles" "$TEAM_IDENTITY" "$TEAM_ID_A" "$TEAM_ID_A" 0 "bundle-agent: done"
+r6_case "team identity, another team named: refused" "$TEAM_IDENTITY" "$TEAM_ID_B" "$TEAM_ID_A" 1 \
+    "the clients would refuse this agent"
+r6_case "team identity, no team named: refused" "$TEAM_IDENTITY" "" "$TEAM_ID_A" 1 \
+    "the clients would never check who signed the agent"
+r6_case "ad hoc with a team named: refused" - "$TEAM_ID_A" "" 1 "CODESIGN_IDENTITY is ad hoc"
+r6_case "a bundle whose Info.plist names no team at all: refused" - -absent- "" 1 "carries no LibreSCRSTeamID"
 
 # A block that cannot be found is not a pass: without both markers there is
 # nothing to lift out, and R4 would silently measure nothing.

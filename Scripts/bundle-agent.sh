@@ -273,6 +273,32 @@ TOKEN_APPEX="$APP_PATH/Contents/PlugIns/LibreMacToken.appex"
     exit 1
 }
 
+# ---------------------------------------------------------------- team id
+# The host and the token extension hold the agent to the designated requirement
+# of the team LIBRESCRS_TEAM_ID names (project.yml; Xcode writes it into both
+# Info.plists as LibreSCRSTeamID). Read from the built bundle, because that is
+# the value the clients enforce. The identity signing here must be that team:
+# ad hoc with a team named ships clients that refuse their own agent, and a
+# team identity with no team named ships clients that never check who signed
+# the agent.
+read_team_id() {  # read_team_id <Info.plist> <what>
+    plutil -extract LibreSCRSTeamID raw -o - "$1" 2>/dev/null || {
+        echo "bundle-agent: the $2 Info.plist carries no LibreSCRSTeamID ($1) -- regenerate the project (Scripts/generate-project.sh) and rebuild" >&2
+        return 1
+    }
+}
+team_host="$(read_team_id "$APP_PATH/Contents/Info.plist" host)" || exit 1
+team_appex="$(read_team_id "$TOKEN_APPEX/Contents/Info.plist" "token extension")" || exit 1
+[ "$team_host" = "$team_appex" ] || {
+    echo "bundle-agent: the host names team '$team_host' and the token extension '$team_appex' -- rebuild both from one project.yml" >&2
+    exit 1
+}
+LIBRESCRS_TEAM_ID="$team_host"
+if [ "$CODESIGN_IDENTITY" = "-" ] && [ -n "$LIBRESCRS_TEAM_ID" ]; then
+    echo "bundle-agent: LIBRESCRS_TEAM_ID is '$LIBRESCRS_TEAM_ID' but CODESIGN_IDENTITY is ad hoc: the clients would require that team's signature on an agent that has none -- set CODESIGN_IDENTITY to that team's identity, or clear LIBRESCRS_TEAM_ID in project.yml" >&2
+    exit 1
+fi
+
 for lib in "$FRAMEWORKS"/*.dylib "$PLUGINS"/*.dylib; do
     [ -f "$lib" ] || continue
     codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none "$lib"
@@ -282,6 +308,15 @@ codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none --id
     --entitlements "$ENTS_DIR/prompter.plist" "$MACOS/librescrs-prompter"
 codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none --identifier org.librescrs.agent \
     --entitlements "$ENTS_DIR/agent.plist" "$MACOS/librescrs-agent"
+if [ "$CODESIGN_IDENTITY" != "-" ]; then
+    signed_team="$(codesign -dv "$MACOS/librescrs-agent" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+    if [ "$signed_team" != "$LIBRESCRS_TEAM_ID" ]; then
+        consequence="refuse this agent"
+        [ -n "$LIBRESCRS_TEAM_ID" ] || consequence="never check who signed the agent"
+        echo "bundle-agent: the agent was signed by team '$signed_team' but LIBRESCRS_TEAM_ID is '$LIBRESCRS_TEAM_ID': the clients would $consequence -- set LIBRESCRS_TEAM_ID in project.yml to the signing team and rebuild" >&2
+        exit 1
+    fi
+fi
 
 # The host LAST: everything above changed the bundle after Xcode sealed it.
 codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none \

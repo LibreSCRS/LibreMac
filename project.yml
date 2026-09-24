@@ -34,6 +34,14 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     PRODUCT_NAME: "$(TARGET_NAME)"
     DEVELOPMENT_TEAM: ""
+    # The team whose signature the host and the token extension require of the
+    # agent (its designated requirement). Empty while everything is signed ad
+    # hoc, which leaves the check at identifier and App Group. The one place it
+    # is stated: both Info.plists carry it as LibreSCRSTeamID, the clients read
+    # it from there, and Scripts/bundle-agent.sh refuses to bundle when the
+    # identity it signs with is not this team. Same name as the agent's CMake
+    # cache variable in LibreDarwin, which must hold the same value.
+    LIBRESCRS_TEAM_ID: ""
     CODE_SIGN_STYLE: Manual
     CODE_SIGN_IDENTITY: "-"
     OTHER_CODE_SIGN_FLAGS: "--timestamp=none"
@@ -63,6 +71,7 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSUIElement: true
+        LibreSCRSTeamID: "$(LIBRESCRS_TEAM_ID)"
         NSHumanReadableCopyright: "Copyright (c) 2026 hirashix0. LGPL-2.1-or-later."
         NSPrincipalClass: NSApplication
     entitlements:

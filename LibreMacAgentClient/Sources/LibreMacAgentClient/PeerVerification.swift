@@ -54,17 +54,27 @@ public enum AgentPeerIdentity {
     /// with exactly this).
     public static let signingId = "org.librescrs.agent"
 
-    /// The team every LibreSCRS binary is signed by. Empty while the builds are
-    /// signed ad hoc, which keeps the check to identifier and App Group. It is
-    /// compiled in, never read from the environment or a file: anything a
-    /// process can be handed at launch could switch the check off. It changes
-    /// together with `DEVELOPMENT_TEAM` in `project.yml` (a test holds the two
-    /// equal) and with the agent's own `LIBRESCRS_TEAM_ID`.
-    static let configuredTeamIdentifier = ""
+    /// The Info.plist key carrying the team the agent must be signed by. Xcode
+    /// writes it from the `LIBRESCRS_TEAM_ID` build setting (`project.yml`, the
+    /// one place it is stated) into the host's and the token extension's
+    /// Info.plist, and `Scripts/bundle-agent.sh` refuses a bundle whose signing
+    /// identity is not that team.
+    public static let teamIdInfoKey = "LibreSCRSTeamID"
 
-    /// `configuredTeamIdentifier`, nil when empty.
+    /// The team every LibreSCRS binary is signed by, from this process's own
+    /// Info.plist; nil when empty or absent, which keeps the check to
+    /// identifier and App Group (today's ad-hoc builds). The Info.plist is
+    /// sealed by this process's signature, so it cannot change without
+    /// re-signing the client itself. Never read from the environment: a
+    /// variable handed in at launch could switch the check off.
     public static var configuredTeamId: String? {
-        configuredTeamIdentifier.isEmpty ? nil : configuredTeamIdentifier
+        teamId(fromInfoValue: Bundle.main.object(forInfoDictionaryKey: teamIdInfoKey))
+    }
+
+    /// The team named by an Info.plist value; nil for an empty or non-string one.
+    static func teamId(fromInfoValue value: Any?) -> String? {
+        guard let text = value as? String, !text.isEmpty else { return nil }
+        return text
     }
 
     /// What the agent must present to this build.
@@ -136,16 +146,22 @@ public func resolvePeerCodeSigning(auditToken: audit_token_t, teamId: String?) -
         return out
     }
     out.signingId = SecTaskCopySigningIdentifier(task, nil) as String?
-    if let groups = SecTaskCopyValueForEntitlement(task, "com.apple.security.application-groups" as CFString, nil)
-        as? [String]
-    {
-        out.appGroups = groups
-    }
+    out.appGroups = appGroups(
+        fromEntitlement: SecTaskCopyValueForEntitlement(
+            task, "com.apple.security.application-groups" as CFString, nil))
     if let teamId, let signingId = out.signingId {
         out.designatedRequirementValid = peerSatisfiesDesignatedRequirement(
             auditToken: auditToken, teamId: teamId, signingId: signingId)
     }
     return out
+}
+
+/// The App Groups an `application-groups` entitlement value names: each string
+/// entry of the array counts, anything else in it is skipped rather than
+/// voiding the whole list (as the agent reads it), and a value that is not an
+/// array names none.
+func appGroups(fromEntitlement value: Any?) -> [String] {
+    (value as? [Any])?.compactMap { $0 as? String } ?? []
 }
 
 /// Capture, resolve and match in one step. Fails closed when the peer cannot

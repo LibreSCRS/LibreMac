@@ -22,6 +22,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>LibreSCRSTeamID</key>
+	<string>$(LIBRESCRS_TEAM_ID)</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright (c) 2026 hirashix0. LGPL-2.1-or-later.</string>
 	<key>NSPrincipalClass</key>

@@ -23,6 +23,9 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- The team the agent must be signed by; from LIBRESCRS_TEAM_ID in project.yml. -->
+	<key>LibreSCRSTeamID</key>
+	<string>$(LIBRESCRS_TEAM_ID)</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
