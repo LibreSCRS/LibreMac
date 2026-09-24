@@ -1,0 +1,1 @@
+max-sequential-ms 300000

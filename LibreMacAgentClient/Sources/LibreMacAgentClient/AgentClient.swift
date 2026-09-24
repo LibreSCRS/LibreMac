@@ -84,7 +84,11 @@ public actor AgentClient {
     /// change the agent then applies anyway. This is only a backstop against
     /// an agent that is alive and silent: a dead one fails every pending
     /// request immediately through connection loss, not through this timer.
-    public static let defaultConfirmableTimeout: TimeInterval = 300.0
+    /// Pinned to `PromptBudget.maxSequential` plus margin, not a bare
+    /// literal, for the same reason as `TokenAgentClient.defaultIoTimeout`:
+    /// the dialog behind a confirmable request may itself be one prompt in a
+    /// longer chain.
+    public static let defaultConfirmableTimeout: TimeInterval = PromptBudget.maxSequential + 30
     public static let defaultInitialBackoff: TimeInterval = 1.0
     public static let defaultMaxBackoff: TimeInterval = 30.0
 

@@ -23,8 +23,12 @@ public final class TokenAgentClient: TokenTransport {
     /// no phase events to exempt it with, so the bound must outlast a slow
     /// operator while still surfacing a hung agent as
     /// `TokenTransportError.timedOut` instead of wedging the ctkd thread
-    /// forever.
-    public static let defaultIoTimeout: TimeInterval = 120.0
+    /// forever. Pinned to `PromptBudget.maxSequential` plus margin, not a
+    /// bare literal: a request may chain more than one prompt (CAN entry
+    /// followed by a PIN change), and this seam gets no phase events to
+    /// re-arm it mid-chain, so it must outlive the whole chain, not just
+    /// one prompt.
+    public static let defaultIoTimeout: TimeInterval = PromptBudget.maxSequential + 30
 
     /// Wraps an already-connected fd and takes ownership of it: the fd is
     /// closed on `deinit`. Also suppresses `SIGPIPE` on the fd (see

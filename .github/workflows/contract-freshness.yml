@@ -72,16 +72,58 @@ jobs:
             echo "split=yes" >> "$GITHUB_OUTPUT"
             echo "recorded=$recorded pinned=$pinned"
           fi
+          echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
+
+      - name: Check the prompt budget matches the agent's declared deadline
+        id: budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PINNED: ${{ steps.pin.outputs.pinned }}
+        run: |
+          set -o pipefail
+          vendored=$(grep -oE '[0-9]+' \
+            LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract/prompt-policy.txt)
+          if ! printf '%s' "$PINNED" | grep -Eq '^[0-9a-f]{40}$'; then
+            # No usable pin to compare against -- the step above already
+            # reported that split, so this one stays quiet rather than
+            # reporting the same gap twice.
+            echo "split=no" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          policy=$(gh api "repos/LibreSCRS/LibreAgent/contents/include/LibreSCRS/Agent/operations/PromptPolicy.h?ref=$PINNED" \
+            --jq '.content' | base64 -d || true)
+          # The agent may one day declare a dedicated sequential-chain budget
+          # next to `kLongestDeadline`, marked with a `// budget-ms:` comment
+          # so a reader (and this check) does not have to parse the C++
+          # expression that computes it. Until that marker exists, the
+          # single longest deadline is the only number vendored here, so
+          # this check falls back to reading `kLongestDeadline` itself --
+          # which is why it works both before and after that constant lands.
+          upstream=$(printf '%s\n' "$policy" | grep -m1 '// budget-ms:' \
+            | sed -n 's#.*// budget-ms:[[:space:]]*\([0-9][0-9]*\).*#\1#p')
+          if [ -z "$upstream" ]; then
+            upstream=$(printf '%s\n' "$policy" | grep -m1 'kLongestDeadline' \
+              | sed -n "s/.*kLongestDeadline{\([0-9']*\)}.*/\1/p" | tr -d "'")
+          fi
+          if [ -z "$upstream" ]; then
+            echo "split=yes" >> "$GITHUB_OUTPUT"
+            echo "vendored=$vendored upstream='' (neither // budget-ms: nor kLongestDeadline found at $PINNED)"
+          elif [ "$vendored" = "$upstream" ]; then
+            echo "split=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "split=yes" >> "$GITHUB_OUTPUT"
+            echo "vendored=$vendored upstream=$upstream (pin $PINNED)"
+          fi
 
       - name: Report
-        if: steps.compare.outputs.stale == 'yes' || steps.pin.outputs.split == 'yes'
+        if: steps.compare.outputs.stale == 'yes' || steps.pin.outputs.split == 'yes' || steps.budget.outputs.split == 'yes'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -o pipefail
           title="Wire contract has moved ahead of the vendored copy"
           existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number')
-          body="The published wire vocabulary no longer matches the copy in this repository, or the recorded revision and the build pin disagree. Raise both together: refresh the vendored manifest, update the recorded revision, and move the dependency pin in the same change."
+          body="The published wire vocabulary no longer matches the copy in this repository, the recorded revision and the build pin disagree, or the vendored prompt budget no longer matches the agent's declared deadline at the pinned revision. Raise all of these together: refresh the vendored manifest and/or the prompt budget, update the recorded revision, and move the dependency pin in the same change."
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"
           else
