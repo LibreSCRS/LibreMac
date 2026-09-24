@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Deliberately empty: a tag of this repository publishes RELEASE NOTES AND
+# NOTHING ELSE. The SwiftUI host is signed ad-hoc, which Gatekeeper rejects on
+# every machine but the one that built it, so there is no .app, no disk image
+# and no .zip until it carries a Developer ID and is notarised.
+#
+# Empty is the claim, not the absence of one. The release workflow runs
+# check-release-assets.sh --staged with no path, which requires this file to
+# hold no glob -- and `gh release create` is called with no path argument. A
+# file that simply did not exist would be exit 2 ("I cannot judge"), never a
+# pass.
