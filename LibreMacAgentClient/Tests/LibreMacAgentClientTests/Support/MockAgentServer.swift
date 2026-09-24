@@ -42,6 +42,14 @@ final class MockAgentServer: @unchecked Sendable {
     let requests: AsyncStream<DecodedRequest>
 
     private var requestCounts: [String: Int] = [:]
+    private var rejectedConnections = 0
+
+    /// How many `connect(verifier:)` calls the verifier refused.
+    var rejectedConnectionCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return rejectedConnections
+    }
 
     /// Scripted per-request reaction, invoked with the decoded `req` id and
     /// its wire `t` tag (`requestTag(_:)`) for every request this mock
@@ -62,8 +70,11 @@ final class MockAgentServer: @unchecked Sendable {
         closeRawServeFd()
     }
 
-    /// The connector closure to hand an `AgentClient` under test.
-    func connect() throws -> SocketConnection {
+    /// The connector closure to hand an `AgentClient` under test. The client
+    /// end meets `verifier` exactly where `connectUnixSocket` puts it — after
+    /// the connect, before anything is wrapped or written — so a refused
+    /// server here is refused the way a real one is.
+    func connect(verifier: @escaping PeerVerifier) throws -> SocketConnection {
         lock.lock()
         let up = isUp
         lock.unlock()
@@ -72,8 +83,18 @@ final class MockAgentServer: @unchecked Sendable {
         var fds: [Int32] = [0, 0]
         let result = socketpair(AF_UNIX, SOCK_STREAM, 0, &fds)
         precondition(result == 0, "socketpair failed: \(String(cString: strerror(errno)))")
+        let clientFd: Int32
+        do {
+            clientFd = try requireVerifiedPeer(fds[1], verifier: verifier)
+        } catch {
+            Darwin.close(fds[0])
+            lock.lock()
+            rejectedConnections += 1
+            lock.unlock()
+            throw error
+        }
         let serverSide = SocketConnection(connectedDescriptor: fds[0])
-        let clientSide = SocketConnection(connectedDescriptor: fds[1])
+        let clientSide = SocketConnection(connectedDescriptor: clientFd)
 
         lock.lock()
         connection = serverSide

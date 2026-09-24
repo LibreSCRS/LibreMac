@@ -5,6 +5,13 @@ import Foundation
 import Testing
 @testable import LibreMacAgentClient
 
+/// The verifier every `MockAgentServer` test runs with: the mock's server end
+/// is this test process, which presents neither the agent's identifier nor its
+/// App Group, so the production verifier refuses it (as it must). The one
+/// place a test opts out of the check; a test about the check passes its own
+/// verifier instead.
+let permissivePeerVerifier: PeerVerifier = { _ in true }
+
 /// Builds an `AgentClient` wired to `mock` via the package's internal
 /// `connector`-taking initializer, with short timeouts/backoff so tests
 /// run fast without ever needing a real elapsed-time sleep as
@@ -14,10 +21,12 @@ func makeTestClient(
     propTimeout: TimeInterval = 1,
     discoveryTimeout: TimeInterval = 1,
     initialBackoff: TimeInterval = 0.05,
-    maxBackoff: TimeInterval = 0.2
+    maxBackoff: TimeInterval = 0.2,
+    verifier: @escaping PeerVerifier = permissivePeerVerifier
 ) -> AgentClient {
     AgentClient(
-        connector: { try mock.connect() },
+        connector: { verifier in try mock.connect(verifier: verifier) },
+        verifier: verifier,
         clientVersion: "LibreMac/test",
         propTimeout: propTimeout,
         discoveryTimeout: discoveryTimeout,

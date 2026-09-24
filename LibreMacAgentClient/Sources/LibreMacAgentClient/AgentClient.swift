@@ -94,12 +94,15 @@ public actor AgentClient {
 
     // MARK: - Configuration (injectable for tests)
 
-    /// Produces a fresh connection on every (re)connect attempt. The
-    /// public initializer wires this to `SocketConnection.connect(path:)`;
-    /// tests use the internal initializer below to substitute a
-    /// `MockAgentServer`-backed `socketpair` connection instead, without
-    /// widening the public surface with a test-only seam.
-    private let connector: @Sendable () async throws -> SocketConnection
+    /// Produces a fresh connection on every (re)connect attempt, handed
+    /// `verifier` to judge the serving process with before anything is sent.
+    /// The public initializer wires this to
+    /// `SocketConnection.connect(path:verifier:)`; tests use the internal
+    /// initializer below to substitute a `MockAgentServer`-backed
+    /// `socketpair` connection instead, without widening the public surface
+    /// with a test-only seam.
+    private let connector: @Sendable (@escaping PeerVerifier) async throws -> SocketConnection
+    private let verifier: PeerVerifier
     private let clientVersion: String
     private let propTimeout: TimeInterval
     private let discoveryTimeout: TimeInterval
@@ -171,10 +174,12 @@ public actor AgentClient {
         propTimeout: TimeInterval = AgentClient.defaultPropTimeout,
         discoveryTimeout: TimeInterval = AgentClient.defaultDiscoveryTimeout,
         initialBackoff: TimeInterval = AgentClient.defaultInitialBackoff,
-        maxBackoff: TimeInterval = AgentClient.defaultMaxBackoff
+        maxBackoff: TimeInterval = AgentClient.defaultMaxBackoff,
+        verifier: @escaping PeerVerifier = defaultPeerVerifier()
     ) {
         self.init(
-            connector: { try SocketConnection.connect(path: socketPath) },
+            connector: { verifier in try SocketConnection.connect(path: socketPath, verifier: verifier) },
+            verifier: verifier,
             clientVersion: clientVersion,
             propTimeout: propTimeout,
             discoveryTimeout: discoveryTimeout,
@@ -185,7 +190,8 @@ public actor AgentClient {
     /// Test-only seam (see `connector`'s doc comment) — internal, reached
     /// via `@testable import`.
     init(
-        connector: @escaping @Sendable () async throws -> SocketConnection,
+        connector: @escaping @Sendable (@escaping PeerVerifier) async throws -> SocketConnection,
+        verifier: @escaping PeerVerifier,
         clientVersion: String,
         propTimeout: TimeInterval,
         discoveryTimeout: TimeInterval,
@@ -193,6 +199,7 @@ public actor AgentClient {
         maxBackoff: TimeInterval
     ) {
         self.connector = connector
+        self.verifier = verifier
         self.clientVersion = clientVersion
         self.propTimeout = propTimeout
         self.discoveryTimeout = discoveryTimeout
@@ -250,7 +257,10 @@ public actor AgentClient {
     private func runSupervisor() async {
         while !Task.isCancelled {
             do {
-                let conn = try await connector()
+                // A serving process the verifier refuses never sees a byte:
+                // the connection is closed before Hello, and the attempt
+                // counts as a failed connect (backoff, then a fresh check).
+                let conn = try await connector(verifier)
                 connection = conn
                 // The frame pump must be running BEFORE the handshake is
                 // awaited: the HelloAck/state replies arrive through the

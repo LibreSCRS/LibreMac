@@ -24,6 +24,11 @@ import Foundation
 /// what meets a connection the agent closed while idle, so that case is always
 /// rebuilt.
 ///
+/// A connection that cannot be opened — including one whose serving process
+/// fails the identity check — is never retried: the operation answers
+/// `communicationError` and nothing is sent. The next operation connects, and
+/// is checked, afresh.
+///
 /// Only a lost connection is replayed: `closed`, `notDelivered` and a read or
 /// write error. `timedOut` is not — the agent is there and not answering, a new
 /// connection to it would wait out a second deadline, and the stuck-agent
@@ -102,7 +107,7 @@ extension ReconnectingTokenEngine {
     static func isConnectionLoss(_ failure: TokenTransportError) -> Bool {
         switch failure {
         case .closed, .notDelivered, .ioFailed, .connectFailed: return true
-        case .timedOut, .decodeFailed: return false
+        case .timedOut, .decodeFailed, .peerRejected: return false
         }
     }
 }

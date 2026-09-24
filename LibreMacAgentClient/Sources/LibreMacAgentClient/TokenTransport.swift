@@ -18,9 +18,11 @@ public protocol TokenTransport {
 /// acted on it. `ioFailed` and `closed` arrive after the whole frame was
 /// written, when the agent may already be acting on it. `timedOut` is the I/O
 /// deadline expiring: the agent is still there but not answering, which a new
-/// connection to the same process does not fix.
+/// connection to the same process does not fix. `peerRejected` is a connection
+/// whose serving process failed the identity check: nothing was sent, and
+/// connecting again reaches the same process.
 public enum TokenTransportError: Error, Equatable {
-    case connectFailed, ioFailed, decodeFailed, closed, notDelivered, timedOut
+    case connectFailed, ioFailed, decodeFailed, closed, notDelivered, timedOut, peerRejected
 }
 
 /// Platform-neutral error the extension turns into a TKError (keeps the package CTK-free).

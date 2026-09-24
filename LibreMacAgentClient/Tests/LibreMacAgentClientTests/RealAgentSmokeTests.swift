@@ -23,7 +23,18 @@
 //
 //   launchctl bootout "gui/$UID/org.librescrs.agent" 2>/dev/null || true
 //   SOCK="$HOME/Library/Group Containers/group.org.librescrs.LibreMac/agent.sock"
-//   /path/to/LibreDarwin/build-release/agent/librescrs-agent &
+//   AGENT=/path/to/LibreDarwin/build-release/agent/librescrs-agent
+//   # The client speaks only to a process that presents the agent's signing
+//   # identifier and App Group. The linker's ad-hoc signature carries neither
+//   # (it says "librescrs-agent" and no entitlements), so sign the dev build
+//   # the way Scripts/bundle-agent.sh signs the bundled one:
+//   ENTS="$(mktemp)"
+//   printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+//     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+//     '<plist version="1.0"><dict><key>com.apple.security.application-groups</key>' \
+//     '<array><string>group.org.librescrs.LibreMac</string></array></dict></plist>' > "$ENTS"
+//   codesign --force -s - --identifier org.librescrs.agent --entitlements "$ENTS" "$AGENT"
+//   "$AGENT" &
 //   AGENT_PID=$!
 //   for _ in $(seq 1 50); do [ -S "$SOCK" ] && break; sleep 0.1; done
 //   LIBRESCRS_AGENT_SOCK="$SOCK" \

@@ -16,17 +16,21 @@ public enum SocketConnectionError: Error, Sendable, Equatable {
     case socketCreationFailed(Int32)
     /// `connect()` failed; the raw `errno`.
     case connectFailed(Int32)
+    /// Connected, but the process serving the socket is not the one the
+    /// `PeerVerifier` accepts. The fd was closed with nothing written on it.
+    case peerRejected
 }
 
 /// Blocking AF_UNIX `SOCK_STREAM` connect shared by `SocketConnection` and
 /// `TokenAgentClient` — the ONE place the `sun_path` capacity check, the
-/// `socket()`/`sockaddr_un`-fill/`connect()` sequence, and the
+/// `socket()`/`sockaddr_un`-fill/`connect()` sequence, the check of the
+/// serving process (`verifier`, before anything is written), and the
 /// close-on-failure live. Returns the connected fd still in its default
 /// blocking mode with no options set: each caller configures non-blocking /
 /// `SO_NOSIGPIPE` / deadlines to its own needs afterwards (a local AF_UNIX
 /// `connect()` never stalls the way a network handshake can, so connecting
 /// on a blocking fd is fine for both).
-func connectUnixSocket(path: String) throws(SocketConnectionError) -> Int32 {
+func connectUnixSocket(path: String, verifier: PeerVerifier) throws(SocketConnectionError) -> Int32 {
     let pathBytes = Array(path.utf8)
     let sunPathCapacity = MemoryLayout.size(ofValue: sockaddr_un().sun_path)
     guard pathBytes.count < sunPathCapacity else {
@@ -58,7 +62,7 @@ func connectUnixSocket(path: String) throws(SocketConnectionError) -> Int32 {
         Darwin.close(fd)
         throw .connectFailed(failure)
     }
-    return fd
+    return try requireVerifiedPeer(fd, verifier: verifier)
 }
 
 /// A non-blocking AF_UNIX `SOCK_STREAM` connection to the LibreMac agent,
@@ -138,10 +142,13 @@ public final class SocketConnection: @unchecked Sendable {
     // MARK: - Construction
 
     /// Opens a non-blocking AF_UNIX `SOCK_STREAM` connection to `path`
-    /// (via `connectUnixSocket(path:)`); the fd is switched to non-blocking
-    /// once connected, before any frame traffic is possible.
-    public static func connect(path: String) throws(SocketConnectionError) -> SocketConnection {
-        SocketConnection(connectedDescriptor: try connectUnixSocket(path: path))
+    /// (via `connectUnixSocket(path:verifier:)`), refusing a serving process
+    /// `verifier` rejects; the fd is switched to non-blocking once connected
+    /// and verified, before any frame traffic is possible.
+    public static func connect(
+        path: String, verifier: PeerVerifier = defaultPeerVerifier()
+    ) throws(SocketConnectionError) -> SocketConnection {
+        SocketConnection(connectedDescriptor: try connectUnixSocket(path: path, verifier: verifier))
     }
 
     /// Wraps an already-connected fd. Internal (not part of the public

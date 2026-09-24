@@ -30,21 +30,28 @@ public final class TokenAgentClient: TokenTransport {
     /// closed on `deinit`. Also suppresses `SIGPIPE` on the fd (see
     /// `setNoSigPipe`) before any `write` can reach it, and bounds every
     /// blocking read/write with `ioTimeout` (see `defaultIoTimeout`).
-    public init(connectedFd: Int32, ioTimeout: TimeInterval = TokenAgentClient.defaultIoTimeout) {
+    /// Internal: the fd has not met a `PeerVerifier`, so production reaches a
+    /// connection only through `init(socketPath:verifier:)`.
+    init(connectedFd: Int32, ioTimeout: TimeInterval = TokenAgentClient.defaultIoTimeout) {
         self.fd = connectedFd
         self.ownsFd = true
         Self.setNoSigPipe(connectedFd)
         Self.setIoDeadline(connectedFd, seconds: ioTimeout)
     }
 
-    /// Connects via the shared `connectUnixSocket(path:)` helper (the one
-    /// AF_UNIX connect sequence in this package), folding every connect-time
-    /// failure into `TokenTransportError.connectFailed` — this seam has no
-    /// use for the finer-grained `SocketConnectionError` split.
-    public convenience init(socketPath: String = AgentSocketPath.resolve()) throws {
+    /// Connects via the shared `connectUnixSocket(path:verifier:)` helper
+    /// (the one AF_UNIX connect sequence in this package). A serving process
+    /// `verifier` rejects is `TokenTransportError.peerRejected`; every other
+    /// connect-time failure folds into `connectFailed` — this seam has no use
+    /// for the finer-grained `SocketConnectionError` split.
+    public convenience init(
+        socketPath: String = AgentSocketPath.resolve(), verifier: PeerVerifier = defaultPeerVerifier()
+    ) throws {
         let fd: Int32
         do {
-            fd = try connectUnixSocket(path: socketPath)
+            fd = try connectUnixSocket(path: socketPath, verifier: verifier)
+        } catch .peerRejected {
+            throw TokenTransportError.peerRejected
         } catch {
             throw TokenTransportError.connectFailed
         }
