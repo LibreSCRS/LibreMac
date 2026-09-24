@@ -56,8 +56,9 @@ public final class SigningCoordinator {
         /// Failed; payload is the resolved, user-facing message.
         case failed(message: String)
         /// The destination already exists. Nothing was signed; signing again
-        /// with `replaceExisting: true` replaces it. Asked before the card is,
-        /// the way the save panel this replaces asked.
+        /// with `replacing:` set to exactly this URL replaces it — and only
+        /// it. Asked before the card is, the way the save panel this replaces
+        /// asked.
         case confirmReplace(destination: URL)
     }
 
@@ -75,7 +76,7 @@ public final class SigningCoordinator {
     private let resolveBookmark: (Data) throws -> (url: URL, isStale: Bool)
     private let makeBookmark: (URL) throws -> Data
     /// `rename(2)` of the finished temporary file over the destination.
-    private let moveItem: (URL, URL) throws -> Void
+    private let moveItem: (URL, URL, Bool) throws -> Void
 
     /// The file-system and bookmark calls are parameters so the scope logic
     /// is testable where the sandbox is not enforced (an unsigned test host);
@@ -91,7 +92,7 @@ public final class SigningCoordinator {
         resolveBookmark: @escaping (Data) throws -> (url: URL, isStale: Bool) =
             SigningCoordinator.resolveFolderBookmark,
         makeBookmark: @escaping (URL) throws -> Data = SigningCoordinator.makeFolderBookmark,
-        moveItem: @escaping (URL, URL) throws -> Void = SigningCoordinator.posixRename
+        moveItem: @escaping (URL, URL, Bool) throws -> Void = SigningCoordinator.posixRename
     ) {
         self.client = client
         self.defaults = defaults
@@ -128,7 +129,7 @@ public final class SigningCoordinator {
         certId: String,
         inputPath: String,
         destinationPath: String,
-        replaceExisting: Bool = false,
+        replacing confirmed: URL? = nil,
         options: SignOptions = SigningCoordinator.defaultOptions
     ) async {
         if isInFlight { return }
@@ -142,7 +143,7 @@ public final class SigningCoordinator {
         }
         await sign(
             card: card, certId: certId, inputURL: inputURL,
-            destinationURL: destinationURL, replaceExisting: replaceExisting, options: options)
+            destinationURL: destinationURL, replacing: confirmed, options: options)
     }
 
     /// Signs `inputURL` with `certId` on `card`, writing the signed artifact to
@@ -151,8 +152,10 @@ public final class SigningCoordinator {
     /// Both files are opened BEFORE the card is asked: a destination the
     /// sandbox refuses must not surface after the user has confirmed a
     /// signature that then has nowhere to go. An existing destination is
-    /// never overwritten unless `replaceExisting` says so, and never when it
-    /// is the input itself. The artifact is written to a temporary file
+    /// replaced only when `replacing` names that very file (a confirmation is
+    /// for the file it asked about, not for whatever the field says later),
+    /// never when it is anything but a regular file, and never when it is
+    /// the input itself. The artifact is written to a temporary file
     /// beside the destination and renamed over it, so a failed sign leaves an
     /// existing file exactly as it was.
     public func sign(
@@ -160,7 +163,7 @@ public final class SigningCoordinator {
         certId: String,
         inputURL: URL,
         destinationURL: URL,
-        replaceExisting: Bool = false,
+        replacing confirmed: URL? = nil,
         options: SignOptions = SigningCoordinator.defaultOptions
     ) async {
         if isInFlight { return }
@@ -205,7 +208,16 @@ public final class SigningCoordinator {
                 "The signed file cannot replace the file being signed. Choose another name."))
             return
         }
-        if destinationExists && !replaceExisting {
+        // A folder, link or device is not something a signed file replaces;
+        // said now, not after the user has confirmed a signature.
+        if destinationExists && (destinationInfo.st_mode & S_IFMT) != S_IFREG {
+            stage = .failed(message: Self.localized(
+                "libremac_sign_dest_not_a_file",
+                "Something other than a file already has that name. Choose another name."))
+            return
+        }
+        let replaceConfirmed = confirmed.map { Self.canonical($0) == Self.canonical(destinationURL) } ?? false
+        if destinationExists && !replaceConfirmed {
             stage = .confirmReplace(destination: destinationURL)
             return
         }
@@ -274,7 +286,12 @@ public final class SigningCoordinator {
         do {
             try Self.copyArtifact(from: artifact, to: output)
             try output.synchronize()
-            try moveItem(temporaryURL, destinationURL)
+            // Unconfirmed: exclusive, so a file that appeared at that name
+            // while the card was busy is never replaced without asking.
+            try moveItem(temporaryURL, destinationURL, !replaceConfirmed)
+        } catch let error as POSIXError where error.code == .EEXIST && !replaceConfirmed {
+            stage = .confirmReplace(destination: destinationURL)
+            return
         } catch {
             stage = .failed(message: Self.writeFailedMessage)
             return
@@ -439,8 +456,13 @@ public final class SigningCoordinator {
         return fd
     }
 
-    public nonisolated static func posixRename(_ from: URL, _ to: URL) throws {
-        guard Darwin.rename(from.path, to.path) == 0 else {
+    /// `rename(2)`, or `renamex_np(…, RENAME_EXCL)` when `exclusive`: then an
+    /// existing `to` fails with EEXIST instead of being replaced.
+    public nonisolated static func posixRename(_ from: URL, _ to: URL, _ exclusive: Bool) throws {
+        let result = exclusive
+            ? renamex_np(from.path, to.path, UInt32(RENAME_EXCL))
+            : Darwin.rename(from.path, to.path)
+        guard result == 0 else {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
     }

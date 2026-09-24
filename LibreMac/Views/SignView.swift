@@ -74,7 +74,9 @@ struct SignView: View {
         // chose instead makes it untrue.
         .onChange(of: destinationPath) {
             if destinationPath != proposedPath { fellBackToDownloads = false }
+            withdrawReplaceQuestion()
         }
+        .onChange(of: inputPath) { withdrawReplaceQuestion() }
         .task(id: inputPath) {
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
@@ -146,7 +148,7 @@ struct SignView: View {
                     coordinator.reset()
                 }
                 Button(loc("libremac_sign_replace", "Replace"), role: .destructive) {
-                    startSign(replaceExisting: true)
+                    startSign(replacing: destination)
                 }
                 .disabled(!monitor.canSign)
             }
@@ -155,7 +157,7 @@ struct SignView: View {
 
     // MARK: - Actions
 
-    private func startSign(replaceExisting: Bool = false) {
+    private func startSign(replacing confirmed: URL? = nil) {
         guard monitor.canSign,
               let card = monitor.signingCard?.handle,
               let certId = monitor.signingCertId
@@ -165,8 +167,15 @@ struct SignView: View {
         Task { @MainActor in
             await coordinator.sign(
                 card: card, certId: certId, inputPath: input, destinationPath: destination,
-                replaceExisting: replaceExisting)
+                replacing: confirmed)
         }
+    }
+
+    /// A replace question is about the paths it was asked for; once either
+    /// changes it is withdrawn. (The coordinator also honours a confirmation
+    /// only for the file it named.)
+    private func withdrawReplaceQuestion() {
+        if case .confirmReplace = coordinator.stage { coordinator.reset() }
     }
 
     /// Fills the destination from the input, unless the user has set one.

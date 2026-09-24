@@ -218,6 +218,10 @@
         <source>The signed file cannot replace the file being signed. Choose another name.</source>
         <translation>The signed file cannot replace the file being signed. Choose another name.</translation>
     </message>
+    <message id="libremac_sign_dest_not_a_file">
+        <source>Something other than a file already has that name. Choose another name.</source>
+        <translation>Something other than a file already has that name. Choose another name.</translation>
+    </message>
     <message id="libremac_sign_replace_prompt">
         <source>{name} already exists. Replace it?</source>
         <translation>{name} already exists. Replace it?</translation>

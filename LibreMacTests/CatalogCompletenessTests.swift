@@ -443,6 +443,7 @@ struct CatalogCompletenessTests {
         "libremac_sign_path_not_absolute",
         "libremac_sign_no_card",
         "libremac_sign_dest_is_input",
+        "libremac_sign_dest_not_a_file",
         "libremac_sign_replace_prompt",
         "libremac_sign_replace",
         "libremac_settings_action_cancel",

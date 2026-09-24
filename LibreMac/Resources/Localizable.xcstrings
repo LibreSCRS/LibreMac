@@ -14269,6 +14269,23 @@
         }
       }
     },
+    "libremac_sign_dest_not_a_file" : {
+      "comment" : "libremac_sign_dest_not_a_file",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something other than a file already has that name. Choose another name."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нешто што није датотека већ има то име. Изаберите друго име."
+          }
+        }
+      }
+    },
     "libremac_sign_done" : {
       "comment" : "libremac_sign_done",
       "localizations" : {

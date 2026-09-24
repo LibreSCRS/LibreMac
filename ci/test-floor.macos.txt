@@ -1,8 +1,8 @@
 # test-floor.macos.txt -- the fewest tests the Xcode test action may execute.
 #
 # Read by ci/scripts/check-test-floor.sh against the result bundle's
-# totalTestCount. Measured, never counted from the source: 145 is what
+# totalTestCount. Measured, never counted from the source: 148 is what
 # `xcrun xcresulttool get test-results summary` reported for the LibreMac
 # scheme (Debug, Xcode 26.5). The floor may only rise -- raise it when tests
 # land, in the same commit.
-145
+148

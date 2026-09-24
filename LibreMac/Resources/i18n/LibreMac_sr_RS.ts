@@ -218,6 +218,10 @@
         <source>The signed file cannot replace the file being signed. Choose another name.</source>
         <translation>Потписана датотека не може да замени датотеку која се потписује. Изаберите друго име.</translation>
     </message>
+    <message id="libremac_sign_dest_not_a_file">
+        <source>Something other than a file already has that name. Choose another name.</source>
+        <translation>Нешто што није датотека већ има то име. Изаберите друго име.</translation>
+    </message>
     <message id="libremac_sign_replace_prompt">
         <source>{name} already exists. Replace it?</source>
         <translation>Датотека {name} већ постоји. Да ли да је замените?</translation>
