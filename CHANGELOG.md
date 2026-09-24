@@ -81,17 +81,23 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- The agent and prompter LaunchAgents now restart only after a crash or a
-  signal, not after a clean exit: `KeepAlive` is a `SuccessfulExit` dict
-  instead of a bare `true`, with a throttle so a repeated failure backs off
-  instead of spinning launchd in a crash loop. A future "Quit agent" action in
-  the host can now let the process actually stop; today launchd would have
-  respawned it immediately.
+- The agent and prompter LaunchAgents no longer restart unconditionally:
+  `KeepAlive` is a `SuccessfulExit` dict instead of a bare `true`, so only a
+  crash — a non-zero exit, or a fatal signal a process never installed a
+  handler for — gets restarted, with a throttle so a repeated failure backs
+  off instead of spinning launchd in a crash loop. The agent itself traps
+  `SIGTERM`/`SIGINT` and exits cleanly (0), so a plain `kill`/`killall` now
+  stops it for good until the next login or a `launchctl kickstart` — the
+  prompter installs no such handler, so a `kill` there is still a signaled
+  death and still gets respawned. A future "Quit agent" action in the host
+  relies on exactly this to let the agent actually stop.
 
 - The hardware-acceptance checklist named an environment variable
   (`LIBRESCRS_TEST_LOGIN`) that no code in this stack reads. It now names the
-  same `LIBRESCRS_HW` / `LIBRESCRS_TEST_PIN` variables the rest of the project
-  uses for a hardware-gated run.
+  same `LIBRESCRS_HW` / `LIBRESCRS_TEST_CAN` / `LIBRESCRS_TEST_PIN` variables
+  the LibreDarwin agent's own hardware smoke test reads, and adds the step
+  that actually runs it, so the variables have a reader instead of sitting in
+  the operator's shell unused.
 
 ### Security
 
