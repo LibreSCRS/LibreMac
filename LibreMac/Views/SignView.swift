@@ -70,6 +70,11 @@ struct SignView: View {
         .frame(width: 520)
         // Proposed after a pause in typing, not per keystroke: the proposal
         // probes the output folder by creating and removing a file in it.
+        // The Downloads note belongs to the proposal; a destination the user
+        // chose instead makes it untrue.
+        .onChange(of: destinationPath) {
+            if destinationPath != proposedPath { fellBackToDownloads = false }
+        }
         .task(id: inputPath) {
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
@@ -127,12 +132,30 @@ struct SignView: View {
             Button(loc("libremac_sign_retry", "Try again")) {
                 coordinator.reset()
             }
+        case .confirmReplace(let destination):
+            // Inline, not a system sheet: the panel service is what crashes.
+            Label(
+                localization.loc(
+                    "libremac_sign_replace_prompt", "{name} already exists. Replace it?",
+                    placeholders: ["name": destination.lastPathComponent]),
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.orange)
+            HStack {
+                Button(loc("libremac_settings_action_cancel", "Cancel")) {
+                    coordinator.reset()
+                }
+                Button(loc("libremac_sign_replace", "Replace"), role: .destructive) {
+                    startSign(replaceExisting: true)
+                }
+                .disabled(!monitor.canSign)
+            }
         }
     }
 
     // MARK: - Actions
 
-    private func startSign() {
+    private func startSign(replaceExisting: Bool = false) {
         guard monitor.canSign,
               let card = monitor.signingCard?.handle,
               let certId = monitor.signingCertId
@@ -141,7 +164,8 @@ struct SignView: View {
         let destination = destinationPath
         Task { @MainActor in
             await coordinator.sign(
-                card: card, certId: certId, inputPath: input, destinationPath: destination)
+                card: card, certId: certId, inputPath: input, destinationPath: destination,
+                replaceExisting: replaceExisting)
         }
     }
 

@@ -20,7 +20,12 @@ versioning follows [Semantic Versioning](https://semver.org/).
   location is not permitted and to use Browse…, instead of failing with an
   unreadable-file error. Both files are opened before the card is asked, so a
   destination that cannot be written is reported before you confirm a
-  signature, not after.
+  signature, not after. An existing file is never overwritten silently: the
+  suggested name skips names already taken (`name 2.p7s`, …), a typed name
+  that exists asks to be replaced first, and the file being signed can never
+  be the destination. The signed file is written beside the destination and
+  moved into place only when complete, so a failed sign leaves an existing
+  file as it was.
 
 - The Trust settings now show the country-signing anchors the agent actually
   holds: how many there are, how many issuing countries they cover, when the
@@ -133,26 +138,6 @@ versioning follows [Semantic Versioning](https://semver.org/).
   of the socket — any process running as you can raise the credential window
   — and that a Developer-ID build checks the peer's designated requirement
   instead.
-
-### Напомене о издању (српски)
-
-- Прозор за потписивање прима укуцане путање: датотеку за потписивање и место
-  где се чува потписана копија. Дугме Прегледај… је само помоћ, јер системски
-  сервис за отварање и чување датотека на овом издању macOS-а пада; ако панел
-  не успе, поља остају каква су била. Програм остаје у App Sandbox-у, па
-  укуцана путања ради унутар фасцикле Преузимања и унутар изабране
-  подразумеване излазне фасцикле; за друге локације прозор каже да приступ
-  није дозвољен и упућује на Прегледај…. Обе датотеке се отварају пре него што
-  се картица пита, па се неупотребљиво одредиште пријављује пре потврде
-  потписа, а не после.
-- Подешавање „Подразумевана излазна фасцикла" сада делује (до сада је чувано,
-  а нико га није читао). Фасцикла изабрана са Прегледај… памти се као
-  security-scoped bookmark и остаје уписива и после поновног покретања; ако
-  није подешена или се не може користити, потписана датотека се нуди у
-  фасцикли Преузимања и прозор то каже. Празно подешавање сада значи
-  Преузимања, а не „поред улазне датотеке". Потпис датотеке било где на диску
-  само куцањем овај програм не уме; за то постоји Прегледај… или LibreCelik.app
-  као пун клијент истог агента.
 
 ### Notes
 

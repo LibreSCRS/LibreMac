@@ -13686,7 +13686,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Оставите празно да се потписане датотеке нуде у фасцикли Преузимања. Фасцикла изабрана са Прегледај… остаје употребљива и после поновног покретања програма LibreMac; укуцана фасцикла ради само унутар фасцикле Преузимања."
+            "value" : "Оставите празно да се потписане датотеке нуде у фолдеру Преузимања. Фолдер изабран са Прегледај… остаје употребљив и после поновног покретања програма LibreMac; укуцан фолдер ради само унутар фолдера Преузимања."
           }
         }
       }
@@ -14247,7 +14247,24 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Подразумевана излазна фасцикла није могла да се користи, па се потписана датотека нуди у фасцикли Преузимања."
+            "value" : "Подразумевани излазни фолдер није могао да се користи, па се потписана датотека нуди у фолдеру Преузимања."
+          }
+        }
+      }
+    },
+    "libremac_sign_dest_is_input" : {
+      "comment" : "libremac_sign_dest_is_input",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signed file cannot replace the file being signed. Choose another name."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписана датотека не може да замени датотеку која се потписује. Изаберите друго име."
           }
         }
       }
@@ -14366,7 +14383,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "LibreMac нема дозволу да користи ту локацију. Укуцане путање раде унутар фасцикле Преузимања и фасцикли које сте изабрали; за остале користите Прегледај…"
+            "value" : "LibreMac нема дозволу да користи ту локацију. Укуцане путање раде унутар фолдера Преузимања и фолдера које сте изабрали; за остале користите Прегледај…"
           }
         }
       }
@@ -14456,6 +14473,40 @@
         }
       }
     },
+    "libremac_sign_replace" : {
+      "comment" : "libremac_sign_replace",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Замени"
+          }
+        }
+      }
+    },
+    "libremac_sign_replace_prompt" : {
+      "comment" : "libremac_sign_replace_prompt",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{name} already exists. Replace it?"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Датотека {name} већ постоји. Да ли да је замените?"
+          }
+        }
+      }
+    },
     "libremac_sign_retry" : {
       "comment" : "libremac_sign_retry",
       "localizations" : {
@@ -14502,7 +14553,7 @@
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Укуцане путање раде унутар фасцикле Преузимања и фасцикли које сте изабрали; за остале користите Прегледај…"
+            "value" : "Укуцане путање раде унутар фолдера Преузимања и фолдера које сте изабрали; за остале користите Прегледај…"
           }
         }
       }

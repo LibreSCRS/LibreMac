@@ -55,6 +55,10 @@ public final class SigningCoordinator {
         case done(destination: URL, meta: SignMeta)
         /// Failed; payload is the resolved, user-facing message.
         case failed(message: String)
+        /// The destination already exists. Nothing was signed; signing again
+        /// with `replaceExisting: true` replaces it. Asked before the card is,
+        /// the way the save panel this replaces asked.
+        case confirmReplace(destination: URL)
     }
 
     public private(set) var stage: Stage = .idle
@@ -70,6 +74,8 @@ public final class SigningCoordinator {
     private let stopAccessing: (URL) -> Void
     private let resolveBookmark: (Data) throws -> (url: URL, isStale: Bool)
     private let makeBookmark: (URL) throws -> Data
+    /// `rename(2)` of the finished temporary file over the destination.
+    private let moveItem: (URL, URL) throws -> Void
 
     /// The file-system and bookmark calls are parameters so the scope logic
     /// is testable where the sandbox is not enforced (an unsigned test host);
@@ -84,7 +90,8 @@ public final class SigningCoordinator {
         stopAccessing: @escaping (URL) -> Void = { $0.stopAccessingSecurityScopedResource() },
         resolveBookmark: @escaping (Data) throws -> (url: URL, isStale: Bool) =
             SigningCoordinator.resolveFolderBookmark,
-        makeBookmark: @escaping (URL) throws -> Data = SigningCoordinator.makeFolderBookmark
+        makeBookmark: @escaping (URL) throws -> Data = SigningCoordinator.makeFolderBookmark,
+        moveItem: @escaping (URL, URL) throws -> Void = SigningCoordinator.posixRename
     ) {
         self.client = client
         self.defaults = defaults
@@ -95,6 +102,7 @@ public final class SigningCoordinator {
         self.stopAccessing = stopAccessing
         self.resolveBookmark = resolveBookmark
         self.makeBookmark = makeBookmark
+        self.moveItem = moveItem
     }
 
     /// Default per-sign options. A generic file sign defaults to a detached
@@ -109,6 +117,7 @@ public final class SigningCoordinator {
     public func reset() {
         if case .done = stage { stage = .idle }
         if case .failed = stage { stage = .idle }
+        if case .confirmReplace = stage { stage = .idle }
     }
 
     /// Signs the file at the typed `inputPath`, writing the signed artifact to
@@ -119,6 +128,7 @@ public final class SigningCoordinator {
         certId: String,
         inputPath: String,
         destinationPath: String,
+        replaceExisting: Bool = false,
         options: SignOptions = SigningCoordinator.defaultOptions
     ) async {
         if isInFlight { return }
@@ -132,7 +142,7 @@ public final class SigningCoordinator {
         }
         await sign(
             card: card, certId: certId, inputURL: inputURL,
-            destinationURL: destinationURL, options: options)
+            destinationURL: destinationURL, replaceExisting: replaceExisting, options: options)
     }
 
     /// Signs `inputURL` with `certId` on `card`, writing the signed artifact to
@@ -140,12 +150,17 @@ public final class SigningCoordinator {
     ///
     /// Both files are opened BEFORE the card is asked: a destination the
     /// sandbox refuses must not surface after the user has confirmed a
-    /// signature that then has nowhere to go.
+    /// signature that then has nowhere to go. An existing destination is
+    /// never overwritten unless `replaceExisting` says so, and never when it
+    /// is the input itself. The artifact is written to a temporary file
+    /// beside the destination and renamed over it, so a failed sign leaves an
+    /// existing file exactly as it was.
     public func sign(
         card: String,
         certId: String,
         inputURL: URL,
         destinationURL: URL,
+        replaceExisting: Bool = false,
         options: SignOptions = SigningCoordinator.defaultOptions
     ) async {
         if isInFlight { return }
@@ -173,10 +188,37 @@ public final class SigningCoordinator {
         }
         defer { try? input.close() }
 
+        // The destination must not be the input: by path (it may not exist
+        // yet under another spelling), and by identity (a hard link, a
+        // symlink, or a spelling that differs only in case on APFS).
+        var inputInfo = stat()
+        var destinationInfo = stat()
+        let destinationExists = lstat(destinationURL.path, &destinationInfo) == 0
+        if Self.canonical(inputURL) == Self.canonical(destinationURL)
+            || (fstat(input.fileDescriptor, &inputInfo) == 0
+                && stat(destinationURL.path, &destinationInfo) == 0
+                && inputInfo.st_dev == destinationInfo.st_dev
+                && inputInfo.st_ino == destinationInfo.st_ino)
+        {
+            stage = .failed(message: Self.localized(
+                "libremac_sign_dest_is_input",
+                "The signed file cannot replace the file being signed. Choose another name."))
+            return
+        }
+        if destinationExists && !replaceExisting {
+            stage = .confirmReplace(destination: destinationURL)
+            return
+        }
+
+        // Written beside the destination, inside the same scope, and renamed
+        // over it only once complete; removed on every failure below.
+        let temporaryURL = destinationURL.deletingLastPathComponent().appendingPathComponent(
+            ".\(destinationURL.lastPathComponent).\(UUID().uuidString).librescrs-partial")
         let output: FileHandle
-        let createdOutput: Bool
         do {
-            (output, createdOutput) = try openDestination(destinationURL)
+            output = FileHandle(
+                fileDescriptor: try openFile(temporaryURL.path, O_WRONLY | O_CREAT | O_EXCL),
+                closeOnDealloc: true)
         } catch {
             stage = .failed(message: Self.isPermissionRefusal(error)
                 ? Self.notPermittedMessage
@@ -184,11 +226,9 @@ public final class SigningCoordinator {
             return
         }
         defer { try? output.close() }
-        // An empty file this sign created is removed on every failure below,
-        // so a refused or cancelled sign leaves nothing behind.
-        var keepOutput = false
+        var renamed = false
         defer {
-            if createdOutput && !keepOutput { unlink(destinationURL.path) }
+            if !renamed { unlink(temporaryURL.path) }
         }
 
         let operation: AgentOperation
@@ -233,11 +273,13 @@ public final class SigningCoordinator {
 
         do {
             try Self.copyArtifact(from: artifact, to: output)
+            try output.synchronize()
+            try moveItem(temporaryURL, destinationURL)
         } catch {
             stage = .failed(message: Self.writeFailedMessage)
             return
         }
-        keepOutput = true
+        renamed = true
 
         stage = .done(destination: destinationURL, meta: meta)
         // User-chosen document names are PII — .private per the logging
@@ -249,7 +291,7 @@ public final class SigningCoordinator {
     private var isInFlight: Bool {
         switch stage {
         case .preparing, .awaitingConsent, .working: return true
-        case .idle, .done, .failed: return false
+        case .idle, .done, .failed, .confirmReplace: return false
         }
     }
 
@@ -275,15 +317,19 @@ public final class SigningCoordinator {
     /// WAS configured and could not be used, so the UI can say so; an empty
     /// setting means Downloads and needs no apology.
     public func proposedDestination(forInput input: URL) -> (url: URL, fellBackToDownloads: Bool) {
-        let name = input.deletingPathExtension().lastPathComponent + ".p7s"
+        let stem = input.deletingPathExtension().lastPathComponent
         let configured = (defaults.string(forKey: AppGroupConstants.DefaultsKeys.defaultOutputFolder) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let downloads = downloadsDirectory.appendingPathComponent(name)
+        let downloads = uniqueDestination(in: downloadsDirectory, stem: stem)
         guard !configured.isEmpty else { return (downloads, false) }
         guard let folder = expand(configured) else { return (downloads, true) }
-        return canWrite(into: folder)
-            ? (folder.appendingPathComponent(name), false)
-            : (downloads, true)
+        guard canWrite(into: folder) else { return (downloads, true) }
+        // Existence is checked inside the folder's scope: outside it the
+        // sandbox may hide what is there.
+        let scope = scopedFolder(containing: folder.appendingPathComponent("probe"))
+        let started = scope.map(startAccessing) ?? false
+        defer { if started, let scope { stopAccessing(scope) } }
+        return (uniqueDestination(in: folder, stem: stem), false)
     }
 
     private func expand(_ typed: String) -> URL? {
@@ -314,17 +360,18 @@ public final class SigningCoordinator {
         return true
     }
 
-    /// Opens (creating if needed) the destination for writing, and reports
-    /// whether this call created it — only a file this sign created may be
-    /// removed when the sign fails.
-    private func openDestination(_ url: URL) throws -> (FileHandle, created: Bool) {
-        do {
-            let fd = try openFile(url.path, O_WRONLY | O_CREAT | O_EXCL)
-            return (FileHandle(fileDescriptor: fd, closeOnDealloc: true), true)
-        } catch let error as POSIXError where error.code == .EEXIST {
-            let fd = try openFile(url.path, O_WRONLY)
-            return (FileHandle(fileDescriptor: fd, closeOnDealloc: true), false)
+    /// `name.p7s` in `folder`, or the first of `name 2.p7s`, `name 3.p7s`, …
+    /// that does not exist yet, so a proposal never names an existing file —
+    /// the input included, when the input is itself a `.p7s`.
+    private func uniqueDestination(in folder: URL, stem: String) -> URL {
+        var candidate = folder.appendingPathComponent(stem + ".p7s")
+        var number = 2
+        var info = stat()
+        while lstat(candidate.path, &info) == 0 {
+            candidate = folder.appendingPathComponent("\(stem) \(number).p7s")
+            number += 1
         }
+        return candidate
     }
 
     // MARK: - Default output folder bookmark
@@ -392,6 +439,12 @@ public final class SigningCoordinator {
         return fd
     }
 
+    public nonisolated static func posixRename(_ from: URL, _ to: URL) throws {
+        guard Darwin.rename(from.path, to.path) == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+    }
+
     /// The user's real home. Inside the sandbox `NSHomeDirectory()` and `~`
     /// both name the app's container, so a typed `~/Documents` would land in
     /// the container instead of where the user meant.
@@ -437,7 +490,7 @@ public final class SigningCoordinator {
         // terminal transition and cancels the phase task, but a buffered phase
         // may still be in flight.
         switch stage {
-        case .done, .failed, .idle:
+        case .done, .failed, .idle, .confirmReplace:
             return
         case .preparing, .awaitingConsent, .working:
             break
@@ -465,13 +518,12 @@ public final class SigningCoordinator {
 
     // MARK: - Artifact copy
 
-    /// Copies the signed artifact fd into the already-open `output`, rewinding
-    /// first — the agent may hand the fd back positioned at EOF — with a
-    /// bounded read loop rather than slurping the whole file at once. The
-    /// output is truncated first: it may be an existing file being replaced.
+    /// Copies the signed artifact fd into the already-open `output` (a fresh
+    /// temporary file), rewinding first — the agent may hand the fd back
+    /// positioned at EOF — with a bounded read loop rather than slurping the
+    /// whole file at once.
     private static func copyArtifact(from handle: FileHandle, to output: FileHandle) throws {
         _ = lseek(handle.fileDescriptor, 0, SEEK_SET)
-        try output.truncate(atOffset: 0)
         let chunkSize = 64 * 1024
         while let chunk = try handle.read(upToCount: chunkSize), !chunk.isEmpty {
             try output.write(contentsOf: chunk)
