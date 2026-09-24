@@ -57,6 +57,15 @@ versioning follows [Semantic Versioning](https://semver.org/).
   rather than repeating a number. A hand-typed copy could disagree with
   `VERSION`, and nothing read the number Xcode actually stamped.
 
+- The build version (`CFBundleVersion`) is now derived from `VERSION` the same
+  way, through the generated project's `CURRENT_PROJECT_VERSION` setting. It
+  used to be a literal `1` on both the app and the token extension, so a
+  rebuild after a version bump left this number unchanged; launchd/SMAppService
+  key an update's identity off it, so an unchanged `CFBundleVersion` is why an
+  already-registered agent was never recycled even though the marketing version
+  on screen had moved. The version check that reads the built app now compares
+  this number too, not only the marketing string.
+
 - With no hand-typed version left to read, the check that compared the project
   spec and the two `Info.plist` files against `VERSION` is gone, replaced by one
   that reads the number back off the built app and its nested token extension.

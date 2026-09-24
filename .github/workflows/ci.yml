@@ -198,28 +198,38 @@ jobs:
 
       - name: The built app and its token extension state the version in VERSION
         # The second half: what Xcode actually stamped. Both Info.plists in the
-        # tree hold $(MARKETING_VERSION), not a number, so the built bundle is
-        # the only place the literal exists -- reading the source plists would
-        # measure the placeholder, and that is the whole reason this replaced a
-        # static surface check. The extension is checked separately from its
-        # host: it inherits MARKETING_VERSION from the project-level setting,
-        # and an override on either target would ship an app and a nested appex
-        # claiming different versions.
+        # tree hold $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION), not a
+        # number, so the built bundle is the only place the literal exists --
+        # reading the source plists would measure the placeholder, and that is
+        # the whole reason this replaced a static surface check. The extension
+        # is checked separately from its host: it inherits both settings from
+        # the project-level base, and an override on either target would ship
+        # an app and a nested appex claiming different versions.
+        #
+        # CFBundleVersion rides along here too, string-compared against the
+        # same VERSION. Before CURRENT_PROJECT_VERSION was wired up this key
+        # read the literal placeholder `1` (an <integer>, not even the right
+        # type for a dotted version) on both bundles, so this loop already
+        # catches a build that reverts the substitution without needing a
+        # separate plist-type check: "5.0.0" has no integer representation to
+        # accidentally match.
         run: |
           want="$(head -n1 VERSION | tr -d '[:space:]')"
           app="DerivedData/Build/Products/Debug/LibreMac.app"
           rc=0
           for plist in "$app/Contents/Info" \
                        "$app/Contents/PlugIns/LibreMacToken.appex/Contents/Info"; do
-            # || got="": without it `bash -e` exits on the first missing plist
-            # and the second bundle is never reported.
-            got="$(defaults read "$PWD/$plist" CFBundleShortVersionString)" || got=""
-            if [ "$got" = "$want" ]; then
-              echo "  -> $plist.plist states $want"
-            else
-              echo "::error::$plist.plist states '$got' but VERSION says '$want'."
-              rc=1
-            fi
+            for key in CFBundleShortVersionString CFBundleVersion; do
+              # || got="": without it `bash -e` exits on the first missing plist
+              # and the rest of the checks are never reported.
+              got="$(defaults read "$PWD/$plist" "$key")" || got=""
+              if [ "$got" = "$want" ]; then
+                echo "  -> $plist.plist $key states $want"
+              else
+                echo "::error::$plist.plist $key states '$got' but VERSION says '$want'."
+                rc=1
+              fi
+            done
           done
           exit "$rc"
 
