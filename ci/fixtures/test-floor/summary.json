@@ -1,0 +1,36 @@
+{
+  "devicesAndConfigurations": [
+    {
+      "device": {
+        "architecture": "arm64",
+        "deviceId": "00000000-0000000000000000",
+        "deviceName": "My Mac",
+        "modelName": "Mac",
+        "osBuildNumber": "25G83",
+        "osVersion": "26.6.2",
+        "platform": "macOS"
+      },
+      "expectedFailures": 0,
+      "failedTests": 0,
+      "passedTests": 134,
+      "skippedTests": 0,
+      "testPlanConfiguration": {
+        "configurationId": "1",
+        "configurationName": "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription": "LibreMac \u00b7 Built with macOS 26.6.2",
+  "expectedFailures": 0,
+  "failedTests": 0,
+  "finishTime": 1790248347.163,
+  "passedTests": 134,
+  "result": "Passed",
+  "skippedTests": 0,
+  "startTime": 1790248292.531,
+  "statistics": [],
+  "testFailures": [],
+  "title": "Test - LibreMac",
+  "topInsights": [],
+  "totalTestCount": 134
+}

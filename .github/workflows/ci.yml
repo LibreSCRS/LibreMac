@@ -133,6 +133,14 @@ jobs:
 
       - uses: actions/checkout@v4
         # Single-repo checkout: no LibreMiddleware sibling, no submodules.
+        # Full history: the test-floor check compares the floor with the one
+        # at the base of the change and reads every commit in <base>..HEAD for
+        # the trailer that names a lowering. A depth-limited fetch of the base
+        # alone would cut that range short (and the merge-base the all-zeros
+        # case needs), so a lowering named in a cut-off commit would read red;
+        # this repository's history is small enough that depth 0 costs seconds.
+        with:
+          fetch-depth: 0
 
       - name: Generate Xcode project
         run: ./Scripts/generate-project.sh
@@ -192,9 +200,44 @@ jobs:
         # -derivedDataPath pins where the products land so the step below can
         # name LibreMac.app without a second `xcodebuild -showBuildSettings`
         # invocation to go looking for it.
+        #
+        # -resultBundlePath and the tee'd log feed the test-floor step below.
+        # pipefail: the default `bash -e` would otherwise take tee's status.
         run: |
+          set -o pipefail
           xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Debug \
-            build test CODE_SIGNING_ALLOWED=NO -derivedDataPath DerivedData -jobs 4
+            build test CODE_SIGNING_ALLOWED=NO -derivedDataPath DerivedData -jobs 4 \
+            -resultBundlePath DerivedData/LibreMac.xcresult \
+            2>&1 | tee "$RUNNER_TEMP/xcodebuild-test.log"
+
+      - name: The test action executed at least the recorded floor of tests
+        # `Executed 0 tests` + `** TEST SUCCEEDED **` is what this scheme prints
+        # on every healthy run (its tests are Swift Testing, not XCTest), so the
+        # step above is green whether the bundle ran 134 tests or none. This
+        # reads the result bundle's own count and fails on a skip, a failure, a
+        # count below ci/test-floor.macos.txt, or a floor lowered since the
+        # base of this change without a commit naming it; it falls back to the
+        # log only if xcresulttool cannot read the bundle.
+        #
+        # The base is the pull request's base, or the commit this push moved
+        # main from -- not HEAD~1, which on a multi-commit push already carries
+        # a lowering made in any earlier commit. A `before` that a force-push
+        # left out of every ref is fetched by SHA; if that fails the gate says
+        # it cannot judge (rc=2). All zeros (the push that created the branch)
+        # is resolved by the gate as the merge-base with origin/main.
+        env:
+          FLOOR_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          case "$FLOOR_BASE" in
+            ''|*[!0]*)
+              if [ -n "$FLOOR_BASE" ] && ! git cat-file -e "$FLOOR_BASE^{commit}" 2>/dev/null; then
+                git fetch --no-tags origin "$FLOOR_BASE" \
+                  || echo "::warning::could not fetch the base $FLOOR_BASE"
+              fi ;;
+          esac
+          ./ci/scripts/check-test-floor.sh --xcresult DerivedData/LibreMac.xcresult \
+            --log "$RUNNER_TEMP/xcodebuild-test.log" \
+            --base "$FLOOR_BASE" --default-ref origin/main
 
       - name: The built app and its token extension state the version in VERSION
         # The second half: what Xcode actually stamped. Both Info.plists in the
