@@ -42,12 +42,51 @@ struct TokenAgentClientTests {
         }
     }
 
-    @Test("a peer that never replies surfaces ioFailed instead of hanging forever")
-    func silentPeerSurfacesIoFailed() {
+    @Test("a peer that never replies surfaces timedOut instead of hanging forever")
+    func silentPeerSurfacesTimedOut() {
         let server = MockAgentServer() // no onRequest script: requests are read but never answered
         let client = TokenAgentClient(connectedFd: server.connectedFd(), ioTimeout: 0.2)
-        #expect(throws: TokenTransportError.ioFailed) {
+        #expect(throws: TokenTransportError.timedOut) {
             _ = try client.send(.getState)
         }
+    }
+
+    /// A write that stops part-way leaves the start of a frame with the agent.
+    /// If a later request were written on the same fd, its bytes would complete
+    /// that frame into a request nobody sent. The client must write nothing
+    /// more and close the fd, so the agent sees a truncated frame, then EOF.
+    @Test("after a failed write the client writes nothing more and closes the connection")
+    func failedWriteRetiresTheConnection() throws {
+        var pair: [Int32] = [0, 0]
+        #expect(socketpair(AF_UNIX, SOCK_STREAM, 0, &pair) == 0)
+        let peer = pair[0]
+        defer { close(peer) }
+        var small: Int32 = 4096
+        _ = setsockopt(pair[1], SOL_SOCKET, SO_SNDBUF, &small, socklen_t(MemoryLayout<Int32>.size))
+        let client = TokenAgentClient(connectedFd: pair[1], ioTimeout: 0.2)
+
+        // The peer does not read, so the large frame stalls part-way and the
+        // write deadline expires.
+        let big = AgentRequest.pkSignRaw(reader: "r", cert: "c", data: Data(count: 512 * 1024))
+        let frameLength = 4 + big.encode(req: 1).count
+        #expect(throws: TokenTransportError.timedOut) { _ = try client.send(big) }
+        #expect(throws: TokenTransportError.notDelivered) { _ = try client.send(.getState) }
+
+        // Everything the peer can ever read is the truncated first frame. The
+        // read deadline turns a connection left open into a failure, not a hang.
+        var tv = timeval(tv_sec: 2, tv_usec: 0)
+        _ = setsockopt(peer, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+        var received = 0
+        var buffer = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let n = read(peer, &buffer, buffer.count)
+            if n <= 0 {
+                #expect(n == 0, "expected EOF, got errno \(errno)")
+                break
+            }
+            received += n
+        }
+        #expect(received > 0)
+        #expect(received < frameLength)
     }
 }

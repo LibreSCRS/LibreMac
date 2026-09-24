@@ -22,7 +22,7 @@ public final class TokenAgentClient: TokenTransport {
     /// operator-facing wait (PIN entry happens agent-side) sends this seam
     /// no phase events to exempt it with, so the bound must outlast a slow
     /// operator while still surfacing a hung agent as
-    /// `TokenTransportError.ioFailed` instead of wedging the ctkd thread
+    /// `TokenTransportError.timedOut` instead of wedging the ctkd thread
     /// forever.
     public static let defaultIoTimeout: TimeInterval = 120.0
 
@@ -54,12 +54,28 @@ public final class TokenAgentClient: TokenTransport {
     deinit { if ownsFd, fd >= 0 { close(fd) } }
 
     public func send(_ request: AgentRequest) throws -> AgentReply {
+        // A connection that failed once is finished. After a failed write the
+        // agent may hold the start of a frame, and any later byte on this fd
+        // would complete it into a request nobody sent; so nothing is written
+        // again, and the fd is closed at once, which makes the agent discard
+        // the partial frame.
+        guard fd >= 0 else { throw TokenTransportError.notDelivered }
+        do {
+            return try exchange(request)
+        } catch {
+            retire()
+            throw error
+        }
+    }
+
+    private func exchange(_ request: AgentRequest) throws -> AgentReply {
         let req = nextReq
         nextReq &+= 1
         let body = request.encode(req: req)
         // A write that fails leaves at most part of the frame with the agent,
         // which dispatches only whole frames and discards the rest when this
-        // fd closes: the request was never acted on (`notDelivered`).
+        // fd closes: the request was never acted on (`notDelivered`). A write
+        // deadline stays `timedOut`: the agent is there but not reading.
         do {
             try writeAll(try Frame.encodeHeader(bodyLength: body.count, fdCount: 0))
             try writeAll(body)
@@ -75,16 +91,23 @@ public final class TokenAgentClient: TokenTransport {
         }
     }
 
+    private func retire() {
+        if ownsFd, fd >= 0 { close(fd) }
+        fd = -1
+    }
+
     private func nextFrame() throws -> Frame {
         while pending.isEmpty {
             var buf = [UInt8](repeating: 0, count: 4096)
             let n = read(fd, &buf, buf.count)
             if n == 0 { throw TokenTransportError.closed }
             if n < 0 {
-                if errno == EINTR { continue }
+                let failure = errno
+                if failure == EINTR { continue }
                 // EAGAIN/EWOULDBLOCK here means the SO_RCVTIMEO deadline
                 // expired (the fd is otherwise blocking): a hung agent
-                // surfaces as ioFailed rather than wedging the ctkd thread.
+                // surfaces as timedOut rather than wedging the ctkd thread.
+                if failure == EAGAIN || failure == EWOULDBLOCK { throw TokenTransportError.timedOut }
                 throw TokenTransportError.ioFailed
             }
             // `FrameReassembler.pump` is sticky-poisoned: once it throws, every
@@ -106,7 +129,10 @@ public final class TokenAgentClient: TokenTransport {
             while off < raw.count {
                 let n = write(fd, raw.baseAddress!.advanced(by: off), raw.count - off)
                 if n < 0 {
-                    if errno == EINTR { continue }
+                    let failure = errno
+                    if failure == EINTR { continue }
+                    // SO_SNDTIMEO expired: the agent is alive but not reading.
+                    if failure == EAGAIN || failure == EWOULDBLOCK { throw TokenTransportError.timedOut }
                     throw TokenTransportError.ioFailed
                 }
                 off += n
@@ -126,7 +152,7 @@ public final class TokenAgentClient: TokenTransport {
 
     /// Bounds every blocking `read`/`write` on `fd` (SO_RCVTIMEO /
     /// SO_SNDTIMEO): expiry returns -1 with EAGAIN/EWOULDBLOCK, which the
-    /// IO loops map to `TokenTransportError.ioFailed`.
+    /// IO loops map to `TokenTransportError.timedOut`.
     private static func setIoDeadline(_ fd: Int32, seconds: TimeInterval) {
         let whole = Int(seconds)
         var tv = timeval(tv_sec: whole, tv_usec: Int32((seconds - TimeInterval(whole)) * 1_000_000))

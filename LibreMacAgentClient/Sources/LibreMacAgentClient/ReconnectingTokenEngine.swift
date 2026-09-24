@@ -11,19 +11,28 @@ import Foundation
 /// failed and, when replaying the operation is safe, runs it once more over a
 /// fresh one. A second failure answers `communicationError`; there is no loop.
 ///
-/// Replay is safe only while nothing that can prompt or use the key has reached
-/// the agent in this attempt. The agent runs `Pkcs11.Login` and
-/// `Pkcs11.SignRaw` to completion whether or not the connection that asked is
-/// still open (the reply is simply dropped), and those are the calls that raise
-/// the CAN/PIN prompt and produce a signature. Replaying one would prompt the
-/// person again and sign twice. So only `GetState`, `GetCertDer` and
-/// `Pkcs11.PublicKey` may have been delivered before the failure; any other
-/// request counts once its frame was written whole, answered or not. Every
-/// operation starts with `GetState`, which is what meets a connection the agent
-/// closed while idle, so that case is always rebuilt.
+/// Replay is safe only while nothing with an effect beyond reading has reached
+/// the agent in this attempt. The agent runs a delivered request to completion
+/// whether or not the connection that asked is still open (the reply is simply
+/// dropped). `Pkcs11.SignRaw` raises the PIN prompt and signs on the card, so a
+/// replay would prompt the person again and sign twice. `Pkcs11.Login` raises
+/// no prompt — it opens the card channel and grants a lease — but it is not a
+/// read either, and it is the step before the sign, so it is not replayed. Only
+/// `GetState`, `GetCertDer` and `Pkcs11.PublicKey` may have been delivered
+/// before the failure; any other request counts once its frame was written
+/// whole, answered or not. Every operation starts with `GetState`, which is
+/// what meets a connection the agent closed while idle, so that case is always
+/// rebuilt.
 ///
-/// Thread-confined like `TokenTransport`: one instance per session, called on
-/// ctkd's thread for that session.
+/// Only a lost connection is replayed: `closed`, `notDelivered` and a read or
+/// write error. `timedOut` is not — the agent is there and not answering, a new
+/// connection to it would wait out a second deadline, and the stuck-agent
+/// budget is one deadline. `decodeFailed` is not either: the reply stream is
+/// corrupt, and what the agent did with the request is unknown.
+///
+/// Not thread-safe: calls must be serialised. ctkd serialises the delegate
+/// calls of one session (`signData`, and `finish` of the auth operation the
+/// session handed out), which may arrive on different threads.
 public final class ReconnectingTokenEngine {
     private let connect: () throws -> TokenTransport
     private var transport: TokenTransport?
@@ -82,10 +91,18 @@ public final class ReconnectingTokenEngine {
             // the tracker, not the error that surfaced, says whether it failed.
             guard let failure = tracked.failure else { throw error }
             transport = nil
-            // decodeFailed means the reply stream is corrupt: what the agent
-            // did with the request is unknown, so it is never replayed.
-            let replayable = failure != .decodeFailed && !tracked.consequentialRequestDelivered
+            let replayable = Self.isConnectionLoss(failure) && !tracked.consequentialRequestDelivered
             return .failed(replayable: replayable)
+        }
+    }
+}
+
+extension ReconnectingTokenEngine {
+    /// The failures a fresh connection can cure (see the type comment).
+    static func isConnectionLoss(_ failure: TokenTransportError) -> Bool {
+        switch failure {
+        case .closed, .notDelivered, .ioFailed, .connectFailed: return true
+        case .timedOut, .decodeFailed: return false
         }
     }
 }

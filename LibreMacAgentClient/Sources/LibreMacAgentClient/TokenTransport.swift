@@ -16,9 +16,11 @@ public protocol TokenTransport {
 /// question a reconnect has to ask: the request's frame never left this
 /// process whole, so the agent — which dispatches only complete frames — never
 /// acted on it. `ioFailed` and `closed` arrive after the whole frame was
-/// written, when the agent may already be acting on it.
+/// written, when the agent may already be acting on it. `timedOut` is the I/O
+/// deadline expiring: the agent is still there but not answering, which a new
+/// connection to the same process does not fix.
 public enum TokenTransportError: Error, Equatable {
-    case connectFailed, ioFailed, decodeFailed, closed, notDelivered
+    case connectFailed, ioFailed, decodeFailed, closed, notDelivered, timedOut
 }
 
 /// Platform-neutral error the extension turns into a TKError (keeps the package CTK-free).

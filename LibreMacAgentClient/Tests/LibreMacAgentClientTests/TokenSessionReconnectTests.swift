@@ -16,13 +16,17 @@ struct TokenSessionReconnectTests {
     /// Counts the connections the unit asks for and wires each to `server`.
     final class Connector: @unchecked Sendable {
         let server: MockAgentServer
+        let deadline: TimeInterval
         private(set) var made = 0
         var fail = false
-        init(server: MockAgentServer) { self.server = server }
+        init(server: MockAgentServer, deadline: TimeInterval = 5) {
+            self.server = server
+            self.deadline = deadline
+        }
         func connect() throws -> TokenTransport {
             made += 1
             if fail { throw TokenTransportError.connectFailed }
-            return TokenAgentClient(connectedFd: server.connectedFd(), ioTimeout: 5)
+            return TokenAgentClient(connectedFd: server.connectedFd(), ioTimeout: deadline)
         }
     }
 
@@ -121,6 +125,23 @@ struct TokenSessionReconnectTests {
         Self.script(server)
         #expect(try sign(unit) == Data([0x5A]))
         #expect(connector.made == 2)
+    }
+
+    /// A hung agent costs one reply deadline, not two: a new connection to the
+    /// same process would only wait out the deadline again.
+    @Test("an agent that accepts and never answers fails after one deadline, without reconnecting")
+    func tokenSessionReconnectDoesNotReplayATimeout() throws {
+        let server = MockAgentServer() // no script: requests are read, never answered
+        let deadline: TimeInterval = 0.3
+        let connector = Connector(server: server, deadline: deadline)
+        let unit = ReconnectingTokenEngine(connect: connector.connect)
+
+        let start = Date()
+        #expect(throws: TokenOpError.mapped(.communicationError)) { _ = try sign(unit) }
+        let elapsed = Date().timeIntervalSince(start)
+        #expect(connector.made == 1)
+        #expect(server.count(of: "GetState") == 1)
+        #expect(elapsed < 2 * deadline)
     }
 
     /// Scripted transport for the case a socket cannot stage on demand: a
