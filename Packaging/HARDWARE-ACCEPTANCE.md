@@ -20,9 +20,13 @@ before shipping a signed build.
   what CI uses) are not sufficient — `ctkd` will not register an
   unsigned/untrusted extension against Keychain.
 - A physical smart card reader with a supported card inserted.
-- The agent running with `LIBRESCRS_TEST_LOGIN=CAN:PIN` set to the target
-  card's real CAN/PIN pair. Do not hardcode the PIN anywhere in scripts or
-  logs; export it in the operator's shell for the duration of the gate only.
+- `LIBRESCRS_HW=1` set, and the target card's real CAN and PIN exported as
+  `LIBRESCRS_TEST_CAN` / `LIBRESCRS_TEST_PIN` in the operator's shell for the
+  duration of the gate only — the same variable names this project's other
+  hardware-gated tests use (`LIBRESCRS_TEST_LOGIN` names nothing any code in
+  this stack reads). The prompter still collects the PIN interactively for
+  each sign (see Check 4); do not hardcode the PIN anywhere in scripts or
+  logs.
 - PIN safety: this gate consumes the real card PIN. Apply the same
   `g_pinFailed` + `loginWithAbort()` + `SKIP_IF_PIN_FAILED()` discipline used
   by the rest of the test suite — three failed PIN attempts permanently

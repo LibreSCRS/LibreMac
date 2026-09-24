@@ -11,7 +11,10 @@ process to show the AppKit modal). The host app looks this up by
 basename via AppGroupConstants.AgentService.prompterPlistName — keep the
 filename and the Label in sync with that constant. BundleProgram (NOT
 ProgramArguments) for the same relocatability reason as the agent's plist.
-KeepAlive is the respawn mechanism (no PrompterSupervisor).
+KeepAlive is the respawn mechanism (no PrompterSupervisor), scoped the same
+way as the agent's: launchd restarts it only after it exits non-zero or dies
+from a signal (SuccessfulExit false), not after a clean exit, with
+ThrottleInterval backing off a repeated failure instead of spinning.
 -->
 <plist version="1.0">
 <dict>
@@ -22,7 +25,12 @@ KeepAlive is the respawn mechanism (no PrompterSupervisor).
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
     <key>ProcessType</key>
     <string>Interactive</string>
     <key>AssociatedBundleIdentifiers</key>

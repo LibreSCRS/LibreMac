@@ -12,7 +12,12 @@ required: SMAppService resolves BundleProgram relative to the enclosing
 app bundle, so the staged path stays correct across every install location;
 an absolute ProgramArguments path breaks the moment the .app is relocated.
 KeepAlive is the respawn mechanism now that there is no PrompterSupervisor
-— launchd itself restarts a crashed agent.
+— launchd itself restarts the agent, but only after it exits non-zero or
+dies from a signal (SuccessfulExit false), not after a clean exit. A future
+"Quit agent" action in the host can therefore let the process actually stop:
+it must `launchctl kickstart` the job itself to bring the agent back, the
+same way it would after any other clean stop. ThrottleInterval backs off a
+repeated failure instead of spinning launchd in a crash loop.
 -->
 <plist version="1.0">
 <dict>
@@ -23,7 +28,12 @@ KeepAlive is the respawn mechanism now that there is no PrompterSupervisor
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
     <key>ProcessType</key>
     <string>Interactive</string>
     <key>AssociatedBundleIdentifiers</key>

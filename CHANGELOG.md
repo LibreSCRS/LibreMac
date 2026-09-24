@@ -79,6 +79,28 @@ versioning follows [Semantic Versioning](https://semver.org/).
   two signing sentences that count files and confirmations, which until now
   rendered their English source to a Serbian reader, are translated as well.
 
+### Fixed
+
+- The agent and prompter LaunchAgents now restart only after a crash or a
+  signal, not after a clean exit: `KeepAlive` is a `SuccessfulExit` dict
+  instead of a bare `true`, with a throttle so a repeated failure backs off
+  instead of spinning launchd in a crash loop. A future "Quit agent" action in
+  the host can now let the process actually stop; today launchd would have
+  respawned it immediately.
+
+- The hardware-acceptance checklist named an environment variable
+  (`LIBRESCRS_TEST_LOGIN`) that no code in this stack reads. It now names the
+  same `LIBRESCRS_HW` / `LIBRESCRS_TEST_PIN` variables the rest of the project
+  uses for a hardware-gated run.
+
+### Security
+
+- Documented, in the README, that without a Developer ID signature the agent
+  and prompter can only tell a connecting peer apart by same-user ownership
+  of the socket — any process running as you can raise the credential window
+  — and that a Developer-ID build checks the peer's designated requirement
+  instead.
+
 ### Notes
 
 - There is no release workflow, `KEYS` file or notarized artifact here yet.

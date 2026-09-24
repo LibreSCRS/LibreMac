@@ -28,6 +28,12 @@ LibreMac itself is **LibreMiddleware-free**, like LibreKDE:
 PIN consent uses the protected authentication path
 (`CKF_PROTECTED_AUTHENTICATION_PATH`).
 
+Without a Developer ID signature the agent and prompter cannot verify who
+connects to them beyond same-user ownership of the socket; a process running
+as your user can raise the credential window. Developer-ID builds verify the
+peer's designated requirement. See [SECURITY.md](SECURITY.md) for the full
+policy.
+
 ## Status
 
 Work in progress. A de-risk spike passed on real hardware: the macOS agent
