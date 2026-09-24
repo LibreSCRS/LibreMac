@@ -111,6 +111,15 @@ versioning follows [Semantic Versioning](https://semver.org/).
   two signing sentences that count files and confirmations, which until now
   rendered their English source to a Serbian reader, are translated as well.
 
+- The token extension now waits up to 330 seconds for the agent to answer a
+  request, up from 120 seconds, which could run out while you were still
+  typing a CAN and then a PIN. The host's wait on a request that asks you to
+  confirm something goes from 300 to 330 seconds. Both are the longest chain of
+  prompts one request can raise plus a margin, so neither gives up while a
+  prompt is still open. The token extension's wait now covers the whole
+  request: events the agent sends in the meantime no longer extend it, so an
+  agent that stops answering is reported after one wait instead of never.
+
 ### Fixed
 
 - The agent and prompter LaunchAgents no longer restart unconditionally:
@@ -124,6 +133,13 @@ versioning follows [Semantic Versioning](https://semver.org/).
   death and still gets respawned. A future "Quit agent" action in the host
   relies on exactly this to let the agent actually stop.
 
+- The token extension rebuilds its connection to the agent when the agent
+  closed it, for example after the agent restarted. Before, a token session
+  that Keychain kept open failed every later signature until the session was
+  thrown away. A request is sent again on the new connection only when nothing
+  the agent could have acted on reached it; a request that may have raised a
+  prompt or used a key, or one that timed out, is never repeated.
+
 - The hardware-acceptance checklist named an environment variable
   (`LIBRESCRS_TEST_LOGIN`) that no code in this stack reads. It now names the
   same `LIBRESCRS_HW` / `LIBRESCRS_TEST_CAN` / `LIBRESCRS_TEST_PIN` variables
@@ -133,11 +149,27 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- The host and the token extension now check the process serving the agent
+  socket before they send it anything: it must be signed with the identifier
+  `org.librescrs.agent` and carry the `group.org.librescrs.LibreMac` App Group
+  entitlement, and, when the build names a team (`LIBRESCRS_TEAM_ID`), it must
+  also satisfy that team's designated requirement. A process that fails the
+  check is refused before any request reaches it. As a
+  consequence a development agent must be signed with that identifier and App
+  Group, or both clients refuse it; LibreDarwin's `packaging/install-dev.sh`
+  signs the agent it builds that way (ad hoc), and the comment in
+  `RealAgentSmokeTests.swift` gives the `codesign` command for doing it by
+  hand.
+
 - Documented, in the README, that without a Developer ID signature the agent
   and prompter can only tell a connecting peer apart by same-user ownership
   of the socket — any process running as you can raise the credential window
   — and that a Developer-ID build checks the peer's designated requirement
-  instead.
+  instead. That describes the agent's check of who connects to it; the
+  clients' check of the agent is the entry above. Without a team id that check
+  still rests on what the agent's own signature claims, which an ad hoc
+  signature can claim too, so it keeps the clients from talking to the wrong
+  process by accident rather than stopping one built to impersonate the agent.
 
 ### Notes
 
