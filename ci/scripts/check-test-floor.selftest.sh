@@ -27,6 +27,12 @@ fixtures="$here/../fixtures/test-floor"
 command -v python3 >/dev/null 2>&1 || { echo "python3 is not on PATH -- cannot build the fixtures" >&2; exit 2; }
 command -v git >/dev/null 2>&1 || { echo "git is not on PATH -- cannot build the fixtures" >&2; exit 2; }
 
+# The fixtures are git repositories, so the caller's own git configuration
+# must not reach them: tag.gpgsign=true, for one, turns `git tag base` into
+# a signed annotated tag that asks for a message, and every case that names
+# a base then cannot judge. Identity comes from g() below.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+
 work=$(mktemp -d "${TMPDIR:-/var/tmp}/check-test-floor.XXXXXX") || exit 2
 trap 'rm -rf "$work"' EXIT
 
