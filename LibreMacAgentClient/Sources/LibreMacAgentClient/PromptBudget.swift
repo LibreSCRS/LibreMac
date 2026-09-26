@@ -12,12 +12,10 @@ import Foundation
 ///
 /// `maxSequential` is the sum a request's prompts may add up to, not any
 /// one prompt's deadline. `PromptBudgetContractTests` pins the value
-/// against `Contract/prompt-policy.txt`, using the same vendor-and-pin
-/// mechanism as the wire vocabulary contract (`Contract/prompt-policy.provenance`
-/// names the agent commit the number was read from). Today that number
-/// equals the agent's single longest deadline, because the agent has not
-/// yet declared a dedicated sequential-chain constant -- see the
-/// provenance file for the detail.
+/// against `Contract/prompt-policy.txt`, which -- like the wire vocabulary
+/// next to it -- is regenerated from the agent at the LibreAgent revision in
+/// `deps.lock` (the `// budget-ms:` marker on `kMaxSequentialPromptBudget`
+/// in the agent's PromptPolicy.h), never edited by hand.
 public enum PromptBudget {
     /// Seconds.
     public static let maxSequential: TimeInterval = 300

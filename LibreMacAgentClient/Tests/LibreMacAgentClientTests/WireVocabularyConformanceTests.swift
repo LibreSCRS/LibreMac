@@ -52,18 +52,9 @@ private func loadManifest() throws -> Manifest {
     return try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url))
 }
 
-private func pinnedRevision() throws -> String {
-    let url = try #require(
-        Bundle.module.url(forResource: "wire-vocabulary", withExtension: "provenance", subdirectory: "Contract"))
-    return try String(contentsOf: url, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
-}
-
 @Test func manifestIsTheSchemaThisTestUnderstands() throws {
     let manifest = try loadManifest()
     #expect(manifest.schema == 1)
-    // Surfaced on every run so the pinned revision is visible without digging
-    // through a job log.
-    print("wire contract pinned at \(try pinnedRevision())")
 }
 
 // The numeric mirrors are checked the same way, so the check is written once.

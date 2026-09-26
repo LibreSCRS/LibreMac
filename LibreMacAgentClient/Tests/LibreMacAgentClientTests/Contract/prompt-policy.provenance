@@ -1,6 +1,0 @@
-735caee2fc26d905437d08b80257b5f2fad855d6
-
-The 300000 recorded in prompt-policy.txt equals kLongestDeadline in
-LibreAgent's PromptPolicy.h at this commit; the agent has not yet declared
-a dedicated sequential-chain budget constant there. This file will be
-re-pinned to the agent commit that adds one, once that commit lands.
