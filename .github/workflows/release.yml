@@ -128,17 +128,36 @@ jobs:
             -DLIBREMIDDLEWARE_BUILD_SHARED=ON
           cmake --build .build-lm -j4
           cmake --install .build-lm
+          # Every library the bundle will stage carries both slices.
+          find "$LM_PREFIX/lib" -name '*.dylib' -type f | while read -r lib; do
+            lipo "$lib" -verify_arch x86_64 arm64 \
+              || { echo "::error::$lib is $(lipo -archs "$lib"), not x86_64 + arm64"; exit 1; }
+          done
 
       - name: Build LibreDarwin (Release, universal)
+        # The agent core links OpenSSL itself (find_package), and left alone it
+        # finds Homebrew's, which on this runner is arm64 only: the x86_64
+        # slice of the agent then fails to link every OpenSSL symbol it uses.
+        # LibreMiddleware at this lock carries a universal static OpenSSL for
+        # macOS (thirdparty/openssl-<version>/macosx, both slices lipo'd), the
+        # one its own libraries link; the agent links the same one.
         env:
           LD_SRC: ${{ steps.deps.outputs.libredarwin-path }}
           LA_SRC: ${{ steps.deps.outputs.libreagent-path }}
+          LM_SRC: ${{ steps.lm.outputs.libremiddleware-path }}
         run: |
+          shopt -s nullglob
+          ossl=("$LM_SRC"/thirdparty/openssl-*/macosx)
+          [ "${#ossl[@]}" -eq 1 ] || { echo "::error::want one thirdparty/openssl-*/macosx in LibreMiddleware, found ${#ossl[@]}"; exit 1; }
+          lipo -info "${ossl[0]}/lib/libcrypto.a"
           cmake -S "$LD_SRC" -B "$LD_SRC/build-release" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DLIBREDARWIN_UNIVERSAL=ON \
             -DCMAKE_PREFIX_PATH="$LM_PREFIX" \
+            -DOPENSSL_ROOT_DIR="${ossl[0]}" \
+            -DOPENSSL_USE_STATIC_LIBS=TRUE \
             -DFETCHCONTENT_SOURCE_DIR_LIBREAGENT="$LA_SRC"
+          grep -E '^OPENSSL_CRYPTO_LIBRARY' "$LD_SRC/build-release/CMakeCache.txt"
           cmake --build "$LD_SRC/build-release" -j4
 
       - name: Build LibreMac (Release, universal, ad hoc)
