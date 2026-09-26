@@ -45,7 +45,7 @@ jobs:
       # the vendored agent contract is byte-for-byte the one at the LibreAgent
       # lock); and CHANGELOG against VERSION.
       - name: Shared gates
-        uses: LibreSCRS/ci/actions/gates@261a41fb5b6dc060ab18e0ead6dd2b065755ed8e
+        uses: LibreSCRS/ci/actions/gates@2e5c95f7e9a54325bc0321775c0d8c08002aebea
         with:
           gates: check-workflows selftests deps-lock check-version-lockstep
 

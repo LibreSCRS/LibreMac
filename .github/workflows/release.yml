@@ -66,7 +66,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: pre
-        uses: LibreSCRS/ci/actions/release-preflight@261a41fb5b6dc060ab18e0ead6dd2b065755ed8e
+        uses: LibreSCRS/ci/actions/release-preflight@2e5c95f7e9a54325bc0321775c0d8c08002aebea
         with:
           mode: ${{ inputs.mode || (github.ref_type == 'tag' && 'publish' || 'rehearse') }}
           # Every version surface here is derived from VERSION at generate
@@ -100,7 +100,7 @@ jobs:
 
       - name: Checkout LibreAgent and LibreDarwin at this repository's lock
         id: deps
-        uses: LibreSCRS/ci/actions/checkout-deps@261a41fb5b6dc060ab18e0ead6dd2b065755ed8e
+        uses: LibreSCRS/ci/actions/checkout-deps@2e5c95f7e9a54325bc0321775c0d8c08002aebea
         with:
           names: LibreAgent LibreDarwin
           fetch-depth: '0'
@@ -109,7 +109,7 @@ jobs:
         # deps-lock holds LibreDarwin's LibreAgent to this repository's, so
         # the one LibreAgent checkout above is the one LibreDarwin builds.
         id: lm
-        uses: LibreSCRS/ci/actions/checkout-deps@261a41fb5b6dc060ab18e0ead6dd2b065755ed8e
+        uses: LibreSCRS/ci/actions/checkout-deps@2e5c95f7e9a54325bc0321775c0d8c08002aebea
         with:
           root: .deps/LibreDarwin
           consumer: LibreDarwin
@@ -172,7 +172,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/ci
-          ref: 261a41fb5b6dc060ab18e0ead6dd2b065755ed8e
+          ref: 2e5c95f7e9a54325bc0321775c0d8c08002aebea
           path: .ci
           persist-credentials: false
 
@@ -215,7 +215,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/ci
-          ref: 261a41fb5b6dc060ab18e0ead6dd2b065755ed8e
+          ref: 2e5c95f7e9a54325bc0321775c0d8c08002aebea
           path: .ci
           persist-credentials: false
 
@@ -224,7 +224,7 @@ jobs:
         # about to reject is worth not creating.
         run: python3 .ci/scripts/check-sbom artifacts/sbom-macos.cdx.json
 
-      - uses: LibreSCRS/ci/actions/release-seal@261a41fb5b6dc060ab18e0ead6dd2b065755ed8e
+      - uses: LibreSCRS/ci/actions/release-seal@2e5c95f7e9a54325bc0321775c0d8c08002aebea
         with:
           mode: ${{ needs.preflight.outputs.mode }}
           version: ${{ needs.preflight.outputs.version }}
@@ -250,7 +250,7 @@ jobs:
         with:
           name: sealed
           path: artifacts
-      - uses: LibreSCRS/ci/actions/release-publish@261a41fb5b6dc060ab18e0ead6dd2b065755ed8e
+      - uses: LibreSCRS/ci/actions/release-publish@2e5c95f7e9a54325bc0321775c0d8c08002aebea
         with:
           mode: ${{ needs.preflight.outputs.mode }}
           version: ${{ needs.preflight.outputs.version }}
