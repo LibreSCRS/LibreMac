@@ -4,177 +4,73 @@ name: Release
 # LibreMac publishes no binary yet. The app it builds is signed ad-hoc, which
 # Gatekeeper rejects on any machine but the one that built it, so a downloadable
 # .app or disk image would be an artefact nobody can open; that arrives with a
-# Developer ID, notarization and stapling, and this workflow gains the build
-# then. Until that day a release here needs exactly two things, the same two as
-# the other components that ship no binary: proof that the tag carries the
-# project signature, and curated notes taken from CHANGELOG.md.
+# Developer ID, notarization and stapling, and this workflow gains a build job
+# then. Until that day a release here is the notes taken from CHANGELOG.md,
+# published under a tag the project key signed: ci/release-assets.txt declares
+# no asset, and the publish step holds the release to that.
 #
 # The workflow deliberately performs NO build, which also keeps it off a macOS
 # runner.
+#
+# Two modes. A tag push publishes. A dispatch rehearses by default, on any
+# ref: the same preflight (mode, the tag verifier proved on fixtures, VERSION
+# against CHANGELOG, the locked LibreAgent revision) and the same notes and
+# asset checks, with nothing created. `publish` is refused on a ref that is
+# not a tag.
 
 on:
   push:
-    tags:
-      # Same shape as the sibling components: every tag this project publishes
-      # is unprefixed.
-      - '[0-9]+.[0-9]+.[0-9]+*'
-  # Rehearsal path. A maintainer can start this workflow from the Actions tab
-  # against an existing signed tag (Run workflow -> pick the tag as the ref) to
-  # exercise the whole chain, release notes included, without pushing a fresh
-  # tag. github.ref_name is the tag name on that path too, so every step below
-  # behaves exactly as it does on a tag push -- except publication: a rehearsal
-  # creates a DRAFT release unless the maintainer explicitly turns dry_run off.
-  # Started against a branch instead, the signature check fails closed, which is
-  # the intended outcome. A dispatch runs this file as it exists at the chosen
-  # ref, and `gh release create` refuses a tag that already has a release, draft
-  # or not, so the rehearsal is for a signed tag that carries this file and has
-  # not been released yet.
+    tags: ['[0-9]+.[0-9]+.[0-9]+*']
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Create the release as a draft (rehearsal)'
-        type: boolean
-        default: true
+      mode:
+        description: 'rehearse (any ref) or publish (a tag ref only)'
+        type: choice
+        options: [rehearse, publish]
+        default: rehearse
 
-# One run per tag at a time: a re-run racing a still-live earlier run would
+permissions: {}
+
+# One run per ref at a time: a re-run racing a still-live earlier run would
 # hand gh release create an already-existing release and fail at the last step.
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  verify-signature:
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
-    env:
-      # The release key's PRIMARY fingerprint, named once so the import check
-      # and the signature check cannot pin different keys across a rotation.
-      EXPECTED_FPR: '6B05889AC9A6A7188DF639B06F27A989C2031D16'
+    outputs:
+      mode: ${{ steps.pre.outputs.mode }}
+      version: ${{ steps.pre.outputs.version }}
+      is_prerelease: ${{ steps.pre.outputs.is_prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
-          ref: ${{ github.ref }}
+      - id: pre
+        uses: LibreSCRS/ci/actions/release-preflight@5b9410f9b0e6ab6983c39f931e118e68007c12b4
+        with:
+          mode: ${{ inputs.mode || 'publish' }}
+          # Every version surface here is derived from VERSION at generate
+          # time (ci.yml measures the built bundle), so VERSION against the
+          # CHANGELOG is the one arm there is to run.
+          version-arms: lockstep
 
-      - name: Import LibreSCRS release public key
-        run: |
-          # The published project key travels with the repository, as in the
-          # sibling components. Report its absence in terms of what to do
-          # about it rather than letting gpg fail with a bare open error.
-          if [ ! -f KEYS ]; then
-            echo "::error::KEYS is missing from the repository root — a release tag cannot be verified without the published LibreSCRS release public key"
-            exit 1
-          fi
-          gpg --import KEYS
-          gpg --list-keys --with-colons "$EXPECTED_FPR" | grep -q "^pub" \
-            || { echo "::error::Public key import failed or fingerprint mismatch"; exit 1; }
-
-      - name: Verify tag signature
-        # verify-tag alone accepts a good signature by ANY key in the keyring,
-        # so the signer is pinned by fingerprint through --raw's VALIDSIG line.
-        #
-        # VALIDSIG's FIRST field is the fingerprint of the key that physically
-        # signed, and this project signs with a subkey (the primary is
-        # certify-only), so the first field is the SUBKEY. The primary -- the
-        # identity worth pinning, because it outlives every subkey rotation --
-        # is VALIDSIG's LAST field, so it is matched in the trailing position.
-        #
-        # Anchored, and deliberately not a bare fingerprint grep: gpg also
-        # emits KEY_CONSIDERED with the primary's fingerprint, and it does so
-        # even for a BADSIG, so a loose match would accept a forged tag.
-        #
-        # The ref name moves through the environment, never inline into the
-        # script — a git ref may carry shell metacharacters and the tag
-        # filter's trailing * accepts an arbitrary suffix.
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          git verify-tag --raw "$TAG" 2>&1 \
-            | grep -qE "^\[GNUPG:\] VALIDSIG [0-9A-F]{40} .* ${EXPECTED_FPR}\$" \
-            || { echo "::error::Tag $TAG is not signed by the LibreSCRS release key"; exit 1; }
-
-  release:
+  publish:
+    needs: [preflight]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: verify-signature
-    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: LibreSCRS/ci/actions/release-publish@5b9410f9b0e6ab6983c39f931e118e68007c12b4
         with:
-          sparse-checkout: |
-            ci/release-assets.txt
-            ci/scripts/check-release-assets.sh
-            CHANGELOG.md
-            VERSION
-            ci/scripts/check-release-lockstep.sh
-          sparse-checkout-cone-mode: false
-
-      - name: Prepare release notes from CHANGELOG
-        # The extractor is ci/scripts/check-release-lockstep.sh, the same one
-        # the per-push agreement check in ci.yml runs, so the section published
-        # here is the section that check has been holding against VERSION.
-        #
-        # --section exits non-zero when the section is missing OR holds only
-        # whitespace. Both have to fall back: `gh release create --notes-file`
-        # accepts a blank file and publishes a release with no body at all.
-        # --generate-notes and --notes-file are mutually exclusive, hence the
-        # shell branch.
-        run: |
-          VER="${GITHUB_REF_NAME#v}"
-          if ci/scripts/check-release-lockstep.sh --section "$VER" > "$RUNNER_TEMP/relnotes.md"; then
-            echo "NOTES_ARG=--notes-file $RUNNER_TEMP/relnotes.md" >> "$GITHUB_ENV"
-          else
-            echo "No CHANGELOG section for $VER — falling back to --generate-notes"
-            echo "NOTES_ARG=--generate-notes" >> "$GITHUB_ENV"
-          fi
-
-      - name: The staged asset set is the set this repository declares
-        # No path: this release uploads no asset, and the check holds the
-        # declaration to that -- an empty ci/release-assets.txt is the claim.
-        run: ci/scripts/check-release-assets.sh --staged
-
-      - name: Create GitHub release
-        # The ref name and repository move through the environment, never
-        # inline into the script — a git ref may carry shell metacharacters
-        # and the tag filter's trailing * accepts an arbitrary suffix.
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-          REPO: ${{ github.repository }}
-          DRY_RUN: ${{ inputs.dry_run }}
-        run: |
-          # Mark X.Y.Z-{rc,beta,alpha,…} as pre-release; everything else stable.
-          PRERELEASE_FLAG=""
-          case "$TAG" in
-              *-rc*|*-beta*|*-alpha*|*-pre*) PRERELEASE_FLAG="--prerelease" ;;
-          esac
-          # A dispatch rehearsal publishes a DRAFT unless dry_run was
-          # explicitly turned off; a tag push never drafts. Without this the
-          # only way to exercise the chain is a tag that cannot be taken back.
-          DRAFT_FLAG=""
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$DRY_RUN" != "false" ]; then
-              DRAFT_FLAG="--draft"
-              echo "::notice::dry_run rehearsal -- creating a draft release"
-          fi
-          # NOTES_ARG must split into two argv entries and PRERELEASE_FLAG and
-          # DRAFT_FLAG must disappear when empty — deliberately unquoted.
-          # shellcheck disable=SC2086
-          gh release create "$TAG" \
-              --repo "$REPO" \
-              --title "$TAG" \
-              --verify-tag \
-              $NOTES_ARG \
-              $PRERELEASE_FLAG \
-              $DRAFT_FLAG
-
-      - name: The published release is the set this repository declares
-        # The release this job just created, read back. A draft is judged too,
-        # and the check prints DRAFT=yes so the log is not taken for evidence
-        # about a published release.
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: ci/scripts/check-release-assets.sh --published "$TAG"
+          mode: ${{ needs.preflight.outputs.mode }}
+          version: ${{ needs.preflight.outputs.version }}
+          is_prerelease: ${{ needs.preflight.outputs.is_prerelease }}
+          artifacts: ''
