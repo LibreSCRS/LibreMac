@@ -48,9 +48,11 @@ jobs:
       # pin of the shared gates), every self-test this repository ships with
       # its case count, and deps.lock -- the locked LibreAgent revision is
       # reachable from its main branch and the vendored agent contract is
-      # byte-for-byte the one at that revision.
+      # byte-for-byte the one at that revision; CHANGELOG and VERSION agree on
+      # the version this tree is heading for; and the release workflow checks
+      # its asset set before it publishes.
       - name: Shared gates
-        uses: LibreSCRS/ci/actions/gates@5b9410f9b0e6ab6983c39f931e118e68007c12b4
+        uses: LibreSCRS/ci/actions/gates@373a0f82c9af280b7a8ccc4ee30106c947394ca2
 
   swift-test:
     # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. Xcode 16
