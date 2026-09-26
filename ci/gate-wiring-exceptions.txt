@@ -4,11 +4,9 @@
 # Format:   <tracked path><two or more spaces><reason>
 #
 # A row whose path is not a tracked file fails, and a row with no reason fails.
-# check-gates-wired.sh measures reachability, so without these rows a script
+# check-workflows (LibreSCRS/ci) measures reachability, so without these rows a script
 # that ships and runs nowhere is indistinguishable from one that runs.
 
-Scripts/bundle-agent.sh    Assembling the bundle needs the LibreDarwin build tree and a signing identity, neither of which a runner has. Run from the release checklist. The one part of it that is pure shell — which LibreMiddleware soname to stage — has its own check in CI.
+Scripts/bundle-agent.sh    Assembling the bundle needs the LibreDarwin build tree and a signing identity, neither of which a runner has. Run from the release checklist. The one part of it that is pure shell — which LibreMiddleware soname to stage — is held by ci/scripts/lm-soname.selftest.sh, which CI runs.
 Scripts/verify-bundle.sh    Verifies an assembled bundle, so it cannot run where nothing was assembled. Same release-checklist path as bundle-agent.sh.
 Scripts/lm-soname.sh    Called by verify-bundle.sh and bundle-agent.sh rather than by a workflow; its own self-test is what CI runs.
-Scripts/generate-project.sh    Regenerates the Xcode project from the declared sources; CI builds the checked-in project, and running the generator would judge the generator rather than the tree.
-Scripts/check-sync-error-consumers.py    Driven through ci/scripts/check-sync-error-consumers.selftest.sh, which is what the self-test runner executes.

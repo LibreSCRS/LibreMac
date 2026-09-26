@@ -14,8 +14,8 @@ name: CI
 # release artifacts, the release checklist (README) runs
 # Scripts/bundle-agent.sh + Scripts/verify-bundle.sh locally. bundle-agent.sh
 # signs the host .app as its last step; nothing re-signs the bundle after it.
-# The bundle-scripts job below runs the whole script under stubs and holds it
-# to that order.
+# ci/scripts/lm-soname.selftest.sh runs the whole script under stubs and holds
+# it to that order; the shared self-test runner in the lint job executes it.
 
 on:
   push:
@@ -24,100 +24,59 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   lint:
     # Everything cheap that needs no macOS: a plain ubuntu runner answers in
     # seconds, where the macOS jobs below queue and bill by the minute.
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       # fetch-depth: 0 because the self-test runner picks its set with
       # `git ls-files`, and a shallow checkout is a known source of a
       # different set here than locally.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Prove the release-lockstep check still fails when it should
-        run: ./ci/scripts/check-release-lockstep.selftest.sh
-
-      - name: CHANGELOG and VERSION agree on the version this tree is heading for
-        # Nothing measured this here: CHANGELOG said 5.0.0 and VERSION said
-        # 5.0.0, and the two could have drifted apart in the next bump unseen.
-        run: ./ci/scripts/check-release-lockstep.sh "$(head -n1 VERSION | tr -d '[:space:]')"
-
-      # Every self-test in this repository, by pathspec, and each one must
-      # report the cases it ran and how many proved the gate red. A self-test
-      # nothing runs proves as much as no self-test, and a runner that read only
-      # exit codes would accept `exit 0` as a body.
-      - name: The release-asset check can still fail
-        run: ./ci/scripts/check-release-assets.selftest.sh
-
-      - name: The release workflow checks its asset set before publishing
-        # Structural only: the job that runs gh release create runs the
-        # --staged check before it, in a step that can fail the job.
-        run: ./ci/scripts/check-release-assets.sh --wired
-
-      - name: Run every self-test
-        run: ./ci/scripts/run-selftests.sh
-
-      # This repository ships in the first release and was outside every
-      # meta-check: nothing measured that its gate scripts are reachable, that
-      # its jobs carry a bound, or that a step can run where it was placed. All
-      # three read only the tracked files and the workflows as data, so an
-      # ubuntu runner answers in seconds.
-      - name: Every shipped gate is reachable
-        run: ./ci/scripts/check-gates-wired.sh
-
-      - name: Every job carries a bound
-        run: ./ci/scripts/check-job-timeouts.sh
-
-      - name: Every step can run where it was placed
-        run: ./ci/scripts/workflow-step-order.py
-
-  bundle-scripts:
-    # bundle-agent.sh runs nowhere in CI (see the note above), so the one thing
-    # in it that is pure shell -- which LibreMiddleware soname to stage -- gets
-    # its own check. It was wrong and nothing here could see it: the glob named
-    # a hard-coded soname integer while LIBRESCRS_ABI_SOVERSION had moved on, so
-    # the only script that assembles the macOS bundle exited 1 while staging the
-    # LibreMiddleware dylibs, four sections before it signs anything. Ubuntu:
-    # this is bash over fixture directories, no Apple anything.
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Soname discovery behaves on clean, stale and reused prefixes
-        # Also RUNS bundle-agent.sh — first its staging block over those
-        # prefixes, then the whole script into a fixture .app — and asserts
-        # which names land. A suite that only read the block stayed green over
-        # a bundler that called the helper and overwrote its answer on the next
-        # line; a rule that read the lines around the block stayed green over
-        # four spellings of a second staging pass that copied a hard-coded
-        # soname into Contents/Frameworks. Both are the shipped defect put
-        # back, and both are now measured by what reaches the bundle.
-        run: ./ci/scripts/lm-soname.selftest.sh
+      # The shared gates this repository's profile lists (LibreSCRS/ci
+      # profiles/LibreMac.txt): the workflows read as data (every gate
+      # reachable, every job bounded, every step placed where it can run, one
+      # pin of the shared gates), every self-test this repository ships with
+      # its case count, and deps.lock -- the locked LibreAgent revision is
+      # reachable from its main branch and the vendored agent contract is
+      # byte-for-byte the one at that revision.
+      - name: Shared gates
+        uses: LibreSCRS/ci/actions/gates@5b9410f9b0e6ab6983c39f931e118e68007c12b4
 
   swift-test:
     # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. Xcode 16
-    # (and its `swift test` toolchain) is preinstalled on macos-15.
-    timeout-minutes: 20
+    # (and its `swift test` toolchain) is preinstalled on macos-15. One job for
+    # the three packages: two of them run a handful of tests each, and a macOS
+    # runner's start-up costs more than all three test runs together.
+    timeout-minutes: 30
     runs-on: macos-15
-    strategy:
-      matrix:
-        package: [LibreMacAgentClient, LibreMacShared, Tools/ts2xcstrings]
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - name: swift test (${{ matrix.package }})
+      - name: swift test (LibreMacAgentClient)
         # LibreMacAgentClient includes an env-gated live-agent smoke test that
         # SKIPS unless LIBRESCRS_AGENT_SOCK is set. Deliberately not set here
         # — CI has no running agent to talk to. The PKCS#11 wire, transport,
         # and token op-engine suites live in this same package's single test
-        # target, so this matrix entry already runs them — no separate entry
-        # needed.
-        run: swift test --package-path "${{ matrix.package }}"
+        # target, so this step already runs them.
+        run: swift test --package-path LibreMacAgentClient
+
+      - name: swift test (LibreMacShared)
+        run: swift test --package-path LibreMacShared
+
+      - name: swift test (Tools/ts2xcstrings)
+        run: swift test --package-path Tools/ts2xcstrings
 
   build-macos:
     # macOS 15 runner: the project deploys to macOS 15.0 and needs the
@@ -125,6 +84,8 @@ jobs:
     # deployment target and fail to link.
     timeout-minutes: 30
     runs-on: macos-15
+    permissions:
+      contents: read
     steps:
       - name: Install build tools
         # xcodegen generates the Xcode project. No LM build deps (autoconf/
@@ -132,7 +93,7 @@ jobs:
         # the host links no LibreMiddleware.
         run: brew install xcodegen
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         # Single-repo checkout: no LibreMiddleware sibling, no submodules.
         # Full history: the test-floor check compares the floor with the one
         # at the base of the change and reads every commit in <base>..HEAD for
@@ -293,12 +254,12 @@ jobs:
     # header states what it does and does not resist, including which switch
     # subjects it cannot resolve.
     timeout-minutes: 5
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: sync-error consumer gate
+        # Its self-test runs with every other one, in the lint job.
         run: python3 Scripts/check-sync-error-consumers.py
-
-      - name: the gate can still fail
-        run: ./ci/scripts/check-sync-error-consumers.selftest.sh
