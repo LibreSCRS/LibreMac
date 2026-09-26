@@ -165,15 +165,8 @@ chmod u+w "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter"
 # was hard-coded here as 4 until LibreMiddleware moved to 5 -- see
 # Scripts/lm-soname.sh for why neither a literal nor PROJECT_VERSION is right.
 #
-# The two markers below delimit the block ci/scripts/lm-soname.selftest.sh lifts
-# out and RUNS over prefixes it builds. It stages the PKCS#11 module too: the
-# module is versioned with the same soname, and a prefix reused across an ABI
-# bump carries both, so the soname picks the module as well. Reading this block instead of running it
-# only ever measured how the lines are spelled: a check that the helper is
-# called and that no name carries an integer is green on a script that calls the
-# helper and then overwrites its answer. Everything the staging depends on --
-# SCRIPT_DIR, LM_LIB_PREFIX, FRAMEWORKS -- has to stay between them.
-# BEGIN LM dylib staging
+# The PKCS#11 module is versioned with the same soname, and a prefix reused
+# across an ABI bump carries both, so the soname picks the module as well.
 shopt -s nullglob
 lm_soname="$("$SCRIPT_DIR/lm-soname.sh" "$LM_LIB_PREFIX")" || exit 1
 lm_dylibs=("$LM_LIB_PREFIX"/libLibreSCRS_*."$lm_soname".dylib)
@@ -190,7 +183,6 @@ pkcs11_src="$LM_LIB_PREFIX/pkcs11/librescrs-pkcs11.$lm_soname.dylib"
 [ -e "$pkcs11_src" ] || { echo "bundle-agent: no librescrs-pkcs11.$lm_soname.dylib under $LM_LIB_PREFIX/pkcs11" >&2; exit 1; }
 cp -L "$pkcs11_src" "$FRAMEWORKS/librescrs-pkcs11.dylib"
 chmod u+w "$FRAMEWORKS/librescrs-pkcs11.dylib"
-# END LM dylib staging
 
 # plugins
 plugin_srcs=("$LM_LIB_PREFIX"/librescrs/plugins/*.dylib)
