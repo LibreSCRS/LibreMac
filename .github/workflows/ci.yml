@@ -42,17 +42,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      # The shared gates this repository's profile lists (LibreSCRS/ci
-      # profiles/LibreMac.txt): the workflows read as data (every gate
-      # reachable, every job bounded, every step placed where it can run, one
-      # pin of the shared gates), every self-test this repository ships with
-      # its case count, and deps.lock -- the locked LibreAgent revision is
-      # reachable from its main branch and the vendored agent contract is
-      # byte-for-byte the one at that revision; CHANGELOG and VERSION agree on
-      # the version this tree is heading for; and the release workflow checks
-      # its asset set before it publishes.
+      # The shared gates, named here: the job bounds and the one pinned commit
+      # of LibreSCRS/ci; every self-test this repository ships, each with its
+      # case count; deps.lock (the locked LibreAgent and LibreDarwin revisions
+      # are reachable from their main branches and agree with each other, and
+      # the vendored agent contract is byte-for-byte the one at the LibreAgent
+      # lock); and CHANGELOG against VERSION.
       - name: Shared gates
-        uses: LibreSCRS/ci/actions/gates@373a0f82c9af280b7a8ccc4ee30106c947394ca2
+        uses: LibreSCRS/ci/actions/gates@bd36eee50ba085ef4f052ea2767cff910e2e62e7
+        with:
+          gates: check-workflows selftests deps-lock check-version-lockstep
 
   swift-test:
     # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. Xcode 16
