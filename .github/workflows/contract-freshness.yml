@@ -11,7 +11,7 @@ name: Contract freshness
 # stopped looks exactly like one that keeps passing.
 on:
   push:
-    branches: [main]
+    branches: [main, 'ci/**']
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
