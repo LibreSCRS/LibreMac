@@ -3,19 +3,15 @@ name: CI
 
 # LibreMac is a pure-Swift macOS host: a SwiftUI menu-bar app plus a CTK
 # token extension. It is LibreMiddleware-FREE at link time — the per-user
-# agent (built and shipped separately, from LibreDarwin) owns the card via
+# agent (built from LibreDarwin and shipped inside the release image) owns the card via
 # LM's PKCS#11 module, and this repo's host/extension only talk to the agent
 # over the App-Group socket. There is no C/C++ left in the host, so there is
 # no clang-format gate here; the Swift compiler's strict-concurrency and
 # warnings-as-errors settings are the format/lint gate.
 #
-# Deferred: CI does NOT assemble or verify the agent bundle — that needs the
-# LibreDarwin build tree plus a signing identity. Until LibreDarwin ships
-# release artifacts, the release checklist (README) runs
-# Scripts/bundle-agent.sh + Scripts/verify-bundle.sh locally. bundle-agent.sh
-# signs the host .app as its last step; nothing re-signs the bundle after it.
-# ci/scripts/lm-soname.selftest.sh runs the whole script under stubs and holds
-# it to that order; the shared self-test runner in the lint job executes it.
+# The agent bundle is assembled by release.yml, which builds LibreDarwin at
+# its lock and runs Scripts/bundle-agent.sh + Scripts/verify-bundle.sh; a push
+# that touches either script, the packaging or the lock rehearses it.
 
 on:
   push:

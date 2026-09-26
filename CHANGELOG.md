@@ -8,6 +8,23 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased] — 5.0.0
 
+### Download
+
+- `LibreMac-5.0.0-macos.dmg` is a universal build (Apple silicon and Intel)
+  for macOS 15 or later. It holds the menu-bar app, its token extension, and
+  the LibreSCRS agent and credential prompter the app starts as Login Items.
+  Drag LibreMac to Applications.
+- The app is **not notarised**: it is signed ad hoc, without an Apple
+  Developer ID, so macOS refuses to open it the first time. Open it once, then
+  go to System Settings → Privacy & Security, find the message about LibreMac
+  near the bottom and choose **Open Anyway**. Alternatively, from Terminal:
+  `xattr -dr com.apple.quarantine /Applications/LibreMac.app`.
+- Check the download before opening it: `shasum -a 256 -c SHA256SUMS
+  --ignore-missing` in the folder holding both files. Every asset also carries
+  a cosign signature bundle (`*.sigstore.json`) and a build provenance
+  attestation (`gh attestation verify LibreMac-5.0.0-macos.dmg --repo
+  LibreSCRS/LibreMac`).
+
 ### Added
 
 - The sign window takes typed paths. The file to sign and the place to save the

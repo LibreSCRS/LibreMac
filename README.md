@@ -55,16 +55,19 @@ Quick start:
 open LibreMac.xcodeproj
 ```
 
-## Release checklist
+## Release
 
-CI does not assemble the bundle that ships the agent: that needs a LibreDarwin
-build tree and a signing identity. It is assembled and checked locally:
+A tag's release workflow builds the disk image: LibreMiddleware and
+LibreDarwin at the revisions `deps.lock` names, then
 
 ```bash
 xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Release build
 ./Scripts/bundle-agent.sh <path-to>/LibreMac.app <LibreDarwin build dir> <LibreMiddleware lib dir>
 ./Scripts/verify-bundle.sh <path-to>/LibreMac.app
 ```
+
+and images, checksums and signs the result. The same commands assemble a
+bundle locally.
 
 `bundle-agent.sh` stages the agent, the prompter and the LibreMiddleware
 libraries into the app Xcode built, signs each of them with the hardened

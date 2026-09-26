@@ -1,26 +1,39 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 name: Release
 
-# LibreMac publishes no binary yet. The app it builds is signed ad-hoc, which
-# Gatekeeper rejects on any machine but the one that built it, so a downloadable
-# .app or disk image would be an artefact nobody can open; that arrives with a
-# Developer ID, notarization and stapling, and this workflow gains a build job
-# then. Until that day a release here is the notes taken from CHANGELOG.md,
-# published under a tag the project key signed: ci/release-assets.txt declares
-# no asset, and the publish step holds the release to that.
+# A release of LibreMac is a universal (x86_64 + arm64) disk image holding the
+# menu-bar app, its token extension, and the agent and prompter built from the
+# LibreDarwin revision deps.lock names, with the LibreMiddleware libraries that
+# revision locks. Scripts/bundle-agent.sh assembles and signs the bundle;
+# Scripts/verify-bundle.sh checks it before it is imaged.
 #
-# The workflow deliberately performs NO build, which also keeps it off a macOS
-# runner.
+# The bundle is signed ad hoc: there is no Developer ID yet, so it is not
+# notarised and Gatekeeper refuses it on first open until the user allows it
+# (the release notes say how). With a Developer ID, CODESIGN_IDENTITY and a
+# notarize + staple step go into the build job; nothing else changes shape.
 #
 # Two modes. A tag push publishes. A dispatch rehearses by default, on any
-# ref: the same preflight (mode, the tag verifier proved on fixtures, VERSION
-# against CHANGELOG, the locked LibreAgent revision) and the same notes and
-# asset checks, with nothing created. `publish` is refused on a ref that is
-# not a tag.
+# ref, and so does a push to main or ci/** that touches what the image is
+# made from: the same build, bill of materials, checksums and signatures
+# (with a throwaway key), with nothing created. `publish` is refused on a ref
+# that is not a tag.
 
 on:
   push:
     tags: ['[0-9]+.[0-9]+.[0-9]+*']
+    branches: [main, 'ci/**']
+    # Not evaluated for tag pushes, which always run.
+    paths:
+      - 'Scripts/bundle-agent.sh'
+      - 'Scripts/verify-bundle.sh'
+      - 'Scripts/lm-soname.sh'
+      - 'Packaging/**'
+      - 'project.yml'
+      - 'deps.lock'
+      - 'VERSION'
+      - 'CHANGELOG.md'
+      - 'ci/release-assets.txt'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
       mode:
@@ -51,26 +64,194 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - id: pre
         uses: LibreSCRS/ci/actions/release-preflight@bd36eee50ba085ef4f052ea2767cff910e2e62e7
         with:
-          mode: ${{ inputs.mode || 'publish' }}
+          mode: ${{ inputs.mode || (github.ref_type == 'tag' && 'publish' || 'rehearse') }}
           # Every version surface here is derived from VERSION at generate
           # time (ci.yml measures the built bundle), so VERSION against the
           # CHANGELOG is the one arm there is to run.
           version-arms: lockstep
 
-  publish:
+  build-macos:
     needs: [preflight]
+    runs-on: macos-15
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+      LM_PREFIX: ${{ github.workspace }}/.lm-prefix
+    steps:
+      - name: Install build tools
+        # xcodegen generates the Xcode project; ninja and the autotools build
+        # LibreMiddleware (its vendored OpenSC bootstraps with autoconf);
+        # jsonschema is its plugin manifest code generator's; bash 4 is what
+        # the shared checkout and bill-of-materials scripts need.
+        run: |
+          brew install xcodegen ninja autoconf automake libtool pkg-config bash
+          python3 -m pip install --break-system-packages --user jsonschema
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout LibreAgent and LibreDarwin at this repository's lock
+        id: deps
+        uses: LibreSCRS/ci/actions/checkout-deps@bd36eee50ba085ef4f052ea2767cff910e2e62e7
+        with:
+          names: LibreAgent LibreDarwin
+          fetch-depth: '0'
+
+      - name: Checkout LibreMiddleware at LibreDarwin's lock
+        # deps-lock holds LibreDarwin's LibreAgent to this repository's, so
+        # the one LibreAgent checkout above is the one LibreDarwin builds.
+        id: lm
+        uses: LibreSCRS/ci/actions/checkout-deps@bd36eee50ba085ef4f052ea2767cff910e2e62e7
+        with:
+          root: .deps/LibreDarwin
+          consumer: LibreDarwin
+          names: LibreMiddleware
+          fetch-depth: '0'
+          submodules: recursive
+
+      - name: Build and install LibreMiddleware (Release, shared, universal)
+        env:
+          LM_SRC: ${{ steps.lm.outputs.libremiddleware-path }}
+        run: |
+          cmake -S "$LM_SRC" -B .build-lm -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DCMAKE_INSTALL_PREFIX="$LM_PREFIX" \
+            -DLIBREMIDDLEWARE_BUILD_SHARED=ON
+          cmake --build .build-lm -j4
+          cmake --install .build-lm
+
+      - name: Build LibreDarwin (Release, universal)
+        env:
+          LD_SRC: ${{ steps.deps.outputs.libredarwin-path }}
+          LA_SRC: ${{ steps.deps.outputs.libreagent-path }}
+        run: |
+          cmake -S "$LD_SRC" -B "$LD_SRC/build-release" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLIBREDARWIN_UNIVERSAL=ON \
+            -DCMAKE_PREFIX_PATH="$LM_PREFIX" \
+            -DFETCHCONTENT_SOURCE_DIR_LIBREAGENT="$LA_SRC"
+          cmake --build "$LD_SRC/build-release" -j4
+
+      - name: Build LibreMac (Release, universal, ad hoc)
+        run: |
+          set -o pipefail
+          ./Scripts/generate-project.sh
+          xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Release \
+            -derivedDataPath DerivedData -jobs 4 \
+            ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO build
+
+      - name: Stage the agent into the app, sign it, and verify the bundle
+        env:
+          LD_SRC: ${{ steps.deps.outputs.libredarwin-path }}
+          LIBREDARWIN_EXPECTED_ARCHS: x86_64 arm64
+        run: |
+          app=DerivedData/Build/Products/Release/LibreMac.app
+          ./Scripts/bundle-agent.sh "$app" "$LD_SRC/build-release" "$LM_PREFIX/lib"
+          ./Scripts/verify-bundle.sh "$app"
+
+      - name: Disk image
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/dmg"
+          mkdir -p "$stage" out
+          ditto DerivedData/Build/Products/Release/LibreMac.app "$stage/LibreMac.app"
+          ln -s /Applications "$stage/Applications"
+          hdiutil create -volname "LibreMac $VERSION" -srcfolder "$stage" \
+            -format UDZO -o "out/LibreMac-$VERSION-macos.dmg"
+          hdiutil verify "out/LibreMac-$VERSION-macos.dmg"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: LibreSCRS/ci
+          ref: bd36eee50ba085ef4f052ea2767cff910e2e62e7
+          path: .ci
+          persist-credentials: false
+
+      - name: Bill of materials for what the image bundles
+        # The host is Swift with no third-party code; what the image carries
+        # beyond it is the agent, which links LibreAgent statically and ships
+        # the LibreMiddleware libraries. Both are read from the trees built
+        # above, each at the revision LibreDarwin's lock names.
+        env:
+          LD_SRC: ${{ steps.deps.outputs.libredarwin-path }}
+          LA_SRC: ${{ steps.deps.outputs.libreagent-path }}
+          LM_SRC: ${{ steps.lm.outputs.libremiddleware-path }}
+        run: |
+          "$(brew --prefix)/bin/bash" .ci/scripts/make-sbom --out out/sbom-macos.cdx.json \
+            --root "$LD_SRC" --repo LibreMac \
+            --static-dep "LibreAgent=$LA_SRC" --static-dep "LibreMiddleware=$LM_SRC" \
+            --require openssl --require qcbor
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: macos-artifacts
+          path: out/*
+          if-no-files-found: error
+          retention-days: 3
+
+  seal:
+    needs: [preflight, build-macos]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: macos-artifacts
+          path: artifacts
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: LibreSCRS/ci
+          ref: bd36eee50ba085ef4f052ea2767cff910e2e62e7
+          path: .ci
+          persist-credentials: false
+
+      - name: Refuse a release whose bill of materials is missing or empty
+        # Before anything is signed: a signature over a document this job is
+        # about to reject is worth not creating.
+        run: python3 .ci/scripts/check-sbom artifacts/sbom-macos.cdx.json
+
+      - uses: LibreSCRS/ci/actions/release-seal@bd36eee50ba085ef4f052ea2767cff910e2e62e7
+        with:
+          mode: ${{ needs.preflight.outputs.mode }}
+          version: ${{ needs.preflight.outputs.version }}
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: sealed
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    needs: [preflight, seal]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: sealed
+          path: artifacts
       - uses: LibreSCRS/ci/actions/release-publish@bd36eee50ba085ef4f052ea2767cff910e2e62e7
         with:
           mode: ${{ needs.preflight.outputs.mode }}
           version: ${{ needs.preflight.outputs.version }}
           is_prerelease: ${{ needs.preflight.outputs.is_prerelease }}
-          artifacts: ''
