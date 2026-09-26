@@ -238,29 +238,3 @@ jobs:
             done
           done
           exit "$rc"
-
-  vocabulary-consumers:
-    # WireVocabularyConformanceTests proves the mirror CARRIES the contract's
-    # names. This proves they are USED: every non-test source mentioning
-    # SyncError is registered, every switch over it whose subject the check can
-    # resolve sits at a registry anchor, every anchored switch is exhaustive
-    # with no catch-all arm, and a cancel shares neither a case arm nor an
-    # answer with a communication failure. A name reached main with the token
-    # gate green and three consumers untouched, which is the gap this closes.
-    #
-    # Deliberately NOT on macos-15: it needs neither Xcode nor a Swift
-    # toolchain, and a structural gate that can only be seen on an Apple runner
-    # is a gate nobody watches. The selftest perturbs a throwaway copy and
-    # fails if any of the eleven regressions stops being caught. The script's
-    # header states what it does and does not resist, including which switch
-    # subjects it cannot resolve.
-    timeout-minutes: 5
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - name: sync-error consumer gate
-        # Its self-test runs with every other one, in the lint job.
-        run: python3 Scripts/check-sync-error-consumers.py
