@@ -1,7 +1,6 @@
 # LibreMac — Changelog
 
-Notable changes to LibreMac, newest first. There is no tagged release yet, so
-every entry below describes a change to what you get by building from source.
+Notable changes to LibreMac, newest first.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning follows [Semantic Versioning](https://semver.org/).
@@ -187,10 +186,3 @@ versioning follows [Semantic Versioning](https://semver.org/).
   still rests on what the agent's own signature claims, which an ad hoc
   signature can claim too, so it keeps the clients from talking to the wrong
   process by accident rather than stopping one built to impersonate the agent.
-
-### Notes
-
-- There is no release workflow, `KEYS` file or notarized artifact here yet.
-  Publishing a signed and notarized macOS artifact needs an Apple Developer ID,
-  which this project does not have; until it does, this component is built from
-  source.
