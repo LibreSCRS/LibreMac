@@ -306,6 +306,52 @@ elif [ "$lib_failed" -eq 0 ]; then
     pass "codesign --verify --strict on all $lib_count staged Frameworks/PlugIns dylibs"
 fi
 
+# ---------------------------------------------------------------- agent smoke
+# Static checks passed 39/0 over a bundle whose agent never reached main: the
+# hardened runtime turns on library validation, an ad hoc signature carries no
+# Team ID, and dyld refused every bundled dylib (exit 134). So the agent is RUN,
+# from the bundle and with a clean environment, with an argument it does not
+# know: exit 2 means dyld loaded everything and main parsed the arguments. That
+# path returns before the agent touches its App Group container. Not the
+# prompter: it ignores argv and binds its socket at once.
+#
+# With System Integrity Protection off -- the hosted macOS runners -- dyld does
+# not enforce library validation, so there exit 2 proves the libraries link and
+# load, not that a bundle without disable-library-validation would start on a
+# user's Mac. Recorded, not gated: that half is judged on a Mac with SIP on.
+if ! csrutil status 2>/dev/null | grep -q 'status: enabled'; then
+    skip "library validation is not enforced on this host (System Integrity Protection not enabled): the agent smoke proves linking, not validation"
+fi
+agent="$MACOS/librescrs-agent"
+if [ ! -x "$agent" ]; then
+    fail "librescrs-agent smoke: not present at Contents/MacOS/librescrs-agent"
+else
+    smoke_err="$(mktemp)"
+    env -i HOME="$HOME" PATH=/usr/bin:/bin "$agent" --verify-bundle-smoke </dev/null >/dev/null 2>"$smoke_err" &
+    smoke_pid=$!
+    waited=0
+    while kill -0 "$smoke_pid" 2>/dev/null && [ "$waited" -lt 30 ]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+    if kill -0 "$smoke_pid" 2>/dev/null; then
+        kill -9 "$smoke_pid" 2>/dev/null
+        wait "$smoke_pid" 2>/dev/null
+        fail "librescrs-agent smoke: still running after 30 s on an unknown argument"
+    else
+        smoke_rc=0
+        wait "$smoke_pid" || smoke_rc=$?
+        if [ "$smoke_rc" -eq 2 ]; then
+            pass "librescrs-agent smoke: started from the bundle and exited 2 on an unknown argument (dyld loaded every library)"
+        elif [ "$smoke_rc" -eq 134 ]; then
+            fail "librescrs-agent smoke: exit 134 -- dyld refused to load it: $(grep -m1 -E 'Library not loaded|Reason|Team ID' "$smoke_err" | tr -s ' ')$(grep -m1 -o 'different Team IDs' "$smoke_err" | sed 's/^/ (/;s/$/)/')"
+        else
+            fail "librescrs-agent smoke: exit $smoke_rc, wanted 2 (stderr: $(head -c 300 "$smoke_err" | tr '\n' ' '))"
+        fi
+    fi
+    rm -f "$smoke_err"
+fi
+
 # ---------------------------------------------------------------- whole-bundle signature
 # --deep here is verification, not signing: it walks every nested signature the
 # host's seal covers. bundle-agent.sh signs the host last, so this holds unless
