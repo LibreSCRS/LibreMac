@@ -6,7 +6,7 @@ options:
   developmentLanguage: en
   groupSortPosition: bottom
   generateEmptyDirectories: true
-  xcodeVersion: "16.0"
+  xcodeVersion: "26.5"
 configs:
   Debug: debug
   Release: release
@@ -30,7 +30,6 @@ settings:
     GCC_TREAT_WARNINGS_AS_ERRORS: YES
     CLANG_WARN_DOCUMENTATION_COMMENTS: YES
     DEAD_CODE_STRIPPING: YES
-    ENABLE_HARDENED_RUNTIME: YES
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     PRODUCT_NAME: "$(TARGET_NAME)"
     DEVELOPMENT_TEAM: ""
@@ -38,13 +37,17 @@ settings:
     # agent (its designated requirement). Empty while everything is signed ad
     # hoc, which leaves the check at identifier and App Group. The one place it
     # is stated: both Info.plists carry it as LibreSCRSTeamID, the clients read
-    # it from there, and Scripts/bundle-agent.sh refuses to bundle when the
+    # it from there, and Scripts/sign-bundle.sh refuses to bundle when the
     # identity it signs with is not this team. Same name as the agent's CMake
     # cache variable in LibreDarwin, which must hold the same value.
     LIBRESCRS_TEAM_ID: ""
-    CODE_SIGN_STYLE: Manual
-    CODE_SIGN_IDENTITY: "-"
-    OTHER_CODE_SIGN_FLAGS: "--timestamp=none"
+    # Xcode builds unsigned; Scripts/sign-bundle.sh signs the assembled bundle
+    # from Packaging/entitlements/. Xcode 26 refuses an ad hoc build that
+    # carries App Group or keychain entitlements without a provisioning
+    # profile, and a second entitlement source here would drift from the one
+    # the shipped bundle is signed with. On Apple silicon the linker still
+    # signs every binary ad hoc, so Debug builds and tests run as before.
+    CODE_SIGNING_ALLOWED: NO
 packages:
   LibreMacShared:
     path: LibreMacShared
@@ -74,23 +77,10 @@ targets:
         LibreSCRSTeamID: "$(LIBRESCRS_TEAM_ID)"
         NSHumanReadableCopyright: "Copyright (c) 2026 hirashix0. LGPL-2.1-or-later."
         NSPrincipalClass: NSApplication
-    entitlements:
-      path: LibreMac/LibreMac.entitlements
-      properties:
-        com.apple.security.app-sandbox: true
-        com.apple.security.application-groups:
-          - group.org.librescrs.LibreMac
-        com.apple.security.files.user-selected.read-write: true
-        # Typed paths: Downloads by entitlement, the chosen default output
-        # folder by security-scoped bookmark (the panel's grant ends with the
-        # process; the bookmark carries it across a relaunch).
-        com.apple.security.files.downloads.read-write: true
-        com.apple.security.files.bookmarks.app-scope: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.librescrs.LibreMac
         MACOSX_DEPLOYMENT_TARGET: "15.0"
-        CODE_SIGN_ENTITLEMENTS: LibreMac/LibreMac.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     preBuildScripts:
       - name: "Regenerate Localizable.xcstrings from .ts"
@@ -146,7 +136,6 @@ targets:
         # a generated `info:` block would clobber it, so this is wired via
         # INFOPLIST_FILE, not the managed `info:` key.
         INFOPLIST_FILE: LibreMac/LibreMacToken/Info.plist
-        CODE_SIGN_ENTITLEMENTS: LibreMac/LibreMacToken/LibreMacToken.entitlements
   LibreMacTests:
     type: bundle.unit-test
     platform: macOS

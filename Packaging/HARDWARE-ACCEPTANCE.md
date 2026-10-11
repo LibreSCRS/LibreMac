@@ -13,11 +13,10 @@ before shipping a signed build.
 
 ## Prerequisites
 
-- A Developer ID application certificate + provisioning profile capable of
-  signing the host app, the nested `LibreMacToken.appex`, and the agent with
-  the App Groups and (for the extension) keychain-access-groups entitlements
-  they need at runtime. Unsigned/ad-hoc builds (`CODE_SIGNING_ALLOWED=NO`,
-  what CI uses) are not sufficient — `ctkd` will not register an
+- A bundle signed by `Scripts/sign-bundle.sh` with the App Groups and
+  (app-sandbox for the extension) entitlements the processes need
+  at runtime (a Developer ID identity, once there is one). Unsigned Xcode
+  builds (`CODE_SIGNING_ALLOWED: NO`, what CI uses) are not sufficient — `ctkd` will not register an
   unsigned/untrusted extension against Keychain.
 - A physical smart card reader with a supported card inserted.
 - A local `LibreDarwin` checkout, built, and a `LibreMiddleware` install

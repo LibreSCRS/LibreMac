@@ -4,13 +4,17 @@ name: Release
 # A release of LibreMac is a universal (x86_64 + arm64) disk image holding the
 # menu-bar app, its token extension, and the agent and prompter built from the
 # LibreDarwin revision deps.lock names, with the LibreMiddleware libraries that
-# revision locks. Scripts/bundle-agent.sh assembles and signs the bundle;
-# Scripts/verify-bundle.sh checks it before it is imaged.
+# revision locks. Scripts/bundle-agent.sh stages, Scripts/sign-bundle.sh signs,
+# Scripts/verify-bundle.sh checks -- including running the agent -- before it
+# is imaged.
 #
 # The bundle is signed ad hoc: there is no Developer ID yet, so it is not
 # notarised and Gatekeeper refuses it on first open until the user allows it
-# (the release notes say how). With a Developer ID, CODESIGN_IDENTITY and a
-# notarize + staple step go into the build job; nothing else changes shape.
+# (the release notes say how). An ad hoc signature under the hardened runtime
+# is subject to library validation, so the agent carries
+# disable-library-validation until a Developer ID replaces the signature. With
+# a Developer ID, the identity and a notarize + staple step go into the build
+# job; nothing else changes shape.
 #
 # Two modes. A tag push publishes. A dispatch rehearses by default, on any
 # ref, and so does a push to main or ci/** that touches what the image is
@@ -26,6 +30,9 @@ on:
     paths:
       - 'Scripts/bundle-agent.sh'
       - 'Scripts/verify-bundle.sh'
+      - 'Scripts/sign-bundle.sh'
+      - 'Scripts/select-xcode.sh'
+      - '.xcode-version'
       - 'Scripts/lm-soname.sh'
       - 'Packaging/**'
       - 'project.yml'
@@ -76,7 +83,8 @@ jobs:
 
   build-macos:
     needs: [preflight]
-    runs-on: macos-15
+    # macos-26 is the runner image that carries the Xcode in .xcode-version.
+    runs-on: macos-26
     timeout-minutes: 150
     permissions:
       contents: read
@@ -97,6 +105,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Select the Xcode in .xcode-version and its SDK
+        run: ./Scripts/select-xcode.sh
 
       - name: Checkout LibreAgent and LibreDarwin at this repository's lock
         id: deps
@@ -146,6 +157,7 @@ jobs:
           LA_SRC: ${{ steps.deps.outputs.libreagent-path }}
           LM_SRC: ${{ steps.lm.outputs.libremiddleware-path }}
         run: |
+          echo "SDKROOT=$SDKROOT"
           shopt -s nullglob
           ossl=("$LM_SRC"/thirdparty/openssl-*/macosx)
           [ "${#ossl[@]}" -eq 1 ] || { echo "::error::want one thirdparty/openssl-*/macosx in LibreMiddleware, found ${#ossl[@]}"; exit 1; }
@@ -160,7 +172,7 @@ jobs:
           grep -E '^OPENSSL_CRYPTO_LIBRARY' "$LD_SRC/build-release/CMakeCache.txt"
           cmake --build "$LD_SRC/build-release" -j4
 
-      - name: Build LibreMac (Release, universal, ad hoc)
+      - name: Build LibreMac (Release, universal, unsigned)
         run: |
           set -o pipefail
           ./Scripts/generate-project.sh
@@ -168,13 +180,14 @@ jobs:
             -derivedDataPath DerivedData -jobs 4 \
             ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO build
 
-      - name: Stage the agent into the app, sign it, and verify the bundle
+      - name: Stage the agent into the app, sign the bundle, and verify it
         env:
           LD_SRC: ${{ steps.deps.outputs.libredarwin-path }}
           LIBREDARWIN_EXPECTED_ARCHS: x86_64 arm64
         run: |
           app=DerivedData/Build/Products/Release/LibreMac.app
           ./Scripts/bundle-agent.sh "$app" "$LD_SRC/build-release" "$LM_PREFIX/lib"
+          ./Scripts/sign-bundle.sh "$app"
           ./Scripts/verify-bundle.sh "$app"
 
       - name: Disk image

@@ -2,17 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- librescrs-prompter, signed by Scripts/sign-bundle.sh. Its own
+	     sandbox, NOT inherit: an inherit-sandboxed child spawned by the agent
+	     cannot RegisterApplication; the prompter is a standalone sandboxed
+	     LaunchAgent. -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.org.librescrs.LibreMac</string>
 	</array>
-	<key>com.apple.security.files.bookmarks.app-scope</key>
-	<true/>
-	<key>com.apple.security.files.downloads.read-write</key>
-	<true/>
-	<key>com.apple.security.files.user-selected.read-write</key>
-	<true/>
 </dict>
 </plist>

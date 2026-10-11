@@ -61,6 +61,10 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Every macOS job builds with Xcode 26.5 and its SDK, selected explicitly
+  (`.xcode-version`, `Scripts/select-xcode.sh`) on the `macos-26` runner.
+- `Scripts/verify-bundle.sh` runs the bundled agent, so a bundle whose agent
+  cannot start is no longer reported verified.
 - The "Default output folder" setting now takes effect. It used to be stored
   and never read. A folder chosen with Browse… is remembered as a
   security-scoped bookmark, so it stays writable after LibreMac restarts, and
@@ -138,6 +142,13 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The agent in the disk image now starts. Signed ad hoc under the hardened
+  runtime, it was subject to library validation and died in the dynamic
+  loader; it now carries `disable-library-validation` until a Developer ID
+  replaces the ad hoc signature.
+- The release build no longer needs a provisioning profile on Xcode 26: Xcode
+  builds unsigned and `Scripts/sign-bundle.sh` signs the staged bundle inside
+  out from one entitlement set.
 - The agent and prompter LaunchAgents no longer restart unconditionally:
   `KeepAlive` is a `SuccessfulExit` dict instead of a bare `true`, so only a
   crash — a non-zero exit, or a fatal signal a process never installed a

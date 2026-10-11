@@ -27,7 +27,7 @@
 //   # The client speaks only to a process that presents the agent's signing
 //   # identifier and App Group. The linker's ad-hoc signature carries neither
 //   # (it says "librescrs-agent" and no entitlements), so sign the dev build
-//   # the way Scripts/bundle-agent.sh signs the bundled one -- after EVERY
+//   # the way Scripts/sign-bundle.sh signs the bundled one -- after EVERY
 //   # build: relinking replaces this signature with the linker's again.
 //   ENTS="$(mktemp)"
 //   printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \

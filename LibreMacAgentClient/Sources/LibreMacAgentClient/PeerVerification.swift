@@ -50,14 +50,14 @@ public struct ExpectedPeerIdentity: Sendable, Equatable {
 }
 
 public enum AgentPeerIdentity {
-    /// The agent's code-signing identifier (`Scripts/bundle-agent.sh` signs it
+    /// The agent's code-signing identifier (`Scripts/sign-bundle.sh` signs it
     /// with exactly this).
     public static let signingId = "org.librescrs.agent"
 
     /// The Info.plist key carrying the team the agent must be signed by. Xcode
     /// writes it from the `LIBRESCRS_TEAM_ID` build setting (`project.yml`, the
     /// one place it is stated) into the host's and the token extension's
-    /// Info.plist, and `Scripts/bundle-agent.sh` refuses a bundle whose signing
+    /// Info.plist, and `Scripts/sign-bundle.sh` refuses a bundle whose signing
     /// identity is not that team.
     public static let teamIdInfoKey = "LibreSCRSTeamID"
 

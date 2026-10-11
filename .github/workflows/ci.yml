@@ -10,8 +10,9 @@ name: CI
 # warnings-as-errors settings are the format/lint gate.
 #
 # The agent bundle is assembled by release.yml, which builds LibreDarwin at
-# its lock and runs Scripts/bundle-agent.sh + Scripts/verify-bundle.sh; a push
-# that touches either script, the packaging or the lock rehearses it.
+# its lock and runs Scripts/bundle-agent.sh (stage), Scripts/sign-bundle.sh
+# (sign) and Scripts/verify-bundle.sh (check, including running the agent); a
+# push that touches any of them, the packaging or the lock rehearses it.
 
 on:
   push:
@@ -50,16 +51,20 @@ jobs:
           gates: check-workflows selftests deps-lock check-version-lockstep
 
   swift-test:
-    # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. Xcode 16
-    # (and its `swift test` toolchain) is preinstalled on macos-15. One job for
+    # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. The Xcode
+    # in .xcode-version (and its `swift test` toolchain) is preinstalled on
+    # macos-26, selected explicitly below. One job for
     # the three packages: two of them run a handful of tests each, and a macOS
     # runner's start-up costs more than all three test runs together.
     timeout-minutes: 30
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Select the Xcode in .xcode-version and its SDK
+        run: ./Scripts/select-xcode.sh
 
       - name: swift test (LibreMacAgentClient)
         # LibreMacAgentClient includes an env-gated live-agent smoke test that
@@ -76,11 +81,10 @@ jobs:
         run: swift test --package-path Tools/ts2xcstrings
 
   build-macos:
-    # macOS 15 runner: the project deploys to macOS 15.0 and needs the
-    # matching SDK (Xcode 16). Older runner images ship an SDK below the
-    # deployment target and fail to link.
+    # macos-26 is the runner image that carries the Xcode named in
+    # .xcode-version; the project still deploys to macOS 15.0.
     timeout-minutes: 30
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: read
     steps:
@@ -88,7 +92,7 @@ jobs:
         # xcodegen generates the Xcode project. No LM build deps (autoconf/
         # automake/libtool/pkg-config/ninja/jsonschema) are needed any more —
         # the host links no LibreMiddleware.
-        run: brew install xcodegen
+        run: brew install xcodegen bash
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         # Single-repo checkout: no LibreMiddleware sibling, no submodules.
@@ -100,6 +104,16 @@ jobs:
         # this repository's history is small enough that depth 0 costs seconds.
         with:
           fetch-depth: 0
+
+      - name: Select the Xcode in .xcode-version and its SDK
+        run: ./Scripts/select-xcode.sh
+
+      - name: Self-tests that need macOS
+        # verify-bundle.selftest.sh declares darwin: the ubuntu lint job lists
+        # it as not for linux, and this is the leg that runs it.
+        uses: LibreSCRS/ci/actions/gates@2e5c95f7e9a54325bc0321775c0d8c08002aebea
+        with:
+          gates: selftests
 
       - name: Generate Xcode project
         run: ./Scripts/generate-project.sh
@@ -141,11 +155,11 @@ jobs:
           fi
 
       - name: Build and test (Debug)
-        # CODE_SIGNING_ALLOWED=NO: the runner has no dev team, and the App
-        # Groups entitlement needs a provisioning profile otherwise. Universal
-        # (x86_64+arm64) Release builds and real signing/bundle verification
-        # are a release-gate concern (Scripts/bundle-agent.sh +
-        # Scripts/verify-bundle.sh, run locally), not this CI job.
+        # Xcode builds unsigned (project.yml sets CODE_SIGNING_ALLOWED: NO): the
+        # runner has no dev team, and the App Groups entitlement would need a
+        # provisioning profile otherwise. Universal (x86_64+arm64) Release
+        # builds, signing (Scripts/sign-bundle.sh) and bundle verification are
+        # the release workflow's concern, not this CI job.
         #
         # The LibreMac target depends on LibreMacToken (project.yml) and
         # xcodegen wires that as an "Embed Foundation Extensions" build
@@ -165,7 +179,7 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Debug \
-            build test CODE_SIGNING_ALLOWED=NO -derivedDataPath DerivedData -jobs 4 \
+            build test -derivedDataPath DerivedData -jobs 4 \
             -resultBundlePath DerivedData/LibreMac.xcresult \
             2>&1 | tee "$RUNNER_TEMP/xcodebuild-test.log"
 

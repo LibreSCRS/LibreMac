@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # SPDX-FileCopyrightText: 2026 hirashix0
 #
-# Verifies a LibreMac .app bundle-agent.sh has staged and signed correctly,
-# plus that the Xcode-nested Contents/PlugIns/LibreMacToken.appex carries its
-# expected entitlements. Each assertion prints PASS/FAIL/SKIP and the script
+# Verifies a LibreMac .app that bundle-agent.sh has staged and sign-bundle.sh
+# has signed, plus that the Xcode-nested Contents/PlugIns/LibreMacToken.appex
+# carries its expected entitlements. Each assertion prints PASS/FAIL/SKIP and the script
 # exits non-zero if any hard assertion fails. The whole-bundle signature is a
-# hard assertion: bundle-agent.sh signs the host last, so a bundle that does
+# hard assertion: sign-bundle.sh signs the host last, so a bundle that does
 # not verify end to end was touched after its seal. Two assertions are
 # intrinsically best-effort on an ad-hoc-signed / no-Developer-ID machine and
 # are recorded rather than gated: `spctl -a` (Gatekeeper always rejects ad-hoc
@@ -218,17 +218,20 @@ if [ -x "$MACOS/librescrs-prompter" ]; then
 fi
 
 # ---------------------------------------------------------------- LibreMacToken.appex
-# Nested by the Xcode build (project.yml host `dependencies:`), not staged by
-# bundle-agent.sh — this only checks what landed in the built bundle.
+# Nested by the Xcode build (project.yml host `dependencies:`) and signed by
+# sign-bundle.sh from Packaging/entitlements/token.plist, not by Xcode. No
+# keychain-access-groups: the host publishes the identities through
+# TKTokenConfiguration.keychainItems (TokenIdentityRegistrar), and without a
+# Team ID AMFI kills a process that carries the group.
 TOKEN_APPEX="$APP_PATH/Contents/PlugIns/LibreMacToken.appex"
 if [ -d "$TOKEN_APPEX" ]; then
     pass "LibreMacToken.appex present at Contents/PlugIns/LibreMacToken.appex"
 
     ok=1
-    check_entitlement "$TOKEN_APPEX" "keychain-access-groups" present || ok=0
+    check_entitlement "$TOKEN_APPEX" "com.apple.security.app-sandbox" true || ok=0
     check_entitlement "$TOKEN_APPEX" "com.apple.security.application-groups" present || ok=0
     if [ "$ok" = 1 ]; then
-        pass "LibreMacToken.appex entitlements match the expected set (keychain-access-groups+application-groups)"
+        pass "LibreMacToken.appex entitlements match the expected set (sandbox+application-groups)"
     else
         fail "LibreMacToken.appex entitlements do not match the expected set"
     fi
@@ -254,10 +257,11 @@ else
 fi
 
 # ---------------------------------------------------------------- unexpanded build variables
-# Xcode expands $(AppIdentifierPrefix) and friends when it signs; codesign
-# does not. An entitlement that still carries "$(" was signed by something
-# other than Xcode from a source .entitlements file, and names a keychain group
-# no process holds.
+# Xcode expands $(AppIdentifierPrefix) and friends when it processes an
+# entitlements file; codesign does not. sign-bundle.sh signs from
+# Packaging/entitlements/, which holds no build variable. An entitlement that
+# still carries "$(" was signed from a file that does, and names a keychain
+# group no process holds.
 signed_five=("$APP_PATH" "$TOKEN_APPEX" "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter" "$FRAMEWORKS/librescrs-pkcs11.dylib")
 for code in "${signed_five[@]}"; do
     [ -e "$code" ] || continue
@@ -269,8 +273,7 @@ for code in "${signed_five[@]}"; do
 done
 
 # ---------------------------------------------------------------- hardened runtime
-# Every signature bundle-agent.sh makes carries --options runtime, and Xcode's
-# carries it through ENABLE_HARDENED_RUNTIME. A hardened host with a nested
+# Every signature sign-bundle.sh makes carries --options runtime. A hardened host with a nested
 # executable that is not hardened is a notarization reject.
 for code in "${signed_five[@]}"; do
     [ -e "$code" ] || continue
@@ -311,7 +314,9 @@ fi
 # hardened runtime turns on library validation, an ad hoc signature carries no
 # Team ID, and dyld refused every bundled dylib (exit 134). So the agent is RUN,
 # from the bundle and with a clean environment, with an argument it does not
-# know: exit 2 means dyld loaded everything and main parsed the arguments. That
+# know: exit 2 means dyld loaded every linked library and main parsed the
+# arguments (card plugins and the PKCS#11 module are dlopened later, so they
+# are not proved). That
 # path returns before the agent touches its App Group container. Not the
 # prompter: it ignores argv and binds its socket at once.
 #
@@ -342,7 +347,7 @@ else
         smoke_rc=0
         wait "$smoke_pid" || smoke_rc=$?
         if [ "$smoke_rc" -eq 2 ]; then
-            pass "librescrs-agent smoke: started from the bundle and exited 2 on an unknown argument (dyld loaded every library)"
+            pass "librescrs-agent smoke: started from the bundle and exited 2 on an unknown argument (dyld loaded every linked library)"
         elif [ "$smoke_rc" -eq 134 ]; then
             fail "librescrs-agent smoke: exit 134 -- dyld refused to load it: $(grep -m1 -E 'Library not loaded|Reason|Team ID' "$smoke_err" | tr -s ' ')$(grep -m1 -o 'different Team IDs' "$smoke_err" | sed 's/^/ (/;s/$/)/')"
         else
@@ -354,7 +359,7 @@ fi
 
 # ---------------------------------------------------------------- whole-bundle signature
 # --deep here is verification, not signing: it walks every nested signature the
-# host's seal covers. bundle-agent.sh signs the host last, so this holds unless
+# host's seal covers. sign-bundle.sh signs the host last, so this holds unless
 # something touched the bundle after it.
 if codesign --verify --strict --deep "$APP_PATH" >/tmp/verify-bundle-app.err 2>&1; then
     pass "codesign --verify --strict --deep on the whole bundle"

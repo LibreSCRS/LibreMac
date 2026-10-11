@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Token extension (LibreMacToken.appex), signed by Scripts/sign-bundle.sh. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- application-groups: the App Group whose container holds the
+	     agent<->extension socket. CTK appexes are sandboxed and cannot reach
+	     /tmp; the container is the location every party reaches through this
+	     same entitlement (this appex, the host, the bundled agent). -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.org.librescrs.LibreMac</string>
+	</array>
+	<!-- DELIBERATELY ABSENT:
+	     - com.apple.security.smartcard: the extension drives NO card (shape b).
+	     - com.apple.developer.smartcard-services: Apple-gated, NOT needed (confirmed).
+	     - keychain-access-groups: the extension calls no keychain API; the host
+	       publishes the identities through TKTokenConfiguration.keychainItems
+	       (TokenIdentityRegistrar). Without a Team ID the group cannot be
+	       granted, and AMFI kills an ad hoc process that carries it before main. -->
+</dict>
+</plist>

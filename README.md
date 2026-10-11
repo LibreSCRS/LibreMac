@@ -23,7 +23,7 @@ LibreMac itself is **LibreMiddleware-free**, like LibreKDE:
   host, not the extension, builds the identities — publishing only
   signing-capable certificates whose SHA-256(DER) matches the claimed id.
   The extension never drives the card — the agent does. It needs no
-  Apple-gated entitlement — just `keychain-access-groups` and `app-sandbox`.
+  Apple-gated entitlement — `app-sandbox` and `application-groups`.
 
 PIN consent uses the protected authentication path
 (`CKF_PROTECTED_AUTHENTICATION_PATH`).
@@ -45,7 +45,7 @@ App-Group socket. The agent itself is built and shipped separately.
 
 The host is pure Swift with no C/C++ build step. Requires:
 - macOS 15.0+ (Sequoia or later)
-- Xcode 16+
+- Xcode 26.5 (named in `.xcode-version`; `Scripts/select-xcode.sh` selects it and its SDK)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
 Quick start:
@@ -63,20 +63,21 @@ LibreDarwin at the revisions `deps.lock` names, then
 ```bash
 xcodebuild -project LibreMac.xcodeproj -scheme LibreMac -configuration Release build
 ./Scripts/bundle-agent.sh <path-to>/LibreMac.app <LibreDarwin build dir> <LibreMiddleware lib dir>
+./Scripts/sign-bundle.sh <path-to>/LibreMac.app
 ./Scripts/verify-bundle.sh <path-to>/LibreMac.app
 ```
 
 and images, checksums and signs the result. The same commands assemble a
 bundle locally.
 
-`bundle-agent.sh` stages the agent, the prompter and the LibreMiddleware
-libraries into the app Xcode built, signs each of them with the hardened
-runtime, and signs the host `.app` itself as its **last** step. Do not sign the
-bundle again after it, and do not copy anything into it: the host's signature
-seals the bundle, and a change after the seal is a bundle that no longer
-verifies. The token extension keeps the signature Xcode gave it, because only
-Xcode expands `$(AppIdentifierPrefix)` in its keychain entitlement.
-`verify-bundle.sh` fails on a bundle that does not verify end to end.
+Xcode builds the app unsigned. `bundle-agent.sh` only stages the agent, the
+prompter and the LibreMiddleware libraries into it. `sign-bundle.sh` then signs
+every binary inside out with the hardened runtime, from the entitlements in
+`Packaging/entitlements/`, and signs the host `.app` itself as its **last**
+step. Do not copy anything into the bundle after that: the host's signature
+seals it, and a change after the seal is a bundle that no longer verifies.
+`verify-bundle.sh` fails on a bundle that does not verify end to end, and it
+runs the bundled agent.
 
 ## License
 

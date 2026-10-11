@@ -177,8 +177,8 @@ struct SigningCoordinatorTests {
 
 // MARK: - Typed paths inside the sandbox
 
-/// Stands in for the App Sandbox, which is not enforced under
-/// `CODE_SIGNING_ALLOWED=NO`: an open succeeds only under the roots the
+/// Stands in for the App Sandbox, which is not enforced in a build that is not
+/// signed (project.yml sets `CODE_SIGNING_ALLOWED: NO`): an open succeeds only under the roots the
 /// entitlements grant (Downloads here) or under a folder whose security scope is
 /// currently started, and is refused with EPERM everywhere else — the errno the
 /// kernel returns to a sandboxed process. It proves the coordinator's logic

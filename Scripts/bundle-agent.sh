@@ -4,11 +4,10 @@
 #
 # Stages librescrs-agent + librescrs-prompter (built by the LibreDarwin repo)
 # plus the LibreMiddleware dylib/pkcs11/plugin closure into a built LibreMac
-# host .app, then inside-out ad-hoc signs every component it staged with its
-# own entitlement set, and the host .app last. This is packaging glue only — it
-# does NOT build LibreMac or
-# LibreDarwin; run generate-project.sh + xcodebuild (or the release pipeline)
-# first, then point this script at the resulting .app.
+# host .app. It signs nothing: Scripts/sign-bundle.sh signs the result. This is
+# packaging glue only -- it does NOT build LibreMac or LibreDarwin; run
+# generate-project.sh + xcodebuild (or the release pipeline) first, then point
+# this script at the resulting .app.
 #
 # Layout staged:
 #   Contents/Resources/certificates/ <- LM_LIB_PREFIX/../share/librescrs/certificates
@@ -20,39 +19,9 @@
 #   Contents/Library/LaunchAgents/org.librescrs.{agent,prompter}.plist <- Packaging/
 #   Contents/Resources/librescrs-agent.version <- stamped from the LibreDarwin build tree
 #
-# Neither staged nor signed by this script: Contents/PlugIns/LibreMacToken.appex
-# is nested into the host .app by the Xcode build itself (LibreMacToken is a
-# `dependencies:` entry of the host target in project.yml) and keeps the
-# signature Xcode gave it. Xcode expands $(AppIdentifierPrefix) in the
-# extension's keychain-access-groups when it signs; codesign does not, so a
-# re-sign here from the source .entitlements file would ship the literal
-# variable. Nothing here writes inside the extension, so its seal holds.
-#
-# Entitlements (both host and agent sandboxed):
-#   agent:    app-sandbox + smartcard + network.client + application-groups
-#   prompter: app-sandbox + application-groups   (NOT inherit — an
-#             inherit-sandboxed child spawned by the agent cannot
-#             RegisterApplication; the prompter is its own standalone
-#             sandboxed LaunchAgent)
-#   LibreMacToken.appex: app-sandbox + keychain-access-groups + application-groups
-#             (LibreMac/LibreMacToken/LibreMacToken.entitlements, applied by
-#             Xcode; deliberately no smartcard entitlement — shape (b), the
-#             extension never drives the card)
-#   host:     LibreMac/LibreMac.entitlements
-#
-# Signing is ALWAYS inside-out (dylibs/plugins -> top-level executables ->
-# the host .app) and NEVER --deep. Staging adds files to a bundle Xcode has
-# already sealed, which breaks the host's signature, so this script signs the
-# host itself as its LAST step. Nothing may touch the bundle after that, and
-# nothing needs to: do not re-sign the host afterwards. Every signature carries
-# the hardened runtime (--options runtime) -- a hardened host with a nested
-# executable that is not hardened is a notarization reject -- and, while the
-# identity is ad-hoc, --timestamp=none, as project.yml does for Xcode.
-#
-# CODESIGN_IDENTITY (env, default "-" = ad-hoc): every codesign invocation in
-# this script uses this identity. On a team-less machine the default ad-hoc
-# path is unchanged; set CODESIGN_IDENTITY to a "Developer ID Application: ..."
-# identity (or its hash) to Team-sign everything staged/signed here instead.
+# Not staged here: Contents/PlugIns/LibreMacToken.appex is nested into the host
+# .app by the Xcode build itself (LibreMacToken is a `dependencies:` entry of
+# the host target in project.yml). Nothing here writes inside it.
 #
 # *** DEV-AGENT LABEL COLLISION ***
 # packaging/install-dev.sh (LibreDarwin) bootstraps a LaunchAgent with the
@@ -70,9 +39,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_PATH="${1:?usage: bundle-agent.sh <path-to-LibreMac.app> [LIBREDARWIN_PREFIX] [LM_LIB_PREFIX]}"
 LIBREDARWIN_PREFIX="${2:-${LIBREDARWIN_PREFIX:-$REPO_ROOT/../LibreDarwin/build-release}}"
 LM_LIB_PREFIX="${3:-${LM_LIB_PREFIX:-$REPO_ROOT/../LibreMiddleware/build/_install/lib}}"
-CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
 
 [ -d "$APP_PATH" ] || { echo "bundle-agent: no such app bundle: $APP_PATH" >&2; exit 1; }
+[ -d "$APP_PATH/Contents/PlugIns/LibreMacToken.appex" ] || {
+    echo "bundle-agent: LibreMacToken.appex not nested under Contents/PlugIns (regenerate + build the host target first -- it embeds LibreMacToken via project.yml)" >&2
+    exit 1
+}
 [ -x "$LIBREDARWIN_PREFIX/agent/librescrs-agent" ] || {
     echo "bundle-agent: librescrs-agent not found under $LIBREDARWIN_PREFIX (build LibreDarwin first)" >&2
     exit 1
@@ -112,44 +84,6 @@ CERTS_SRC="$LM_LIB_PREFIX/../share/librescrs/certificates"
 rm -rf "$RESOURCES/certificates"
 mkdir -p "$RESOURCES/certificates"
 cp -R "$CERTS_SRC"/. "$RESOURCES/certificates/"
-
-# ---------------------------------------------------------------- entitlements
-ENTS_DIR="$(mktemp -d)"
-trap 'rm -rf "$ENTS_DIR"' EXIT
-
-cat > "$ENTS_DIR/agent.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>com.apple.security.app-sandbox</key>
-    <true/>
-    <key>com.apple.security.smartcard</key>
-    <true/>
-    <key>com.apple.security.network.client</key>
-    <true/>
-    <key>com.apple.security.application-groups</key>
-    <array>
-        <string>group.org.librescrs.LibreMac</string>
-    </array>
-</dict>
-</plist>
-PLIST
-
-cat > "$ENTS_DIR/prompter.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>com.apple.security.app-sandbox</key>
-    <true/>
-    <key>com.apple.security.application-groups</key>
-    <array>
-        <string>group.org.librescrs.LibreMac</string>
-    </array>
-</dict>
-</plist>
-PLIST
 
 # ---------------------------------------------------------------- stage binaries
 cp "$LIBREDARWIN_PREFIX/agent/librescrs-agent" "$MACOS/librescrs-agent"
@@ -253,68 +187,4 @@ fix_homebrew() {
 }
 fix_homebrew
 
-# ---------------------------------------------------------------- sign (inside-out, host last)
-# Never --deep: sign every dylib/plugin first, then each top-level executable
-# individually with its own identifier + entitlements, then the host .app. The
-# token extension is Xcode's and is not signed again (see the header). Every
-# call carries the hardened runtime; --timestamp=none leaves with ad-hoc
-# signing, together with the same flag in project.yml.
-TOKEN_APPEX="$APP_PATH/Contents/PlugIns/LibreMacToken.appex"
-[ -d "$TOKEN_APPEX" ] || {
-    echo "bundle-agent: LibreMacToken.appex not nested under Contents/PlugIns (regenerate + build the host target first — it embeds LibreMacToken via project.yml)" >&2
-    exit 1
-}
-
-# ---------------------------------------------------------------- team id
-# The host and the token extension hold the agent to the designated requirement
-# of the team LIBRESCRS_TEAM_ID names (project.yml; Xcode writes it into both
-# Info.plists as LibreSCRSTeamID). Read from the built bundle, because that is
-# the value the clients enforce. The identity signing here must be that team:
-# ad hoc with a team named ships clients that refuse their own agent, and a
-# team identity with no team named ships clients that never check who signed
-# the agent.
-read_team_id() {  # read_team_id <Info.plist> <what>
-    plutil -extract LibreSCRSTeamID raw -o - "$1" 2>/dev/null || {
-        echo "bundle-agent: the $2 Info.plist carries no LibreSCRSTeamID ($1) -- regenerate the project (Scripts/generate-project.sh) and rebuild" >&2
-        return 1
-    }
-}
-team_host="$(read_team_id "$APP_PATH/Contents/Info.plist" host)" || exit 1
-team_appex="$(read_team_id "$TOKEN_APPEX/Contents/Info.plist" "token extension")" || exit 1
-[ "$team_host" = "$team_appex" ] || {
-    echo "bundle-agent: the host names team '$team_host' and the token extension '$team_appex' -- rebuild both from one project.yml" >&2
-    exit 1
-}
-LIBRESCRS_TEAM_ID="$team_host"
-if [ "$CODESIGN_IDENTITY" = "-" ] && [ -n "$LIBRESCRS_TEAM_ID" ]; then
-    echo "bundle-agent: LIBRESCRS_TEAM_ID is '$LIBRESCRS_TEAM_ID' but CODESIGN_IDENTITY is ad hoc: the clients would require that team's signature on an agent that has none -- set CODESIGN_IDENTITY to that team's identity, or clear LIBRESCRS_TEAM_ID in project.yml" >&2
-    exit 1
-fi
-
-for lib in "$FRAMEWORKS"/*.dylib "$PLUGINS"/*.dylib; do
-    [ -f "$lib" ] || continue
-    codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none "$lib"
-done
-
-codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none --identifier org.librescrs.prompter \
-    --entitlements "$ENTS_DIR/prompter.plist" "$MACOS/librescrs-prompter"
-codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none --identifier org.librescrs.agent \
-    --entitlements "$ENTS_DIR/agent.plist" "$MACOS/librescrs-agent"
-if [ "$CODESIGN_IDENTITY" != "-" ]; then
-    signed_team="$(codesign -dv "$MACOS/librescrs-agent" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
-    if [ "$signed_team" != "$LIBRESCRS_TEAM_ID" ]; then
-        consequence="refuse this agent"
-        [ -n "$LIBRESCRS_TEAM_ID" ] || consequence="never check who signed the agent"
-        echo "bundle-agent: the agent was signed by team '$signed_team' but LIBRESCRS_TEAM_ID is '$LIBRESCRS_TEAM_ID': the clients would $consequence -- set LIBRESCRS_TEAM_ID in project.yml to the signing team and rebuild" >&2
-        exit 1
-    fi
-fi
-
-# The host LAST: everything above changed the bundle after Xcode sealed it.
-codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none \
-    --entitlements "$REPO_ROOT/LibreMac/LibreMac.entitlements" "$APP_PATH"
-
-id_label="ad-hoc"
-[ "$CODESIGN_IDENTITY" = "-" ] || id_label="identity=$CODESIGN_IDENTITY"
-echo "bundle-agent: signed ${#lm_dylibs[@]} LM dylib(s) + pkcs11 + ${#plugin_srcs[@]} plugin(s) + agent + prompter + host ($id_label, inside-out, hardened runtime; LibreMacToken.appex keeps Xcode's signature)"
 echo "bundle-agent: done -> $APP_PATH"

@@ -31,7 +31,7 @@ public enum AgentSocketPath {
     ///    well-known absolute path rather than the entitlement-gated API.
     ///    Every shipped process (host, CTK extension, bundled agent and
     ///    prompter) is sandboxed WITH the `application-groups` entitlement
-    ///    (`Scripts/bundle-agent.sh` is the signing source of truth), so
+    ///    (`Scripts/sign-bundle.sh` and `Packaging/entitlements/` are the signing source of truth), so
     ///    (2) resolves for all of them; this fallback exists for an
     ///    UNENTITLED context only — a dev-tree agent or client run outside
     ///    the signed bundle, which reaches the same per-user directory by
