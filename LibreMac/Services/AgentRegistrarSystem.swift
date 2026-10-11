@@ -94,6 +94,7 @@ extension AgentRegistrar {
                 let defaults = UserDefaults(suiteName: appGroupId) ?? .standard
                 return defaults.string(forKey: versionKey) != bundleVersion
             },
+            isTranslocated: { AppTranslocation.isTranslocated(Bundle.main.bundleURL) },
             recycleCompleted: {
                 // Recorded only HERE, after every service survived the
                 // recycle — recording inside `needsRecycle` would let a

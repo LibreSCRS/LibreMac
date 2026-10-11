@@ -13351,6 +13351,23 @@
         }
       }
     },
+    "libremac_registrar_translocated" : {
+      "comment" : "libremac_registrar_translocated",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move LibreMac to the Applications folder and open it again: the signing agent cannot run from the disk image."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Преместите LibreMac у фасциклу Applications и поново га отворите: агент за потписивање не може да ради са слике диска."
+          }
+        }
+      }
+    },
     "libremac_settings_action_add" : {
       "comment" : "libremac_settings_action_add",
       "localizations" : {

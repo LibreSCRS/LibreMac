@@ -154,6 +154,10 @@
         <source>Approve the signing agent in Login Items…</source>
         <translation>Одобрите агент за потписивање у ставкама за пријаву…</translation>
     </message>
+    <message id="libremac_registrar_translocated">
+        <source>Move LibreMac to the Applications folder and open it again: the signing agent cannot run from the disk image.</source>
+        <translation>Преместите LibreMac у фасциклу Applications и поново га отворите: агент за потписивање не може да ради са слике диска.</translation>
+    </message>
     <message id="libremac_sign_another">
         <source>Sign another file</source>
         <translation>Потпиши другу датотеку</translation>

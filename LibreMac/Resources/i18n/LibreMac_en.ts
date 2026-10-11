@@ -154,6 +154,10 @@
         <source>Approve the signing agent in Login Items…</source>
         <translation>Approve the signing agent in Login Items…</translation>
     </message>
+    <message id="libremac_registrar_translocated">
+        <source>Move LibreMac to the Applications folder and open it again: the signing agent cannot run from the disk image.</source>
+        <translation>Move LibreMac to the Applications folder and open it again: the signing agent cannot run from the disk image.</translation>
+    </message>
     <message id="libremac_sign_another">
         <source>Sign another file</source>
         <translation>Sign another file</translation>

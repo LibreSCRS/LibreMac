@@ -158,6 +158,12 @@ struct LibreMacApp: App {
             }
         }
 
+        if appDelegate.registrar.state == .translocated {
+            Divider()
+            Text(loc("libremac_registrar_translocated",
+                     "Move LibreMac to the Applications folder and open it again: the signing agent cannot run from the disk image."))
+        }
+
         if appDelegate.monitor.canSign {
             Divider()
             SignMenuItem()

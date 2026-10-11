@@ -183,4 +183,33 @@ struct AgentRegistrarTests {
 
         #expect(completions.callCount == 0)
     }
+
+    @Test("a translocated host registers nothing and never touches the container")
+    func translocatedRegistersNothing() async {
+        let agent = FakeLaunchAgent(label: "agent", status: .notRegistered)
+        let prompter = FakeLaunchAgent(label: "prompter", status: .notRegistered)
+        let touched = CallCounter()
+        let registrar = AgentRegistrar(
+            services: [agent, prompter],
+            materializeContainer: { touched.record() },
+            needsRecycle: { true },
+            isTranslocated: { true },
+            openSettings: {})
+        await registrar.activate()
+        #expect(registrar.state == .translocated)
+        #expect(agent.registerCount == 0 && agent.unregisterCount == 0)
+        #expect(prompter.registerCount == 0 && prompter.unregisterCount == 0)
+        #expect(touched.callCount == 0)
+    }
+
+    @Test("a host in place registers as before")
+    func notTranslocatedRegisters() async {
+        let agent = FakeLaunchAgent(label: "agent", status: .notRegistered)
+        let registrar = AgentRegistrar(
+            services: [agent], materializeContainer: {}, needsRecycle: { false },
+            isTranslocated: { false }, openSettings: {})
+        await registrar.activate()
+        #expect(registrar.state == .registered)
+        #expect(agent.registerCount == 1)
+    }
 }

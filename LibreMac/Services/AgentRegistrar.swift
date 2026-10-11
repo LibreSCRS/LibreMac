@@ -64,6 +64,11 @@ public final class AgentRegistrar {
         case registered
         /// Registration failed; payload is a diagnostic (not user copy).
         case failed(String)
+        /// Running from a translocated copy (opened straight from the disk
+        /// image or a quarantined download). Nothing is registered: the agent
+        /// would be pinned to a path that vanishes, and the first container
+        /// touch would ask the user on behalf of the wrong copy.
+        case translocated
     }
 
     public private(set) var state: State = .idle
@@ -71,6 +76,7 @@ public final class AgentRegistrar {
     private let services: [LaunchAgentRegistering]
     private let materializeContainer: @Sendable () async -> Void
     private let needsRecycle: @Sendable () -> Bool
+    private let isTranslocated: @Sendable () -> Bool
     private let recycleCompleted: @Sendable () -> Void
     private let openSettings: @Sendable () -> Void
 
@@ -84,6 +90,8 @@ public final class AgentRegistrar {
     ///   - needsRecycle: `true` when the bundled binary changed or a prior
     ///     spawn failed `EX_CONFIG` — triggers a full unregister()+register()
     ///     rather than a no-op register().
+    ///   - isTranslocated: `true` when the host runs from a translocated copy;
+    ///     `activate()` then registers nothing and never touches the container.
     ///   - recycleCompleted: called once EVERY service survived the recycle —
     ///     the only point at which the trigger's bookkeeping (e.g. a persisted
     ///     bundle version) may be updated. Recording earlier would make the
@@ -94,12 +102,14 @@ public final class AgentRegistrar {
         services: [LaunchAgentRegistering],
         materializeContainer: @escaping @Sendable () async -> Void,
         needsRecycle: @escaping @Sendable () -> Bool,
+        isTranslocated: @escaping @Sendable () -> Bool = { false },
         recycleCompleted: @escaping @Sendable () -> Void = {},
         openSettings: @escaping @Sendable () -> Void
     ) {
         self.services = services
         self.materializeContainer = materializeContainer
         self.needsRecycle = needsRecycle
+        self.isTranslocated = isTranslocated
         self.recycleCompleted = recycleCompleted
         self.openSettings = openSettings
     }
@@ -108,6 +118,11 @@ public final class AgentRegistrar {
     /// every service is registered (recycling any whose captured launch
     /// constraint is stale), and publish the aggregate `state`.
     public func activate() async {
+        if isTranslocated() {
+            Logger.agent.notice("running translocated; not registering the agent")
+            state = .translocated
+            return
+        }
         state = .working
         await materializeContainer()
         let recycle = needsRecycle()

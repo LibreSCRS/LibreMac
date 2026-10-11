@@ -61,6 +61,8 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Opened straight from the disk image, LibreMac no longer registers the agent
+  there; it asks you to move it to Applications first.
 - Every macOS job builds with Xcode 26.5 and its SDK, selected explicitly
   (`.xcode-version`, `Scripts/select-xcode.sh`) on the `macos-26` runner.
 - `Scripts/verify-bundle.sh` runs the bundled agent, so a bundle whose agent
