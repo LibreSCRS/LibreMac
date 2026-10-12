@@ -34,13 +34,15 @@ settings:
     PRODUCT_NAME: "$(TARGET_NAME)"
     DEVELOPMENT_TEAM: ""
     # The team whose signature the host and the token extension require of the
-    # agent (its designated requirement). Empty while everything is signed ad
-    # hoc, which leaves the check at identifier and App Group. The one place it
-    # is stated: both Info.plists carry it as LibreSCRSTeamID, the clients read
-    # it from there, and Scripts/sign-bundle.sh refuses to bundle when the
-    # identity it signs with is not this team. Same name as the agent's CMake
-    # cache variable in LibreDarwin, which must hold the same value.
-    LIBRESCRS_TEAM_ID: ""
+    # agent (its designated requirement), and after which the App Group is
+    # named. Taken from the environment of Scripts/generate-project.sh, which
+    # checks its form and always exports it; empty is an ad hoc build (CI,
+    # tests), which leaves the check at identifier and the "group." App Group.
+    # Both Info.plists carry it as LibreSCRSTeamID, the clients read it from
+    # there, and Scripts/sign-bundle.sh refuses to bundle when the identity it
+    # signs with is not this team. Same name as the agent's CMake cache
+    # variable in LibreDarwin, which must hold the same value.
+    LIBRESCRS_TEAM_ID: "${LIBRESCRS_TEAM_ID}"
     # Xcode builds unsigned; Scripts/sign-bundle.sh signs the assembled bundle
     # from Packaging/entitlements/. Xcode 26 refuses an ad hoc build that
     # carries App Group or keychain entitlements without a provisioning

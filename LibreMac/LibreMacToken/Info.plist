@@ -23,7 +23,7 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<!-- The team the agent must be signed by; from LIBRESCRS_TEAM_ID in project.yml. -->
+	<!-- The team the agent must be signed by, which names the App Group; LIBRESCRS_TEAM_ID from the environment of Scripts/generate-project.sh. -->
 	<key>LibreSCRSTeamID</key>
 	<string>$(LIBRESCRS_TEAM_ID)</string>
 	<key>NSExtension</key>

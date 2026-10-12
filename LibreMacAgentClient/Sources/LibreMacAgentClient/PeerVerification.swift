@@ -54,11 +54,12 @@ public enum AgentPeerIdentity {
     /// with exactly this).
     public static let signingId = "org.librescrs.agent"
 
-    /// The Info.plist key carrying the team the agent must be signed by. Xcode
-    /// writes it from the `LIBRESCRS_TEAM_ID` build setting (`project.yml`, the
-    /// one place it is stated) into the host's and the token extension's
-    /// Info.plist, and `Scripts/sign-bundle.sh` refuses a bundle whose signing
-    /// identity is not that team.
+    /// The Info.plist key carrying the team the agent must be signed by, which
+    /// also names the App Group (`AgentSocketPath.appGroup(forTeam:)`). Xcode
+    /// writes it from the `LIBRESCRS_TEAM_ID` build setting, which
+    /// `Scripts/generate-project.sh` takes from its environment, into the host's
+    /// and the token extension's Info.plist; `Scripts/sign-bundle.sh` refuses a
+    /// bundle whose signing identity is not that team.
     public static let teamIdInfoKey = "LibreSCRSTeamID"
 
     /// The team every LibreSCRS binary is signed by, from this process's own

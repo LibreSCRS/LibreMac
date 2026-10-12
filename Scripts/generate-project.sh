@@ -12,5 +12,13 @@ if [ -z "$LIBREMAC_VERSION" ]; then
     exit 1
 fi
 export LIBREMAC_VERSION
+# The team the release is signed by; the App Group is named after it. Empty is
+# a build for CI and tests -- one that runs on macOS 27 needs a team.
+LIBRESCRS_TEAM_ID="${LIBRESCRS_TEAM_ID:-}"
+if [ -n "$LIBRESCRS_TEAM_ID" ] && ! [[ "$LIBRESCRS_TEAM_ID" =~ ^[A-Z0-9]+$ ]]; then
+    echo "error: LIBRESCRS_TEAM_ID must be upper-case letters and digits, got '$LIBRESCRS_TEAM_ID'" >&2
+    exit 1
+fi
+export LIBRESCRS_TEAM_ID
 xcodegen generate --spec project.yml --use-cache
 echo "Generated $(pwd)/LibreMac.xcodeproj"
