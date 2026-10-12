@@ -256,6 +256,38 @@ else
     fail "LibreMacToken.appex missing from Contents/PlugIns"
 fi
 
+# ---------------------------------------------------------------- App Group
+# The clients and the agent find each other in the App Group named after the
+# team the host's Info.plist carries (LibreSCRSTeamID): "<team>.org.librescrs.LibreMac",
+# or "group.org.librescrs.LibreMac" with no team -- the rule sign-bundle.sh
+# signs by. Each component must hold exactly that group and no other, judged on
+# its signature: one signed into another group runs and never reaches the socket.
+team="$(plutil -extract LibreSCRSTeamID raw -o - "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)"
+if [ -n "$team" ]; then
+    want_group="$team.org.librescrs.LibreMac"
+else
+    want_group="group.org.librescrs.LibreMac"
+fi
+groups_key=":com.apple.security.application-groups"
+ents_plist="$(mktemp)"
+for code in "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter" "$TOKEN_APPEX" "$APP_PATH"; do
+    [ -e "$code" ] || continue
+    name="$(basename "$code")"
+    : >"$ents_plist"
+    codesign -d --entitlements - --xml "$code" >"$ents_plist" 2>/dev/null || true
+    got="$(/usr/libexec/PlistBuddy -c "Print $groups_key:0" "$ents_plist" 2>/dev/null || true)"
+    if [ -z "$got" ]; then
+        fail "$name App Group: its signature names none, the team names $want_group"
+    elif /usr/libexec/PlistBuddy -c "Print $groups_key:1" "$ents_plist" >/dev/null 2>&1; then
+        fail "$name App Group: its signature names more than one, the team names only $want_group"
+    elif [ "$got" != "$want_group" ]; then
+        fail "$name App Group: $name is in App Group $got, the team names $want_group"
+    else
+        pass "$name App Group: $got, the one the team names"
+    fi
+done
+rm -f "$ents_plist"
+
 # ---------------------------------------------------------------- unexpanded build variables
 # Xcode expands $(AppIdentifierPrefix) and friends when it processes an
 # entitlements file; codesign does not. sign-bundle.sh signs from
@@ -314,11 +346,13 @@ fi
 # hardened runtime turns on library validation, an ad hoc signature carries no
 # Team ID, and dyld refused every bundled dylib (exit 134). So the agent is RUN,
 # from the bundle and with a clean environment, with an argument it does not
-# know: exit 2 means dyld loaded every linked library and main parsed the
-# arguments (card plugins and the PKCS#11 module are dlopened later, so they
-# are not proved). That
-# path returns before the agent touches its App Group container. Not the
-# prompter: it ignores argv and binds its socket at once.
+# know: exit 2 means dyld loaded every linked library, the agent's check that
+# its own signature matches the build passed (team, and the App Group that team
+# names), and main parsed the arguments (card plugins and the PKCS#11 module
+# are dlopened later, so they are not proved). Exit 4 is that check refusing:
+# the signature does not match the build. On macOS 27 the sandbox already
+# touches the App Group container when the process starts, so this run is not
+# free of it. Not the prompter: it ignores argv and binds its socket at once.
 #
 # With System Integrity Protection off -- the hosted macOS runners -- dyld does
 # not enforce library validation, so there exit 2 proves the libraries link and
@@ -348,6 +382,8 @@ else
         wait "$smoke_pid" || smoke_rc=$?
         if [ "$smoke_rc" -eq 2 ]; then
             pass "librescrs-agent smoke: started from the bundle and exited 2 on an unknown argument (dyld loaded every linked library)"
+        elif [ "$smoke_rc" -eq 4 ]; then
+            fail "librescrs-agent smoke: exit 4 -- the agent refused to start: its signature does not match the build (team, or the App Group that team names); it says why only in the unified log: log show --last 5m --predicate 'subsystem == \"rs.librescrs.agent\"'"
         elif [ "$smoke_rc" -eq 134 ]; then
             fail "librescrs-agent smoke: exit 134 -- dyld refused to load it: $(grep -m1 -E 'Library not loaded|Reason|Team ID' "$smoke_err" | tr -s ' ')$(grep -m1 -o 'different Team IDs' "$smoke_err" | sed 's/^/ (/;s/$/)/')"
         else

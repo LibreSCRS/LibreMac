@@ -6,6 +6,11 @@
 	     entitlement source: project.yml names none. -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<!-- Exactly one App Group. sign-bundle.sh signs from a copy in which it
+	     is replaced by the group the bundle's team names
+	     (<team>.org.librescrs.LibreMac; this one when there is no team);
+	     verify-bundle.sh refuses a signature that holds any other group or more
+	     than one. -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.org.librescrs.LibreMac</string>
