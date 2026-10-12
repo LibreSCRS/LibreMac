@@ -202,8 +202,19 @@ jobs:
           mkdir -p "$stage" out
           ditto DerivedData/Build/Products/Release/LibreMac.app "$stage/LibreMac.app"
           ln -s /Applications "$stage/Applications"
-          hdiutil create -volname "LibreMac $VERSION" -srcfolder "$stage" \
-            -format UDZO -o "out/LibreMac-$VERSION-macos.dmg"
+          # On the hosted xcode-27 image hdiutil create has failed with
+          # "Resource busy" on a tree that verified clean, while the same
+          # command passes locally on macOS 27. Three tries, each failure said.
+          for try in 1 2 3; do
+            if hdiutil create -volname "LibreMac $VERSION" -srcfolder "$stage" \
+                 -format UDZO -o "out/LibreMac-$VERSION-macos.dmg"; then
+              break
+            fi
+            echo "::warning::hdiutil create failed (try $try of 3)"
+            rm -f "out/LibreMac-$VERSION-macos.dmg"
+            [ "$try" -lt 3 ] || exit 1
+            sleep 15
+          done
           hdiutil verify "out/LibreMac-$VERSION-macos.dmg"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
