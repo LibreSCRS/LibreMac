@@ -15,8 +15,8 @@
 # profile"); codesign has no such rule.
 #
 # CODESIGN_IDENTITY (env, default "-" = ad hoc). Every signature carries the
-# hardened runtime and --timestamp=none today; a Developer ID signature needs
-# a secure timestamp instead.
+# hardened runtime. An ad hoc signature carries no timestamp; any other
+# identity gets Apple's secure timestamp, which notarization requires.
 #
 # Library validation: the hardened runtime makes dyld accept only libraries
 # signed by the executable's own team. An ad hoc signature has no team, so the
@@ -94,7 +94,9 @@ for part in agent prompter token host; do
 done
 echo "sign-bundle: App Group $app_group"
 
-sign() { codesign --force -s "$CODESIGN_IDENTITY" --options runtime --timestamp=none "$@"; }
+timestamp=--timestamp=none
+[ "$CODESIGN_IDENTITY" = "-" ] || timestamp=--timestamp
+sign() { codesign --force -s "$CODESIGN_IDENTITY" --options runtime "$timestamp" "$@"; }
 
 shopt -s nullglob
 for lib in "$FRAMEWORKS"/*.dylib "$PLUGINS"/*.dylib; do

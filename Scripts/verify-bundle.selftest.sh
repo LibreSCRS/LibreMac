@@ -14,7 +14,8 @@
 # Also the App Group: a fixture whose Info.plist names a team and whose agent
 # is signed into another group must fail verify-bundle.sh's group line naming
 # both groups, and sign-bundle.sh, copied next to fixture entitlements, must
-# write the one group into every component.
+# write the one group into every component, with a secure timestamp on every
+# signature exactly when the identity is not ad hoc.
 #
 # Also the agent PKCS#11 module (present, one export, system libraries only)
 # and the minimum macOS: every fixture is built for 15.0 and its Info.plist
@@ -230,6 +231,43 @@ else
     echo "  FAIL  sign-bundle refused a good bundle: $(tr '
 ' ' ' <"$signs_out")"; fail=$((fail+1))
 fi
+
+# ---------------------------------------------------------------- timestamp in sign-bundle.sh
+# Notarization refuses a signature with no secure timestamp, and an ad hoc
+# signature cannot carry one. codesign is replaced by a recorder, so a
+# Developer ID identity needs no keychain and no timestamp server.
+mkdir -p "$work/stubbin"
+cat >"$work/stubbin/codesign" <<'S'
+#!/bin/sh
+case " $* " in *" -dv "*) exit 0 ;; esac
+printf '%s\n' "$*" >>"$CODESIGN_LOG"
+S
+chmod +x "$work/stubbin/codesign"
+# timestamp_line <identity> <log name> <expected flag> -> PASS when every
+# signature sign-bundle.sh made carries exactly <expected flag>
+timestamp_line() {
+    local log="$work/$2" total ts none
+    : >"$log"
+    if ! CODESIGN_LOG="$log" CODESIGN_IDENTITY="$1" PATH="$work/stubbin:$PATH" \
+        bash "$work/sign-ok/Scripts/sign-bundle.sh" "$work/signed-ok.app" >"$signs_out" 2>&1; then
+        echo "FAIL: sign-bundle refused: $(tr '\n' ' ' <"$signs_out")"
+        return
+    fi
+    total="$(grep -c . "$log" || true)"
+    ts="$(grep -cE -- '(^| )--timestamp( |$)' "$log" || true)"
+    none="$(grep -cE -- '(^| )--timestamp=none( |$)' "$log" || true)"
+    local counts="$total signatures, $ts with --timestamp, $none with --timestamp=none"
+    if [ "$total" -gt 0 ] && { { [ "$3" = --timestamp ] && [ "$ts" -eq "$total" ] && [ "$none" -eq 0 ]; } ||
+        { [ "$3" = --timestamp=none ] && [ "$none" -eq "$total" ] && [ "$ts" -eq 0 ]; }; }; then
+        echo "PASS: $counts"
+    else
+        echo "FAIL: $counts"
+    fi
+}
+verdict "sign-bundle with a Developer ID identity timestamps every signature" PASS ' 0 with --timestamp=none' red \
+    "$(timestamp_line "Developer ID Application: Selftest" codesign-devid.log --timestamp)"
+verdict "sign-bundle ad hoc carries no timestamp" PASS ' 0 with --timestamp,' green \
+    "$(timestamp_line - codesign-adhoc.log --timestamp=none)"
 
 # ---------------------------------------------------------------- agent PKCS#11 module and minimum macOS
 cat > "$work/mod.c" <<'C'

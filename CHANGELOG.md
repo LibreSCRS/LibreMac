@@ -168,6 +168,10 @@ versioning follows [Semantic Versioning](https://semver.org/).
   when `CFBundleVersion` changed, so a rebuilt bundle kept the previous agent
   running; it now also compares the code directory hash of each bundled
   program.
+- `Scripts/sign-bundle.sh` gives every signature made with a real identity
+  Apple's secure timestamp. It passed `--timestamp=none` to every identity, and
+  notarization refuses a Developer ID signature without one; ad hoc signatures
+  still carry none.
 - Every binary in the app now targets macOS 15, the minimum the app states.
   The agent and the prompter had been built for macOS 27, the build machine's
   own release, so on an earlier macOS they would not have started. The bundle
