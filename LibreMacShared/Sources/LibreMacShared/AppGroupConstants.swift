@@ -5,10 +5,10 @@ import Foundation
 
 /// Constants shared between the host app and the CTK appex. Centralised
 /// so a typo in either process surfaces at compile time, not runtime.
+///
+/// The App Group itself is not here: it is named after the team the build is
+/// signed by (`AgentSocketPath.appGroupIdentifier` in LibreMacAgentClient).
 public enum AppGroupConstants {
-    public static let appGroupId = "group.org.librescrs.LibreMac"
-    public static let preferencesSuiteName = "group.org.librescrs.LibreMac.preferences"
-
     public enum DefaultsKeys {
         public static let preferredLocale = "org.librescrs.LibreMac.preferredLocale"
         public static let logLevel = "org.librescrs.LibreMac.logLevel"

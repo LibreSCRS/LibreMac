@@ -15,9 +15,17 @@ public enum AgentSocketPath {
     /// non-App-Group-installed agent.
     public static let environmentOverrideKey = "LIBRESCRS_AGENT_SOCK"
 
-    /// The macOS App Group shared by the LibreMac host, its CTK extension,
-    /// and the agent.
-    public static let appGroupIdentifier = "group.org.librescrs.LibreMac"
+    /// The App Group shared by the host, its CTK extension and the agent: named
+    /// after the signing team, because macOS 27 refuses an unprovisioned `group.`
+    /// container to a sandboxed process. Without a team (CI, tests) it keeps `group.`.
+    public static func appGroup(forTeam teamId: String?) -> String {
+        guard let teamId, !teamId.isEmpty else { return "group.org.librescrs.LibreMac" }
+        return "\(teamId).org.librescrs.LibreMac"
+    }
+
+    /// The App Group of this build, from the team in this process's Info.plist
+    /// (`AgentPeerIdentity.configuredTeamId`).
+    public static var appGroupIdentifier: String { appGroup(forTeam: AgentPeerIdentity.configuredTeamId) }
 
     /// Resolves the agent socket path, in this exact order:
     /// 1. `LIBRESCRS_AGENT_SOCK`, if set to a non-empty value.
@@ -26,7 +34,7 @@ public enum AgentSocketPath {
     ///    plus `agent.sock`, when the container resolves — the path a
     ///    sandboxed process (the host, the CTK extension) reaches via the
     ///    `application-groups` entitlement.
-    /// 3. `$HOME/Library/Group Containers/group.org.librescrs.LibreMac/agent.sock`
+    /// 3. `$HOME/Library/Group Containers/<appGroupIdentifier>/agent.sock`
     ///    as a last resort — the SAME directory as (2), reached by its
     ///    well-known absolute path rather than the entitlement-gated API.
     ///    Every shipped process (host, CTK extension, bundled agent and

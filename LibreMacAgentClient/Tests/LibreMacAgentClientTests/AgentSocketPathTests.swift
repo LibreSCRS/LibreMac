@@ -20,6 +20,17 @@ import Testing
 @Suite("AgentSocketPath", .serialized)
 struct AgentSocketPathTests {
 
+    @Test("without a team the App Group keeps the group. prefix")
+    func appGroupWithoutTeam() {
+        #expect(AgentSocketPath.appGroup(forTeam: nil) == "group.org.librescrs.LibreMac")
+        #expect(AgentSocketPath.appGroup(forTeam: "") == "group.org.librescrs.LibreMac")
+    }
+
+    @Test("with a team the App Group is named after it")
+    func appGroupWithTeam() {
+        #expect(AgentSocketPath.appGroup(forTeam: "ABCDE12345") == "ABCDE12345.org.librescrs.LibreMac")
+    }
+
     @Test("LIBRESCRS_AGENT_SOCK env override takes priority (real setenv)")
     func realEnvOverrideTakesPriority() {
         let overridePath = "/tmp/librescrs-agentclient-test-override.sock"

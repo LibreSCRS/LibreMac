@@ -7,6 +7,7 @@
 // `ServiceManagement` and stays trivially unit-testable.
 
 import Foundation
+import LibreMacAgentClient
 import LibreMacShared
 import ServiceManagement
 
@@ -55,7 +56,7 @@ extension AgentRegistrar {
     /// recycle trigger (a proxy for "the bundled binary changed" — a host
     /// update ships a new agent binary), and the Login Items opener.
     public static func system(
-        appGroupId: String = AppGroupConstants.appGroupId,
+        appGroupId: String = AgentSocketPath.appGroupIdentifier,
         bundleVersion: String = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
     ) -> AgentRegistrar {
         let versionKey = "org.librescrs.LibreMac.registeredBundleVersion"
