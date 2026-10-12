@@ -20,7 +20,9 @@ for app in /Applications/Xcode_"$want".app /Applications/Xcode.app /Applications
     [ -d "$app/Contents/Developer" ] || continue
     v="$(DEVELOPER_DIR="$app/Contents/Developer" xcodebuild -version 2>/dev/null | sed -n 's/^Xcode //p')" || v=""
     seen="$seen $app=$v"
-    if [ "$v" = "$want" ]; then found="$app/Contents/Developer"; break; fi
+    # Resolved: a runner image may install Xcode_27.app and point
+    # Xcode_27.0.app at it, and xcrun reports the SDK by the resolved path.
+    if [ "$v" = "$want" ]; then found="$(cd -P "$app/Contents/Developer" && pwd)"; break; fi
 done
 [ -n "$found" ] || { echo "select-xcode: no Xcode $want installed (found:$seen)" >&2; exit 1; }
 
