@@ -17,6 +17,8 @@
 # CODESIGN_IDENTITY (env, default "-" = ad hoc). Every signature carries the
 # hardened runtime. An ad hoc signature carries no timestamp; any other
 # identity gets Apple's secure timestamp, which notarization requires.
+# Signing with such an identity therefore needs Apple's timestamp server
+# (network access).
 #
 # Library validation: the hardened runtime makes dyld accept only libraries
 # signed by the executable's own team. An ad hoc signature has no team, so the

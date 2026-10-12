@@ -243,13 +243,14 @@ case " $* " in *" -dv "*) exit 0 ;; esac
 printf '%s\n' "$*" >>"$CODESIGN_LOG"
 S
 chmod +x "$work/stubbin/codesign"
-# timestamp_line <identity> <log name> <expected flag> -> PASS when every
-# signature sign-bundle.sh made carries exactly <expected flag>
+# timestamp_line <identity> <log name> <expected flag> [signer] -> PASS when
+# every signature sign-bundle.sh (of signer, default sign-ok) made carries
+# exactly <expected flag>
 timestamp_line() {
-    local log="$work/$2" total ts none
+    local log="$work/$2" total ts none script="$work/${4:-sign-ok}/Scripts/sign-bundle.sh"
     : >"$log"
     if ! CODESIGN_LOG="$log" CODESIGN_IDENTITY="$1" PATH="$work/stubbin:$PATH" \
-        bash "$work/sign-ok/Scripts/sign-bundle.sh" "$work/signed-ok.app" >"$signs_out" 2>&1; then
+        bash "$script" "$work/signed-ok.app" >"$signs_out" 2>&1; then
         echo "FAIL: sign-bundle refused: $(tr '\n' ' ' <"$signs_out")"
         return
     fi
@@ -268,6 +269,13 @@ verdict "sign-bundle with a Developer ID identity timestamps every signature" PA
     "$(timestamp_line "Developer ID Application: Selftest" codesign-devid.log --timestamp)"
 verdict "sign-bundle ad hoc carries no timestamp" PASS ' 0 with --timestamp,' green \
     "$(timestamp_line - codesign-adhoc.log --timestamp=none)"
+# Perturbation: a signer that timestamps every identity must fail the ad hoc
+# case, or that case is not testing the choice.
+signer sign-alwaysts
+if perturbed sign-alwaysts/Scripts/sign-bundle.sh 's/^timestamp=--timestamp=none$/timestamp=--timestamp/' "$here/sign-bundle.sh"; then
+    verdict "perturbation: ad hoc timestamped too" FAIL ' [1-9][0-9]* with --timestamp,' red \
+        "$(timestamp_line - codesign-alwaysts.log --timestamp=none sign-alwaysts)"
+fi
 
 # ---------------------------------------------------------------- agent PKCS#11 module and minimum macOS
 cat > "$work/mod.c" <<'C'

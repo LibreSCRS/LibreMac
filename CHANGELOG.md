@@ -172,7 +172,8 @@ versioning follows [Semantic Versioning](https://semver.org/).
 - `Scripts/sign-bundle.sh` gives every signature made with a real identity
   Apple's secure timestamp. It passed `--timestamp=none` to every identity, and
   notarization refuses a Developer ID signature without one; ad hoc signatures
-  still carry none.
+  still carry none. Signing with a real identity now needs network access to
+  Apple's timestamp server.
 - Every binary in the app now targets macOS 15, the minimum the app states.
   The agent and the prompter had been built for macOS 27, the build machine's
   own release, so on an earlier macOS they would not have started. The bundle
