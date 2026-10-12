@@ -213,3 +213,79 @@ struct AgentRegistrarTests {
         #expect(agent.registerCount == 1)
     }
 }
+
+/// The production recycle trigger: what is stamped, and when a stamp change
+/// turns into a recycle.
+@Suite("AgentRegistrar recycle trigger")
+@MainActor
+struct AgentRecycleTriggerTests {
+
+    private let agentURL = URL(fileURLWithPath: "/Applications/X.app/Contents/MacOS/librescrs-agent")
+    private let prompterURL = URL(fileURLWithPath: "/Applications/X.app/Contents/MacOS/librescrs-prompter")
+
+    private func stamp(version: String, agentHash: String) -> String {
+        AgentRegistrar.bundleStamp(
+            bundleVersion: version, programs: [agentURL, prompterURL],
+            codeHash: { $0 == agentURL ? agentHash : "prompter-hash" })
+    }
+
+    /// A defaults suite private to one test, removed afterwards.
+    private func withScratchSuite(_ body: (String) async throws -> Void) async rethrows {
+        let suite = "org.librescrs.LibreMac.tests.\(UUID().uuidString)"
+        defer { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+        try await body(suite)
+    }
+
+    @Test("same version, different agent binary: stamps differ")
+    func sameVersionDifferentBinary() {
+        #expect(stamp(version: "5.0.0", agentHash: "aa") != stamp(version: "5.0.0", agentHash: "bb"))
+        #expect(stamp(version: "5.0.0", agentHash: "aa") == stamp(version: "5.0.0", agentHash: "aa"))
+        #expect(stamp(version: "5.0.0", agentHash: "aa") != stamp(version: "5.0.1", agentHash: "aa"))
+    }
+
+    @Test("a same-version bundle with a new agent binary recycles once, then not again")
+    func sameVersionNewBinaryRecycles() async {
+        await withScratchSuite { suite in
+            let before = AgentRegistrar.recycleTrigger(
+                suiteName: suite, stamp: stamp(version: "5.0.0", agentHash: "aa"))
+            before.recycleCompleted()
+
+            let replaced = AgentRegistrar.recycleTrigger(
+                suiteName: suite, stamp: stamp(version: "5.0.0", agentHash: "bb"))
+            let agent = FakeLaunchAgent(label: "agent", status: .enabled)
+            let registrar = AgentRegistrar(
+                services: [agent], materializeContainer: {},
+                needsRecycle: replaced.needsRecycle,
+                recycleCompleted: replaced.recycleCompleted, openSettings: {})
+            await registrar.activate()
+            #expect(agent.unregisterCount == 1)
+            #expect(agent.registerCount == 1)
+
+            // Next launch of the same bundle: nothing to refresh.
+            await registrar.activate()
+            #expect(agent.unregisterCount == 1)
+            #expect(agent.registerCount == 1)
+        }
+    }
+
+    @Test("an unchanged bundle does not recycle")
+    func unchangedBundleDoesNotRecycle() async {
+        await withScratchSuite { suite in
+            let current = stamp(version: "5.0.0", agentHash: "aa")
+            AgentRegistrar.recycleTrigger(suiteName: suite, stamp: current).recycleCompleted()
+            let trigger = AgentRegistrar.recycleTrigger(suiteName: suite, stamp: current)
+            #expect(trigger.needsRecycle() == false)
+        }
+    }
+
+    @Test("code directory hash tells signed programs apart and is nil for a missing one")
+    func codeDirectoryHashOfRealPrograms() {
+        let ls = AgentRegistrar.codeDirectoryHash(URL(fileURLWithPath: "/bin/ls"))
+        let cat = AgentRegistrar.codeDirectoryHash(URL(fileURLWithPath: "/bin/cat"))
+        #expect(ls != nil)
+        #expect(cat != nil)
+        #expect(ls != cat)
+        #expect(ls == AgentRegistrar.codeDirectoryHash(URL(fileURLWithPath: "/bin/ls")))
+        #expect(AgentRegistrar.codeDirectoryHash(URL(fileURLWithPath: "/nonexistent/librescrs-agent")) == nil)
+    }
+}

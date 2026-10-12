@@ -163,6 +163,11 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Replacing LibreMac.app with another build of the same version now restarts
+  the agent and the prompter from the new bundle. The app recycled them only
+  when `CFBundleVersion` changed, so a rebuilt bundle kept the previous agent
+  running; it now also compares the code directory hash of each bundled
+  program.
 - Every binary in the app now targets macOS 15, the minimum the app states.
   The agent and the prompter had been built for macOS 27, the build machine's
   own release, so on an earlier macOS they would not have started. The bundle

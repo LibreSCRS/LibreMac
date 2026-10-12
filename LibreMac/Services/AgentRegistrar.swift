@@ -94,9 +94,10 @@ public final class AgentRegistrar {
     ///     `activate()` then registers nothing and never touches the container.
     ///   - recycleCompleted: called once EVERY service survived the recycle —
     ///     the only point at which the trigger's bookkeeping (e.g. a persisted
-    ///     bundle version) may be updated. Recording earlier would make the
-    ///     next launch see a matching version after a failed recycle and never
-    ///     refresh the stale launch constraint until the next version bump.
+    ///     stamp of the bundled programs) may be updated. Recording earlier
+    ///     would make the next launch see a matching stamp after a failed
+    ///     recycle and never refresh the stale launch constraint until the
+    ///     bundled programs change again.
     ///   - openSettings: opens System Settings › Login Items (the approval UX).
     public init(
         services: [LaunchAgentRegistering],
