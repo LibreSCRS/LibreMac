@@ -140,10 +140,14 @@ jobs:
             -DLIBREMIDDLEWARE_BUILD_SHARED=ON
           cmake --build .build-lm -j4
           cmake --install .build-lm
-          # Every library the bundle will stage carries both slices.
+          # Every library the bundle will stage carries both slices. One arch per
+          # call: Xcode 27's lipo takes a second -verify_arch argument for an
+          # input file and fails ("requires exactly one input file").
           find "$LM_PREFIX/lib" -name '*.dylib' -type f | while read -r lib; do
-            lipo "$lib" -verify_arch x86_64 arm64 \
-              || { echo "::error::$lib is $(lipo -archs "$lib"), not x86_64 + arm64"; exit 1; }
+            for arch in x86_64 arm64; do
+              lipo "$lib" -verify_arch "$arch" \
+                || { echo "::error::$lib is $(lipo -archs "$lib"), not x86_64 + arm64"; exit 1; }
+            done
           done
 
       - name: Build LibreDarwin (Release, universal)
