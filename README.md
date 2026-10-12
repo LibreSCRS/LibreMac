@@ -45,7 +45,7 @@ App-Group socket. The agent itself is built and shipped separately.
 
 The host is pure Swift with no C/C++ build step. Requires:
 - macOS 15.0+ (Sequoia or later)
-- Xcode 26.5 (named in `.xcode-version`; `Scripts/select-xcode.sh` selects it and its SDK)
+- Xcode 27.0 (named in `.xcode-version`; `Scripts/select-xcode.sh` selects it and its SDK)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
 Quick start:

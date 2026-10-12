@@ -53,11 +53,11 @@ jobs:
   swift-test:
     # Pure SwiftPM unit tests: no xcodegen, no Xcode project needed. The Xcode
     # in .xcode-version (and its `swift test` toolchain) is preinstalled on
-    # macos-26, selected explicitly below. One job for
+    # the xcode-27 image (arm64 only), selected explicitly below. One job for
     # the three packages: two of them run a handful of tests each, and a macOS
     # runner's start-up costs more than all three test runs together.
     timeout-minutes: 30
-    runs-on: macos-26
+    runs-on: xcode-27
     permissions:
       contents: read
     steps:
@@ -81,10 +81,11 @@ jobs:
         run: swift test --package-path Tools/ts2xcstrings
 
   build-macos:
-    # macos-26 is the runner image that carries the Xcode named in
-    # .xcode-version; the project still deploys to macOS 15.0.
+    # xcode-27 is the runner image that carries the Xcode named in
+    # .xcode-version (images are keyed by Xcode major, not by macOS); the
+    # project still deploys to macOS 15.0.
     timeout-minutes: 30
-    runs-on: macos-26
+    runs-on: xcode-27
     permissions:
       contents: read
     steps:
