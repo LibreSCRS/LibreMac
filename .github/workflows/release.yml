@@ -16,6 +16,12 @@ name: Release
 # a Developer ID, the identity and a notarize + staple step go into the build
 # job; nothing else changes shape.
 #
+# A published build names its team: the organization variable LIBRESCRS_TEAM_ID
+# reaches LibreDarwin's configure and Scripts/generate-project.sh, the App Group
+# is named after it, and the clients require the agent to be signed by it. A
+# rehearsal builds without a team, signed ad hoc. Scripts/sign-bundle.sh refuses
+# a team with an ad hoc signature, so publishing waits for the Developer ID.
+#
 # Two modes. A tag push publishes. A dispatch rehearses by default, on any
 # ref, and so does a push to main or ci/** that touches what the image is
 # made from: the same build, bill of materials, checksums and signatures
@@ -92,7 +98,19 @@ jobs:
     env:
       VERSION: ${{ needs.preflight.outputs.version }}
       LM_PREFIX: ${{ github.workspace }}/.lm-prefix
+      # The team a release is signed by, from the organization-level variable;
+      # the App Group is named after it. A rehearsal builds without a team,
+      # signed ad hoc.
+      LIBRESCRS_TEAM_ID: ${{ needs.preflight.outputs.mode == 'publish' && vars.LIBRESCRS_TEAM_ID || '' }}
     steps:
+      - name: A release names its team
+        if: needs.preflight.outputs.mode == 'publish'
+        run: |
+          if [ -z "$LIBRESCRS_TEAM_ID" ]; then
+            echo "::error::publish needs the organization variable LIBRESCRS_TEAM_ID: without it the App Group stays group.org.librescrs.LibreMac, which macOS 27 refuses to the sandboxed host and extension"
+            exit 1
+          fi
+
       - name: Install build tools
         # xcodegen generates the Xcode project; ninja and the autotools build
         # LibreMiddleware (its vendored OpenSC bootstraps with autoconf);
@@ -173,6 +191,7 @@ jobs:
             -DCMAKE_PREFIX_PATH="$LM_PREFIX" \
             -DOPENSSL_ROOT_DIR="${ossl[0]}" \
             -DOPENSSL_USE_STATIC_LIBS=TRUE \
+            -DLIBRESCRS_TEAM_ID="$LIBRESCRS_TEAM_ID" \
             -DFETCHCONTENT_SOURCE_DIR_LIBREAGENT="$LA_SRC"
           grep -E '^OPENSSL_CRYPTO_LIBRARY' "$LD_SRC/build-release/CMakeCache.txt"
           cmake --build "$LD_SRC/build-release" -j4

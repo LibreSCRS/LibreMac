@@ -61,6 +61,13 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The App Group is named after the team the build is signed by,
+  `<TeamID>.org.librescrs.LibreMac`, because macOS 27 refuses the
+  unprovisioned `group.org.librescrs.LibreMac` container to the sandboxed host
+  and token extension. The team comes from `LIBRESCRS_TEAM_ID` in the
+  environment of `Scripts/generate-project.sh` instead of `project.yml`; left
+  unset, the build keeps `group.org.librescrs.LibreMac` (CI and tests). A
+  published release requires the organization variable `LIBRESCRS_TEAM_ID`.
 - Opened straight from the disk image, LibreMac no longer registers the agent
   there; it asks you to move it to Applications first.
 - Every macOS job builds with Xcode 27.0 and its SDK, selected explicitly
@@ -180,9 +187,11 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 - The host and the token extension now check the process serving the agent
   socket before they send it anything: it must be signed with the identifier
-  `org.librescrs.agent` and carry the `group.org.librescrs.LibreMac` App Group
-  entitlement, and, when the build names a team (`LIBRESCRS_TEAM_ID`), it must
-  also satisfy that team's designated requirement. A process that fails the
+  `org.librescrs.agent` and carry the build's App Group entitlement
+  (`<TeamID>.org.librescrs.LibreMac`, or `group.org.librescrs.LibreMac` in a
+  build without a team), and, when the build names a team
+  (`LIBRESCRS_TEAM_ID`), it must also satisfy that team's designated
+  requirement. A process that fails the
   check is refused before any request reaches it. As a
   consequence a development agent must be signed with that identifier and App
   Group, or both clients refuse it; LibreDarwin's `packaging/install-dev.sh`

@@ -55,6 +55,22 @@ Quick start:
 open LibreMac.xcodeproj
 ```
 
+The build names the team its release is signed by in `LIBRESCRS_TEAM_ID`, read
+from the environment of `generate-project.sh` (upper-case letters and digits,
+the ten-character Team ID of the signing identity):
+
+```bash
+LIBRESCRS_TEAM_ID=<TeamID> ./Scripts/generate-project.sh
+```
+
+The host and its token extension then use the App Group
+`<TeamID>.org.librescrs.LibreMac` and require the agent to be signed by that
+team; build LibreDarwin with `-DLIBRESCRS_TEAM_ID=<TeamID>` so the agent
+agrees. Left unset, the App Group is `group.org.librescrs.LibreMac` and no team
+is checked: that is the build for CI and tests, signed ad hoc. macOS 27 refuses
+that unprovisioned group to the sandboxed host and extension, so a build meant
+to run there needs a team. Regenerate the project whenever the value changes.
+
 ## Release
 
 A tag's release workflow builds the disk image: LibreMiddleware and
