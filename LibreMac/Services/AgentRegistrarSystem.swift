@@ -90,8 +90,8 @@ extension AgentRegistrar {
 
     /// Builds the production registrar: the agent + prompter LaunchAgents, the
     /// off-main App-Group container materializer, a recycle trigger keyed on
-    /// the bundled programs themselves (see `bundleStamp`), and the Login
-    /// Items opener.
+    /// the signed bundle itself (see `bundleStamp`), and the Login Items
+    /// opener.
     public static func system(
         appGroupId: String = AgentSocketPath.appGroupIdentifier,
         bundleURL: URL = Bundle.main.bundleURL,
@@ -101,9 +101,7 @@ extension AgentRegistrar {
         // exactly what gets recorded.
         let trigger = recycleTrigger(
             suiteName: appGroupId,
-            stamp: bundleStamp(
-                bundleVersion: bundleVersion,
-                programs: launchdPrograms.map { bundleURL.appendingPathComponent($0) }))
+            stamp: bundleStamp(bundleVersion: bundleVersion, bundleURL: bundleURL))
         return AgentRegistrar(
             services: [
                 SMAppServiceAgent(plistName: AppGroupConstants.AgentService.launchdPlistName),
@@ -119,38 +117,36 @@ extension AgentRegistrar {
                 }.value
             },
             needsRecycle: trigger.needsRecycle,
-            isTranslocated: { AppTranslocation.isTranslocated(Bundle.main.bundleURL) },
+            isTranslocated: { AppTranslocation.isTranslocated(bundleURL) },
             recycleCompleted: trigger.recycleCompleted,
             openSettings: {
                 SMAppService.openSystemSettingsLoginItems()
             })
     }
 
-    /// The `BundleProgram` of each LaunchAgent, relative to the bundle — the
-    /// same paths `Packaging/org.librescrs.{agent,prompter}.plist` name.
-    nonisolated static let launchdPrograms = [
-        "Contents/MacOS/librescrs-agent",
-        "Contents/MacOS/librescrs-prompter",
-    ]
-
     nonisolated static let recycleStampKey = "org.librescrs.LibreMac.registeredAgentStamp"
 
     /// What identifies the agent and prompter this bundle would launch: the
-    /// bundle version plus each program's code directory hash. The version
-    /// alone is not enough — a rebuilt bundle dropped over the old one keeps
-    /// its `CFBundleVersion`, and launchd would go on running the previous
-    /// agent. A program whose hash cannot be read contributes `-`.
+    /// bundle version plus the host bundle's own code directory hash. The
+    /// version alone is not enough — a rebuilt bundle dropped over the old one
+    /// keeps its `CFBundleVersion`, and launchd would go on running the
+    /// previous agent. Nor are the agent's and prompter's own hashes: most of
+    /// the agent's code lives in the libraries and plugins beside it, which a
+    /// rebuild can change under a byte-identical agent. The host is signed
+    /// last, and its code directory seals every nested file — the programs
+    /// under `Contents/MacOS`, `Contents/Frameworks`, `Contents/PlugIns` — so
+    /// any of them changing changes it. An unreadable hash contributes `-`.
     nonisolated static func bundleStamp(
-        bundleVersion: String, programs: [URL],
+        bundleVersion: String, bundleURL: URL,
         codeHash: (URL) -> String? = codeDirectoryHash
     ) -> String {
-        ([bundleVersion] + programs.map { codeHash($0) ?? "-" }).joined(separator: "|")
+        "\(bundleVersion)|\(codeHash(bundleURL) ?? "-")"
     }
 
-    /// The code directory hash (CDHash) of the signed program at `url`, hex,
-    /// or nil when the file is missing or unsigned. Any rebuild or re-sign
-    /// changes it, and it is read from the signature without hashing the
-    /// whole binary.
+    /// The code directory hash (CDHash) of the signed code at `url` (a program
+    /// or a bundle), hex, or nil when it is missing or unsigned. Any rebuild
+    /// or re-sign changes it, and it is read from the signature without
+    /// hashing the whole code.
     nonisolated static func codeDirectoryHash(_ url: URL) -> String? {
         var staticCode: SecStaticCode?
         guard SecStaticCodeCreateWithPath(url as CFURL, [], &staticCode) == errSecSuccess,

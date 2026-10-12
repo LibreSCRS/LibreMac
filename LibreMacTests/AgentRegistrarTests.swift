@@ -220,13 +220,12 @@ struct AgentRegistrarTests {
 @MainActor
 struct AgentRecycleTriggerTests {
 
-    private let agentURL = URL(fileURLWithPath: "/Applications/X.app/Contents/MacOS/librescrs-agent")
-    private let prompterURL = URL(fileURLWithPath: "/Applications/X.app/Contents/MacOS/librescrs-prompter")
+    private let bundleURL = URL(fileURLWithPath: "/Applications/X.app")
 
-    private func stamp(version: String, agentHash: String) -> String {
+    private func stamp(version: String, bundleHash: String) -> String {
         AgentRegistrar.bundleStamp(
-            bundleVersion: version, programs: [agentURL, prompterURL],
-            codeHash: { $0 == agentURL ? agentHash : "prompter-hash" })
+            bundleVersion: version, bundleURL: bundleURL,
+            codeHash: { $0 == bundleURL ? bundleHash : nil })
     }
 
     /// A defaults suite private to one test, removed afterwards.
@@ -236,22 +235,22 @@ struct AgentRecycleTriggerTests {
         try await body(suite)
     }
 
-    @Test("same version, different agent binary: stamps differ")
+    @Test("same version, different signed bundle: stamps differ")
     func sameVersionDifferentBinary() {
-        #expect(stamp(version: "5.0.0", agentHash: "aa") != stamp(version: "5.0.0", agentHash: "bb"))
-        #expect(stamp(version: "5.0.0", agentHash: "aa") == stamp(version: "5.0.0", agentHash: "aa"))
-        #expect(stamp(version: "5.0.0", agentHash: "aa") != stamp(version: "5.0.1", agentHash: "aa"))
+        #expect(stamp(version: "5.0.0", bundleHash: "aa") != stamp(version: "5.0.0", bundleHash: "bb"))
+        #expect(stamp(version: "5.0.0", bundleHash: "aa") == stamp(version: "5.0.0", bundleHash: "aa"))
+        #expect(stamp(version: "5.0.0", bundleHash: "aa") != stamp(version: "5.0.1", bundleHash: "aa"))
     }
 
-    @Test("a same-version bundle with a new agent binary recycles once, then not again")
+    @Test("a same-version bundle with new content recycles once, then not again")
     func sameVersionNewBinaryRecycles() async {
         await withScratchSuite { suite in
             let before = AgentRegistrar.recycleTrigger(
-                suiteName: suite, stamp: stamp(version: "5.0.0", agentHash: "aa"))
+                suiteName: suite, stamp: stamp(version: "5.0.0", bundleHash: "aa"))
             before.recycleCompleted()
 
             let replaced = AgentRegistrar.recycleTrigger(
-                suiteName: suite, stamp: stamp(version: "5.0.0", agentHash: "bb"))
+                suiteName: suite, stamp: stamp(version: "5.0.0", bundleHash: "bb"))
             let agent = FakeLaunchAgent(label: "agent", status: .enabled)
             let registrar = AgentRegistrar(
                 services: [agent], materializeContainer: {},
@@ -271,7 +270,7 @@ struct AgentRecycleTriggerTests {
     @Test("an unchanged bundle does not recycle")
     func unchangedBundleDoesNotRecycle() async {
         await withScratchSuite { suite in
-            let current = stamp(version: "5.0.0", agentHash: "aa")
+            let current = stamp(version: "5.0.0", bundleHash: "aa")
             AgentRegistrar.recycleTrigger(suiteName: suite, stamp: current).recycleCompleted()
             let trigger = AgentRegistrar.recycleTrigger(suiteName: suite, stamp: current)
             #expect(trigger.needsRecycle() == false)
@@ -287,5 +286,66 @@ struct AgentRecycleTriggerTests {
         #expect(ls != cat)
         #expect(ls == AgentRegistrar.codeDirectoryHash(URL(fileURLWithPath: "/bin/ls")))
         #expect(AgentRegistrar.codeDirectoryHash(URL(fileURLWithPath: "/nonexistent/librescrs-agent")) == nil)
+    }
+
+    /// Runs a command, failing the test on a non-zero exit.
+    private func run(_ tool: String, _ arguments: [String]) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tool)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        try #require(
+            process.terminationStatus == 0,
+            "\(tool) \(arguments) exited \(process.terminationStatus)")
+    }
+
+    /// An ad hoc signed bundle under `root`: an identical host and agent
+    /// program, and a library beside them copied from `dependency`, signed
+    /// inside out like the release bundle.
+    private func signedFixture(_ root: URL, name: String, dependency: String) throws -> URL {
+        let app = root.appendingPathComponent("\(name).app")
+        let macos = app.appendingPathComponent("Contents/MacOS")
+        let frameworks = app.appendingPathComponent("Contents/Frameworks")
+        let fm = FileManager.default
+        try fm.createDirectory(at: macos, withIntermediateDirectories: true)
+        try fm.createDirectory(at: frameworks, withIntermediateDirectories: true)
+        try fm.copyItem(atPath: "/usr/bin/true", toPath: macos.appendingPathComponent("Host").path)
+        try fm.copyItem(atPath: "/usr/bin/true", toPath: macos.appendingPathComponent("librescrs-agent").path)
+        try fm.copyItem(atPath: dependency, toPath: frameworks.appendingPathComponent("libdep.dylib").path)
+        let info: [String: Any] = [
+            "CFBundleExecutable": "Host", "CFBundleIdentifier": "org.librescrs.fixture",
+        ]
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+            .write(to: app.appendingPathComponent("Contents/Info.plist"))
+        for nested in ["Contents/Frameworks/libdep.dylib", "Contents/MacOS/librescrs-agent"] {
+            try run("/usr/bin/codesign", ["--force", "-s", "-", app.appendingPathComponent(nested).path])
+        }
+        try run("/usr/bin/codesign", ["--force", "-s", "-", app.path])
+        return app
+    }
+
+    @Test("a changed library beside an identical agent changes the bundle stamp")
+    func nestedLibraryChangeChangesStamp() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("librescrs-stamp-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let before = try signedFixture(root, name: "Before", dependency: "/usr/bin/true")
+        let after = try signedFixture(root, name: "After", dependency: "/usr/bin/false")
+
+        // The agent itself is byte-identical in both bundles.
+        let agent = "Contents/MacOS/librescrs-agent"
+        let agentBefore = AgentRegistrar.codeDirectoryHash(before.appendingPathComponent(agent))
+        let agentAfter = AgentRegistrar.codeDirectoryHash(after.appendingPathComponent(agent))
+        #expect(agentBefore != nil)
+        #expect(agentBefore == agentAfter)
+
+        let stampBefore = AgentRegistrar.bundleStamp(bundleVersion: "5.0.0", bundleURL: before)
+        let stampAfter = AgentRegistrar.bundleStamp(bundleVersion: "5.0.0", bundleURL: after)
+        #expect(!stampBefore.hasSuffix("|-"))
+        #expect(stampBefore != stampAfter)
+        #expect(stampBefore == AgentRegistrar.bundleStamp(bundleVersion: "5.0.0", bundleURL: before))
     }
 }

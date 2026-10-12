@@ -166,8 +166,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
 - Replacing LibreMac.app with another build of the same version now restarts
   the agent and the prompter from the new bundle. The app recycled them only
   when `CFBundleVersion` changed, so a rebuilt bundle kept the previous agent
-  running; it now also compares the code directory hash of each bundled
-  program.
+  running; it now also compares the code directory hash of the signed app,
+  which seals every program, library and plugin inside it — so a rebuilt
+  library under an unchanged agent counts too.
 - `Scripts/sign-bundle.sh` gives every signature made with a real identity
   Apple's secure timestamp. It passed `--timestamp=none` to every identity, and
   notarization refuses a Developer ID signature without one; ad hoc signatures
