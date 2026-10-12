@@ -26,6 +26,12 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- LibreMac opens at login, so its menu-bar icon is back after a restart; until
+  now only the agent and the prompter started on their own. On by default:
+  the first launch from the Applications folder adds it to Login Items, once.
+  Settings › General › "Open LibreMac at login" turns it off (or on again), and
+  says so when macOS still waits for your approval in System Settings › Login
+  Items. A copy run from anywhere else never adds itself.
 - The sign window takes typed paths. The file to sign and the place to save the
   signed copy are two text fields; Browse… next to each is only a convenience,
   because the system file panel service crashes on this macOS release and a

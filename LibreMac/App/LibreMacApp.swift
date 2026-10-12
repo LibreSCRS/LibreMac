@@ -32,6 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// client's own unicast streams.
     let preferences: PreferencesModel
     let registrar: AgentRegistrar
+    /// "Open LibreMac at login" (Settings › General).
+    let loginItem: LoginItemSetting
     /// Publishes the signing card's Keychain identities to `ctkd`. Driven by
     /// `monitor` on card presence/removal (see `CardMonitor`'s "Token
     /// identity publishing" section); the app delegate only re-registers it
@@ -52,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             client: CredentialsClientAdapter(client: client, monitor: monitor))
         self.preferences = PreferencesModel(client: client)
         self.registrar = AgentRegistrar.system()
+        self.loginItem = LoginItemSetting.system()
         super.init()
     }
 
@@ -66,7 +69,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tokenIdentityRegistrar.reregisterOnLaunch(currentCerts: [])
         // Registration first (materializes the App-Group container off-main),
         // then bring the client up; both are independent async flows.
-        Task { await registrar.activate() }
+        Task { [registrar, loginItem] in
+            await registrar.activate()
+            loginItem.applyDefaultOnce()
+        }
         Task { await client.start() }
         // The one and only consumer of the configuration-change stream, for
         // the life of the process. The agent broadcasts every accepted
@@ -130,6 +136,7 @@ struct LibreMacApp: App {
         Settings {
             PreferencesView(model: appDelegate.preferences)
                 .environment(AppLocalization.shared)
+                .environment(appDelegate.loginItem)
                 .id(localeKey)
         }
     }

@@ -13691,6 +13691,74 @@
         }
       }
     },
+    "libremac_settings_open_at_login" : {
+      "comment" : "libremac_settings_open_at_login",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open LibreMac at login"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покрени LibreMac при пријави"
+          }
+        }
+      }
+    },
+    "libremac_settings_open_at_login_approval" : {
+      "comment" : "libremac_settings_open_at_login_approval",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS waits for your approval in System Settings › Login Items."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS чека ваше одобрење у Системским подешавањима › Ставке за пријаву."
+          }
+        }
+      }
+    },
+    "libremac_settings_open_at_login_failed" : {
+      "comment" : "libremac_settings_open_at_login_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS did not accept the change. Try it in System Settings › Login Items."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS није прихватио измену. Покушајте у Системским подешавањима › Ставке за пријаву."
+          }
+        }
+      }
+    },
+    "libremac_settings_open_login_items" : {
+      "comment" : "libremac_settings_open_login_items",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Login Items…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отвори ставке за пријаву…"
+          }
+        }
+      }
+    },
     "libremac_settings_output_footer_sandboxed" : {
       "comment" : "libremac_settings_output_footer_sandboxed",
       "localizations" : {

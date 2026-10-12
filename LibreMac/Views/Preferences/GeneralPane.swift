@@ -14,12 +14,41 @@ import SwiftUI
 
 struct GeneralPane: View {
     @Environment(AppLocalization.self) private var localization
+    @Environment(LoginItemSetting.self) private var loginItem
     @AppStorage(AppGroupConstants.DefaultsKeys.defaultOutputFolder)
     private var outputFolder = ""
 
     var body: some View {
         @Bindable var localization = localization
         Form {
+            Section {
+                Toggle(
+                    localization.loc("libremac_settings_open_at_login", "Open LibreMac at login"),
+                    isOn: Binding(get: { loginItem.isOn }, set: { loginItem.setOn($0) }))
+            } footer: {
+                if loginItem.changeFailed {
+                    Text(
+                        localization.loc(
+                            "libremac_settings_open_at_login_failed",
+                            "macOS did not accept the change. Try it in System Settings › Login Items."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                if loginItem.needsApproval {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(
+                            localization.loc(
+                                "libremac_settings_open_at_login_approval",
+                                "macOS waits for your approval in System Settings › Login Items."))
+                        Button(localization.loc("libremac_settings_open_login_items", "Open Login Items…")) {
+                            loginItem.openLoginItemsSettings()
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 // Every tag is spelled `String?` on purpose. A Picker whose
                 // selection is `String?` needs tags of exactly that type; a
@@ -67,6 +96,8 @@ struct GeneralPane: View {
         // label column to the longest label, so the whole form shifted when
         // the language changed and the labels changed width.
         .formStyle(.grouped)
+        // The user may change it in System Settings while this is closed.
+        .onAppear { loginItem.refresh() }
     }
 
     private func pickFolder() {

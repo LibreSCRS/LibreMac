@@ -49,6 +49,42 @@ struct SMAppServiceAgent: LaunchAgentRegistering {
     }
 }
 
+/// The host itself as a login item (`SMAppService.mainApp`), behind the same
+/// seam: same status, register and unregister, and just as unmockable.
+struct SMAppServiceMainApp: LaunchAgentRegistering {
+    let label = "LibreMac.app"
+
+    func status() -> LaunchAgentStatus {
+        switch SMAppService.mainApp.status {
+        case .notRegistered: return .notRegistered
+        case .enabled: return .enabled
+        case .requiresApproval: return .requiresApproval
+        case .notFound: return .notFound
+        @unknown default: return .notFound
+        }
+    }
+
+    func register() throws {
+        try SMAppService.mainApp.register()
+    }
+
+    func unregister() throws {
+        try SMAppService.mainApp.unregister()
+    }
+}
+
+extension LoginItemSetting {
+
+    /// The production setting: the host's own login item, its first-launch
+    /// record in the host's defaults, and the Login Items opener.
+    static func system() -> LoginItemSetting {
+        LoginItemSetting(
+            item: SMAppServiceMainApp(), defaults: .standard,
+            isInstalled: { LoginItemSetting.isInApplicationsFolder(Bundle.main.bundleURL) },
+            openSettings: { SMAppService.openSystemSettingsLoginItems() })
+    }
+}
+
 extension AgentRegistrar {
 
     /// Builds the production registrar: the agent + prompter LaunchAgents, the

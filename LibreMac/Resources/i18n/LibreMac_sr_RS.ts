@@ -494,6 +494,22 @@
         <source>System</source>
         <translation>Систем</translation>
     </message>
+    <message id="libremac_settings_open_at_login">
+        <source>Open LibreMac at login</source>
+        <translation>Покрени LibreMac при пријави</translation>
+    </message>
+    <message id="libremac_settings_open_at_login_approval">
+        <source>macOS waits for your approval in System Settings › Login Items.</source>
+        <translation>macOS чека ваше одобрење у Системским подешавањима › Ставке за пријаву.</translation>
+    </message>
+    <message id="libremac_settings_open_at_login_failed">
+        <source>macOS did not accept the change. Try it in System Settings › Login Items.</source>
+        <translation>macOS није прихватио измену. Покушајте у Системским подешавањима › Ставке за пријаву.</translation>
+    </message>
+    <message id="libremac_settings_open_login_items">
+        <source>Open Login Items…</source>
+        <translation>Отвори ставке за пријаву…</translation>
+    </message>
     <message id="libremac_settings_browse">
         <source>Browse…</source>
         <translation>Прегледај…</translation>
