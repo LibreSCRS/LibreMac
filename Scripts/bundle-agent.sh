@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # SPDX-FileCopyrightText: 2026 hirashix0
 #
-# Stages librescrs-agent + librescrs-prompter (built by the LibreDarwin repo)
-# plus the LibreMiddleware dylib/pkcs11/plugin closure into a built LibreMac
-# host .app. It signs nothing: Scripts/sign-bundle.sh signs the result. This is
-# packaging glue only -- it does NOT build LibreMac or LibreDarwin; run
-# generate-project.sh + xcodebuild (or the release pipeline) first, then point
-# this script at the resulting .app.
+# Stages librescrs-agent + librescrs-prompter + the agent PKCS#11 module (built
+# by the LibreDarwin repo) plus the LibreMiddleware dylib/pkcs11/plugin closure
+# into a built LibreMac host .app. It signs nothing: Scripts/sign-bundle.sh
+# signs the result. This is packaging glue only -- it does NOT build LibreMac or
+# LibreDarwin; run generate-project.sh + xcodebuild (or the release pipeline)
+# first, then point this script at the resulting .app.
 #
 # Layout staged:
 #   Contents/Resources/certificates/ <- LM_LIB_PREFIX/../share/librescrs/certificates
@@ -15,6 +15,7 @@
 #   Contents/MacOS/librescrs-prompter        <- LIBREDARWIN_PREFIX/prompter/librescrs-prompter
 #   Contents/Frameworks/libLibreSCRS_*.dylib <- LM_LIB_PREFIX/libLibreSCRS_*.<soname>.dylib
 #   Contents/Frameworks/librescrs-pkcs11.dylib <- LM_LIB_PREFIX/pkcs11/librescrs-pkcs11.<soname>.dylib
+#   Contents/Frameworks/librescrs-pkcs11-agent.dylib <- LIBREDARWIN_PREFIX/pkcs11-module/librescrs-pkcs11-agent.dylib
 #   Contents/PlugIns/librescrs/*.dylib       <- LM_LIB_PREFIX/librescrs/plugins/*.dylib
 #   Contents/Library/LaunchAgents/org.librescrs.{agent,prompter}.plist <- Packaging/
 #   Contents/Resources/librescrs-agent.version <- stamped from the LibreDarwin build tree
@@ -53,6 +54,10 @@ LM_LIB_PREFIX="${3:-${LM_LIB_PREFIX:-$REPO_ROOT/../LibreMiddleware/build/_instal
     echo "bundle-agent: librescrs-prompter not found under $LIBREDARWIN_PREFIX (build LibreDarwin first)" >&2
     exit 1
 }
+[ -f "$LIBREDARWIN_PREFIX/pkcs11-module/librescrs-pkcs11-agent.dylib" ] || {
+    echo "bundle-agent: librescrs-pkcs11-agent.dylib not found under $LIBREDARWIN_PREFIX (build LibreDarwin first)" >&2
+    exit 1
+}
 [ -d "$LM_LIB_PREFIX" ] || {
     echo "bundle-agent: LibreMiddleware lib prefix not found: $LM_LIB_PREFIX" >&2
     exit 1
@@ -89,6 +94,11 @@ cp -R "$CERTS_SRC"/. "$RESOURCES/certificates/"
 cp "$LIBREDARWIN_PREFIX/agent/librescrs-agent" "$MACOS/librescrs-agent"
 cp "$LIBREDARWIN_PREFIX/prompter/librescrs-prompter" "$MACOS/librescrs-prompter"
 chmod u+w "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter"
+# The PKCS#11 module other applications load to reach the agent. Not to be
+# confused with librescrs-pkcs11.dylib below, which drives the card directly
+# and is the agent's own.
+cp "$LIBREDARWIN_PREFIX/pkcs11-module/librescrs-pkcs11-agent.dylib" "$FRAMEWORKS/librescrs-pkcs11-agent.dylib"
+chmod u+w "$FRAMEWORKS/librescrs-pkcs11-agent.dylib"
 
 # ---------------------------------------------------------------- stage LM dylibs
 # Dereference the soname symlinks -> the real versioned file: a symlinked

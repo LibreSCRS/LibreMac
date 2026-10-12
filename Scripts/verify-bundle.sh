@@ -141,6 +141,41 @@ else
     fail "librescrs-pkcs11.dylib missing from Contents/Frameworks"
 fi
 
+# ---------------------------------------------------------------- agent PKCS#11 module
+# The module other applications load (Firefox, Thunderbird, ssh) to reach the
+# agent. It is loaded into THEIR process, where neither @rpath nor this
+# bundle's Frameworks resolve, so it links nothing but the system; and it
+# exports exactly the Cryptoki entry point. Judged per architecture: nm and
+# otool read only the host's slice of a universal file unless told otherwise.
+PKCS11_AGENT="$FRAMEWORKS/librescrs-pkcs11-agent.dylib"
+if [ -f "$PKCS11_AGENT" ]; then
+    pass "librescrs-pkcs11-agent.dylib present in Contents/Frameworks"
+    module_archs="$(lipo -archs "$PKCS11_AGENT" 2>/dev/null || true)"
+    bad_exports=""
+    bad_deps=""
+    [ -n "$module_archs" ] || bad_exports=" not a Mach-O file;"
+    for a in $module_archs; do
+        exports="$(nm -arch "$a" -gU "$PKCS11_AGENT" 2>/dev/null | awk '{print $NF}' | paste -sd' ' -)"
+        [ "$exports" = "_C_GetFunctionList" ] || bad_exports="$bad_exports $a: '${exports}';"
+        # The same load commands the soname check above reads.
+        deps="$(otool -arch "$a" -l "$PKCS11_AGENT" | grep -E -A2 'cmd LC_(LOAD|LOAD_WEAK|REEXPORT)_DYLIB' \
+            | sed -n 's/^ *name \([^ ]*\) (offset.*/\1/p' | grep -vE '^/(usr/lib|System/Library)/' | paste -sd' ' -)"
+        [ -z "$deps" ] || bad_deps="$bad_deps $a: $deps;"
+    done
+    if [ -z "$bad_exports" ]; then
+        pass "librescrs-pkcs11-agent.dylib exports only _C_GetFunctionList ($module_archs)"
+    else
+        fail "librescrs-pkcs11-agent.dylib exports must be exactly _C_GetFunctionList, got:$bad_exports"
+    fi
+    if [ -z "$bad_deps" ]; then
+        pass "librescrs-pkcs11-agent.dylib links only system libraries"
+    else
+        fail "librescrs-pkcs11-agent.dylib links outside the system, which the loading application cannot resolve:$bad_deps"
+    fi
+else
+    fail "librescrs-pkcs11-agent.dylib missing from Contents/Frameworks"
+fi
+
 # ---------------------------------------------------------------- plugin count
 plugin_count=0
 if [ -d "$PLUGINS" ]; then
@@ -405,9 +440,9 @@ fi
 
 # ---------------------------------------------------------------- lipo arch check
 expected_archs="${LIBREDARWIN_EXPECTED_ARCHS:-}"
-for bin in librescrs-agent librescrs-prompter; do
-    path="$MACOS/$bin"
-    [ -x "$path" ] || continue
+for path in "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter" "$FRAMEWORKS/librescrs-pkcs11-agent.dylib"; do
+    [ -f "$path" ] || continue
+    bin="$(basename "$path")"
     archs="$(lipo -archs "$path" 2>/dev/null || true)"
     if [ -n "$expected_archs" ]; then
         if [ "$archs" = "$expected_archs" ]; then
@@ -419,6 +454,35 @@ for bin in librescrs-agent librescrs-prompter; do
         skip "$bin archs '$archs' (LIBREDARWIN_EXPECTED_ARCHS not set — record-only)"
     fi
 done
+
+# ---------------------------------------------------------------- minimum macOS
+# The app says which macOS it runs on (LSMinimumSystemVersion); every Mach-O it
+# carries must say the same, on every slice. A binary built for a later macOS
+# than the app claims installs fine and then does not start there.
+min_os="$(plutil -extract LSMinimumSystemVersion raw -o - "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)"
+if [ -z "$min_os" ]; then
+    fail "Contents/Info.plist carries no LSMinimumSystemVersion: no minimum macOS to hold the binaries to"
+else
+    for bin in "$MACOS"/* "$FRAMEWORKS"/*.dylib "$PLUGINS"/*.dylib "$APP_PATH/Contents/PlugIns/LibreMacToken.appex/Contents/MacOS"/*; do
+        [ -f "$bin" ] || continue
+        file -b "$bin" | grep -q 'Mach-O' || continue
+        name="$(basename "$bin")"
+        wrong=0
+        for a in $(lipo -archs "$bin" 2>/dev/null); do
+            # LC_BUILD_VERSION carries "minos"; the older LC_VERSION_MIN_MACOSX "version".
+            minos="$(otool -arch "$a" -l "$bin" | awk '
+                /cmd LC_BUILD_VERSION/ { b = 1; next }
+                /cmd LC_VERSION_MIN_MACOSX/ { v = 1; next }
+                b && $1 == "minos" { print $2; exit }
+                v && $1 == "version" { print $2; exit }')"
+            if [ "$minos" != "$min_os" ]; then
+                fail "$name ($a) minos ${minos:-none}, the app claims $min_os"
+                wrong=1
+            fi
+        done
+        [ "$wrong" = 1 ] || pass "$name minos $min_os ($(lipo -archs "$bin" 2>/dev/null)), as the app claims"
+    done
+fi
 
 # ---------------------------------------------------------------- spctl (ad-hoc: record-only)
 spctl_out="$(spctl -a -vv "$APP_PATH" 2>&1 || true)"

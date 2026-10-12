@@ -15,6 +15,11 @@
 # is signed into another group must fail verify-bundle.sh's group line naming
 # both groups, and sign-bundle.sh, copied next to fixture entitlements, must
 # write the one group into every component.
+#
+# Also the agent PKCS#11 module (present, one export, system libraries only)
+# and the minimum macOS: every fixture is built for 15.0 and its Info.plist
+# claims 15.0; a binary built for 27.0 -- what the compiler picks on a macOS 27
+# host when nothing says otherwise -- must fail by name.
 set -uo pipefail
 export LC_ALL=C
 
@@ -52,7 +57,8 @@ P
 if ! echo 'int x;' | cc -x c -dynamiclib -o "$work/probe.dylib" - 2>/dev/null; then
     SDKROOT="$(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun --sdk macosx --show-sdk-path 2>/dev/null)" && export SDKROOT
 fi
-cc -dynamiclib -o "$work/libfix.dylib" -install_name @rpath/libfix.dylib "$work/fix.c" || { echo "cannot build the fixture dylib"; exit 2; }
+min_os=15.0
+cc -mmacosx-version-min=$min_os -dynamiclib -o "$work/libfix.dylib" -install_name @rpath/libfix.dylib "$work/fix.c" || { echo "cannot build the fixture dylib"; exit 2; }
 
 # app_groups_plist <file> <group>... -- entitlements: DLV plus these App Groups
 app_groups_plist() {
@@ -68,17 +74,19 @@ app_groups_plist "$work/in-group.plist" group.org.librescrs.LibreMac
 app_groups_plist "$work/in-team.plist" ABCDE12345.org.librescrs.LibreMac
 app_groups_plist "$work/in-two.plist" group.org.librescrs.LibreMac other.example
 
-# make_app <name> <main.c> <entitlements|-> [team] -> $work/<name>.app; a team
-# (possibly empty) writes Contents/Info.plist with LibreSCRSTeamID.
+# make_app <name> <main.c> <entitlements|-> [team] -> $work/<name>.app, with
+# Contents/Info.plist claiming LSMinimumSystemVersion $min_os; a team (possibly
+# empty) adds LibreSCRSTeamID. AGENT_MIN builds the agent for another macOS.
 make_app() {
     local app="$work/$1.app"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Frameworks"
+    plutil -create xml1 "$app/Contents/Info.plist"
+    plutil -insert LSMinimumSystemVersion -string "$min_os" "$app/Contents/Info.plist"
     if [ "$#" -ge 4 ]; then
-        plutil -create xml1 "$app/Contents/Info.plist"
         plutil -insert LibreSCRSTeamID -string "$4" "$app/Contents/Info.plist"
     fi
     cp "$work/libfix.dylib" "$app/Contents/Frameworks/"
-    cc -o "$app/Contents/MacOS/librescrs-agent" "$work/$2" -L"$work" -lfix \
+    cc -mmacosx-version-min="${AGENT_MIN:-$min_os}" -o "$app/Contents/MacOS/librescrs-agent" "$work/$2" -L"$work" -lfix \
         -Wl,-rpath,@executable_path/../Frameworks || return 1
     codesign --force -s - --options runtime --timestamp=none "$app/Contents/Frameworks/libfix.dylib" || return 1
     if [ "$3" = - ]; then
@@ -159,7 +167,7 @@ fi
 # ---------------------------------------------------------------- App Group in verify-bundle.sh
 expect_group teamgroup FAIL 'in App Group group\.org\.librescrs\.LibreMac, the team names ABCDE12345\.org\.librescrs\.LibreMac' red "$verify"
 expect_group teamteam PASS 'ABCDE12345\.org\.librescrs\.LibreMac' green "$verify"
-# No Info.plist at all, as every fixture above: no team, so "group.".
+# No LibreSCRSTeamID in the Info.plist, as every fixture above: no team, so "group.".
 expect_group noteam PASS 'group\.org\.librescrs\.LibreMac' green "$verify"
 expect_group noteamteam FAIL 'in App Group ABCDE12345\.org\.librescrs\.LibreMac, the team names group\.org\.librescrs\.LibreMac' red "$verify"
 expect_group twogroups FAIL 'more than one' red "$verify"
@@ -183,8 +191,8 @@ fi
 make_signable() {
     local app="$work/$1.app" appex
     make_app "$1" main2.c - "" || return 1
-    cc -o "$app/Contents/MacOS/librescrs-prompter" "$work/main2.c" -L"$work" -lfix -Wl,-rpath,@executable_path/../Frameworks || return 1
-    cc -o "$app/Contents/MacOS/LibreMac" "$work/main1.c" -L"$work" -lfix -Wl,-rpath,@executable_path/../Frameworks || return 1
+    cc -mmacosx-version-min=$min_os -o "$app/Contents/MacOS/librescrs-prompter" "$work/main2.c" -L"$work" -lfix -Wl,-rpath,@executable_path/../Frameworks || return 1
+    cc -mmacosx-version-min=$min_os -o "$app/Contents/MacOS/LibreMac" "$work/main1.c" -L"$work" -lfix -Wl,-rpath,@executable_path/../Frameworks || return 1
     plutil -insert CFBundleExecutable -string LibreMac "$app/Contents/Info.plist"
     plutil -insert CFBundleIdentifier -string org.librescrs.selftest "$app/Contents/Info.plist"
     appex="$app/Contents/PlugIns/LibreMacToken.appex"
@@ -221,6 +229,52 @@ if bash "$work/sign-ok/Scripts/sign-bundle.sh" "$work/signed-ok.app" >"$signs_ou
 else
     echo "  FAIL  sign-bundle refused a good bundle: $(tr '
 ' ' ' <"$signs_out")"; fail=$((fail+1))
+fi
+
+# ---------------------------------------------------------------- agent PKCS#11 module and minimum macOS
+cat > "$work/mod.c" <<'C'
+int C_GetFunctionList(void **list) { *list = 0; return 0; }
+int C_Initialize(void *args) { (void)args; return 0; }
+C
+echo _C_GetFunctionList >"$work/exports-one.txt"
+printf '_C_GetFunctionList\n_C_Initialize\n' >"$work/exports-two.txt"
+# add_module <name> <exports file> <min macOS> [extra cc args] -> the module in $work/<name>.app
+add_module() {
+    local name="$1" exports="$2" min="$3"
+    shift 3
+    cc -bundle -mmacosx-version-min="$min" -Wl,-exported_symbols_list,"$exports" \
+        -o "$work/$name.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib" "$work/mod.c" "$@"
+}
+make_app modok main2.c "$work/dlv.plist" && add_module modok "$work/exports-one.txt" "$min_os" || exit 2
+make_app mod27 main2.c "$work/dlv.plist" && add_module mod27 "$work/exports-one.txt" 27.0 || exit 2
+make_app modtwo main2.c "$work/dlv.plist" && add_module modtwo "$work/exports-two.txt" "$min_os" || exit 2
+make_app moddep main2.c "$work/dlv.plist" && add_module moddep "$work/exports-one.txt" "$min_os" -L"$work" -lfix || exit 2
+AGENT_MIN=27.0 make_app agent27 main2.c "$work/dlv.plist" || exit 2
+make_app nominos main2.c "$work/dlv.plist" && plutil -remove LSMinimumSystemVersion "$work/nominos.app/Contents/Info.plist" || exit 2
+
+# expect_line <label> <name> <line prefix> <PASS|FAIL> <regex> <red?> [verify script]
+expect_line() { verdict "$1" "$4" "$5" "$6" "$(judged_line "${7:-$verify}" "$work/$2.app" "$3")"; }
+present='librescrs-pkcs11-agent\.dylib (present|missing)'
+exports='librescrs-pkcs11-agent\.dylib exports'
+links='librescrs-pkcs11-agent\.dylib links'
+minos_of() { echo "$1( \([a-z0-9_]+\))? minos"; }
+
+expect_line "module present" modok "$present" PASS 'present' green
+expect_line "module missing" dlv "$present" FAIL 'missing from Contents/Frameworks' red
+expect_line "module exports" modok "$exports" PASS 'only _C_GetFunctionList' green
+expect_line "module exports C_Initialize too" modtwo "$exports" FAIL "'_C_GetFunctionList _C_Initialize'" red
+expect_line "module links" modok "$links" PASS 'only system libraries' green
+expect_line "module links a bundled library" moddep "$links" FAIL '@rpath/libfix\.dylib' red
+expect_line "module minos" modok "$(minos_of 'librescrs-pkcs11-agent\.dylib')" PASS "minos 15\.0 .*as the app claims" green
+expect_line "agent minos" modok "$(minos_of librescrs-agent)" PASS "minos 15\.0 .*as the app claims" green
+expect_line "module built for 27.0" mod27 "$(minos_of 'librescrs-pkcs11-agent\.dylib')" FAIL '\([a-z0-9_]+\) minos 27\.0, the app claims 15\.0' red
+expect_line "agent built for 27.0" agent27 "$(minos_of librescrs-agent)" FAIL 'librescrs-agent \([a-z0-9_]+\) minos 27\.0, the app claims 15\.0' red
+expect_line "no LSMinimumSystemVersion" nominos 'Contents/Info\.plist carries no LSMinimumSystemVersion' FAIL 'no minimum macOS' red
+
+# Perturbation: a minos check that compares nothing must pass the agent built
+# for 27.0, or the case above is not testing the comparison.
+if perturbed verify-anyminos.sh 's/"\$minos" != "\$min_os"/-z "$minos"/' "$verify"; then
+    expect_line "perturbation: minos not compared" agent27 "$(minos_of librescrs-agent)" PASS '' green "$work/verify-anyminos.sh"
 fi
 
 echo "verify-bundle.selftest: $pass passed, $fail failed"

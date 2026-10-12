@@ -26,6 +26,12 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A PKCS#11 module for applications that load one — Firefox, Thunderbird,
+  ssh: `LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib`. It
+  holds no card code of its own; it reaches the LibreSCRS agent over the
+  agent's existing socket, and talks to it only after checking that the other
+  end is that agent. It links only system libraries and exports only
+  `C_GetFunctionList`.
 - LibreMac opens at login, so its menu-bar icon is back after a restart; until
   now only the agent and the prompter started on their own. On by default:
   the first launch from the Applications folder adds it to Login Items, once.
@@ -157,6 +163,11 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Every binary in the app now targets macOS 15, the minimum the app states.
+  The agent and the prompter had been built for macOS 27, the build machine's
+  own release, so on an earlier macOS they would not have started. The bundle
+  check now holds every executable, library and plugin, on both architectures,
+  to the app's minimum.
 - The agent in the disk image now starts. Signed ad hoc under the hardened
   runtime, it was subject to library validation and died in the dynamic
   loader; it now carries `disable-library-validation` until a Developer ID
