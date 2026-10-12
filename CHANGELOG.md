@@ -166,8 +166,8 @@ versioning follows [Semantic Versioning](https://semver.org/).
 - Every binary in the app now targets macOS 15, the minimum the app states.
   The agent and the prompter had been built for macOS 27, the build machine's
   own release, so on an earlier macOS they would not have started. The bundle
-  check now holds every executable, library and plugin, on both architectures,
-  to the app's minimum.
+  check now fails any executable, library or plugin that, on either
+  architecture, needs a later macOS than the app's minimum.
 - The agent in the disk image now starts. Signed ad hoc under the hardened
   runtime, it was subject to library validation and died in the dynamic
   loader; it now carries `disable-library-validation` until a Developer ID

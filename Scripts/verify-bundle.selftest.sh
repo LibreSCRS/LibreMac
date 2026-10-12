@@ -250,6 +250,12 @@ make_app mod27 main2.c "$work/dlv.plist" && add_module mod27 "$work/exports-one.
 make_app modtwo main2.c "$work/dlv.plist" && add_module modtwo "$work/exports-two.txt" "$min_os" || exit 2
 make_app moddep main2.c "$work/dlv.plist" && add_module moddep "$work/exports-one.txt" "$min_os" -L"$work" -lfix || exit 2
 AGENT_MIN=27.0 make_app agent27 main2.c "$work/dlv.plist" || exit 2
+AGENT_MIN=14.0 make_app agent14 main2.c "$work/dlv.plist" || exit 2
+make_app bare15 main2.c "$work/dlv.plist" && plutil -replace LSMinimumSystemVersion -string 15 "$work/bare15.app/Contents/Info.plist" || exit 2
+make_app modtext main2.c "$work/dlv.plist" && echo 'not a library' >"$work/modtext.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib" || exit 2
+# A Mach-O header lipo cannot read (16 bytes), and one it can but otool cannot (32).
+make_app noarch main2.c "$work/dlv.plist" && head -c 16 "$work/libfix.dylib" >"$work/noarch.app/Contents/Frameworks/libcut.dylib" || exit 2
+make_app nominosread main2.c "$work/dlv.plist" && head -c 32 "$work/libfix.dylib" >"$work/nominosread.app/Contents/Frameworks/libcut.dylib" || exit 2
 make_app nominos main2.c "$work/dlv.plist" && plutil -remove LSMinimumSystemVersion "$work/nominos.app/Contents/Info.plist" || exit 2
 
 # expect_line <label> <name> <line prefix> <PASS|FAIL> <regex> <red?> [verify script]
@@ -265,15 +271,20 @@ expect_line "module exports" modok "$exports" PASS 'only _C_GetFunctionList' gre
 expect_line "module exports C_Initialize too" modtwo "$exports" FAIL "'_C_GetFunctionList _C_Initialize'" red
 expect_line "module links" modok "$links" PASS 'only system libraries' green
 expect_line "module links a bundled library" moddep "$links" FAIL '@rpath/libfix\.dylib' red
-expect_line "module minos" modok "$(minos_of 'librescrs-pkcs11-agent\.dylib')" PASS "minos 15\.0 .*as the app claims" green
-expect_line "agent minos" modok "$(minos_of librescrs-agent)" PASS "minos 15\.0 .*as the app claims" green
-expect_line "module built for 27.0" mod27 "$(minos_of 'librescrs-pkcs11-agent\.dylib')" FAIL '\([a-z0-9_]+\) minos 27\.0, the app claims 15\.0' red
-expect_line "agent built for 27.0" agent27 "$(minos_of librescrs-agent)" FAIL 'librescrs-agent \([a-z0-9_]+\) minos 27\.0, the app claims 15\.0' red
+expect_line "module links, not a Mach-O" modtext "$links" FAIL 'not a Mach-O file' red
+expect_line "module minos" modok "$(minos_of 'librescrs-pkcs11-agent\.dylib')" PASS "minos 15\.0 .*no later than the 15\.0 the app claims" green
+expect_line "agent minos" modok "$(minos_of librescrs-agent)" PASS "minos 15\.0 .*no later than the 15\.0 the app claims" green
+expect_line "module built for 27.0" mod27 "$(minos_of 'librescrs-pkcs11-agent\.dylib')" FAIL '\([a-z0-9_]+\) minos 27\.0, later than the 15\.0 the app claims' red
+expect_line "agent built for 27.0" agent27 "$(minos_of librescrs-agent)" FAIL 'librescrs-agent \([a-z0-9_]+\) minos 27\.0, later than the 15\.0 the app claims' red
+expect_line "agent built for 14.0" agent14 "$(minos_of librescrs-agent)" PASS 'minos 14\.0 .*no later than the 15\.0 the app claims' green
+expect_line "Info.plist says 15, agent 15.0" bare15 "$(minos_of librescrs-agent)" PASS 'minos 15\.0 .*no later than the 15 the app claims' green
+expect_line "Mach-O lipo cannot read" noarch "$(minos_of 'libcut\.dylib')" FAIL 'unreadable: lipo names no architecture' red
+expect_line "Mach-O with no readable minos" nominosread "$(minos_of 'libcut\.dylib')" FAIL 'minos none unreadable' red
 expect_line "no LSMinimumSystemVersion" nominos 'Contents/Info\.plist carries no LSMinimumSystemVersion' FAIL 'no minimum macOS' red
 
 # Perturbation: a minos check that compares nothing must pass the agent built
 # for 27.0, or the case above is not testing the comparison.
-if perturbed verify-anyminos.sh 's/"\$minos" != "\$min_os"/-z "$minos"/' "$verify"; then
+if perturbed verify-anyminos.sh 's/version_le "\$minos" "\$min_os"$/true/' "$verify"; then
     expect_line "perturbation: minos not compared" agent27 "$(minos_of librescrs-agent)" PASS '' green "$work/verify-anyminos.sh"
 fi
 

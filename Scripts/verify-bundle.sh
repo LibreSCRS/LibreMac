@@ -167,7 +167,9 @@ if [ -f "$PKCS11_AGENT" ]; then
     else
         fail "librescrs-pkcs11-agent.dylib exports must be exactly _C_GetFunctionList, got:$bad_exports"
     fi
-    if [ -z "$bad_deps" ]; then
+    if [ -z "$module_archs" ]; then
+        fail "librescrs-pkcs11-agent.dylib links: not a Mach-O file, so what it links cannot be read"
+    elif [ -z "$bad_deps" ]; then
         pass "librescrs-pkcs11-agent.dylib links only system libraries"
     else
         fail "librescrs-pkcs11-agent.dylib links outside the system, which the loading application cannot resolve:$bad_deps"
@@ -456,31 +458,67 @@ for path in "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter" "$FRAMEWORKS/li
 done
 
 # ---------------------------------------------------------------- minimum macOS
-# The app says which macOS it runs on (LSMinimumSystemVersion); every Mach-O it
-# carries must say the same, on every slice. A binary built for a later macOS
-# than the app claims installs fine and then does not start there.
+# The app says which macOS it runs on (LSMinimumSystemVersion); no Mach-O it
+# carries may need a later one, on any slice. A binary built for a later macOS
+# than the app claims installs fine and then does not start there. One built
+# for an earlier macOS starts on this one too, so it passes.
+
+# version_le <a> <b>: 0 when a <= b, 1 when a > b, 2 when either is not a
+# dotted number. Compared per component; a missing one counts as 0, so 15,
+# 15.0 and 15.0.0 are the same version.
+version_le() {
+    case "$1" in '' | *[!0-9.]*) return 2 ;; esac
+    case "$2" in '' | *[!0-9.]*) return 2 ;; esac
+    local IFS=.
+    local -a x=($1) y=($2)
+    local i n=${#x[@]}
+    [ "${#y[@]}" -gt "$n" ] && n=${#y[@]}
+    for ((i = 0; i < n; i++)); do
+        ((10#${x[i]:-0} < 10#${y[i]:-0})) && return 0
+        ((10#${x[i]:-0} > 10#${y[i]:-0})) && return 1
+    done
+    return 0
+}
+
 min_os="$(plutil -extract LSMinimumSystemVersion raw -o - "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)"
 if [ -z "$min_os" ]; then
     fail "Contents/Info.plist carries no LSMinimumSystemVersion: no minimum macOS to hold the binaries to"
+elif ! version_le "$min_os" "$min_os"; then
+    fail "Contents/Info.plist LSMinimumSystemVersion '$min_os' is not a version"
 else
     for bin in "$MACOS"/* "$FRAMEWORKS"/*.dylib "$PLUGINS"/*.dylib "$APP_PATH/Contents/PlugIns/LibreMacToken.appex/Contents/MacOS"/*; do
         [ -f "$bin" ] || continue
         file -b "$bin" | grep -q 'Mach-O' || continue
         name="$(basename "$bin")"
+        archs="$(lipo -archs "$bin" 2>/dev/null || true)"
+        if [ -z "$archs" ]; then
+            fail "$name minos unreadable: lipo names no architecture in this Mach-O"
+            continue
+        fi
         wrong=0
-        for a in $(lipo -archs "$bin" 2>/dev/null); do
+        seen=""
+        for a in $archs; do
             # LC_BUILD_VERSION carries "minos"; the older LC_VERSION_MIN_MACOSX "version".
-            minos="$(otool -arch "$a" -l "$bin" | awk '
+            minos="$(otool -arch "$a" -l "$bin" 2>/dev/null | awk '
                 /cmd LC_BUILD_VERSION/ { b = 1; next }
                 /cmd LC_VERSION_MIN_MACOSX/ { v = 1; next }
                 b && $1 == "minos" { print $2; exit }
                 v && $1 == "version" { print $2; exit }')"
-            if [ "$minos" != "$min_os" ]; then
-                fail "$name ($a) minos ${minos:-none}, the app claims $min_os"
+            version_le "$minos" "$min_os"
+            case $? in
+            0) seen="$seen $minos" ;;
+            1)
+                fail "$name ($a) minos $minos, later than the $min_os the app claims"
                 wrong=1
-            fi
+                ;;
+            *)
+                fail "$name ($a) minos ${minos:-none} unreadable, the app claims $min_os"
+                wrong=1
+                ;;
+            esac
         done
-        [ "$wrong" = 1 ] || pass "$name minos $min_os ($(lipo -archs "$bin" 2>/dev/null)), as the app claims"
+        seen="$(printf '%s\n' $seen | sort -u | paste -sd' ' -)"
+        [ "$wrong" = 1 ] || pass "$name minos $seen ($archs), no later than the $min_os the app claims"
     done
 fi
 
