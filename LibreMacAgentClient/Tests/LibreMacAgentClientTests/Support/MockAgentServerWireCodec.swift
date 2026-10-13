@@ -275,6 +275,7 @@ private func encodeCertInfo(_ info: CertificateInfo) -> CBORValue {
         ("ekus", .array(info.ekus.map { .text($0) })),
         ("chainSubjectCns", .array(info.chainSubjectCns.map { .text($0) })),
         ("trustStatus", .uint(UInt64(info.trustStatus))),
+        ("alwaysAuthenticate", .bool(info.alwaysAuthenticate)),
     ])
 }
 

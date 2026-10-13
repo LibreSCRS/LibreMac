@@ -26,6 +26,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The agent client reads whether the card asks for the PIN before every
+  operation with a certificate's key (`CertificateInfo.alwaysAuthenticate`).
+  An agent that omits the field is rejected.
 - A PKCS#11 module for applications that load one — Firefox, Thunderbird,
   ssh: `LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib`. It
   holds no card code of its own; it reaches the LibreSCRS agent over the

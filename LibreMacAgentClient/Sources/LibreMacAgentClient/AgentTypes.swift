@@ -992,6 +992,9 @@ public struct CertField: Sendable, Equatable {
 /// follows the wire structure verbatim (the wire contract is authoritative
 /// where it differs from any flat-field sketch); the struct is named
 /// `CertificateInfo`.
+///
+/// `alwaysAuthenticate`: the card asks for the PIN before every operation with
+/// this certificate's key; the agent enforces it, a client only tells the user.
 public struct CertificateInfo: Sendable, Equatable {
     public let certId: String
     public let signingCapable: Bool
@@ -1000,10 +1003,12 @@ public struct CertificateInfo: Sendable, Equatable {
     public let ekus: [String]
     public let chainSubjectCns: [String]
     public let trustStatus: UInt32
+    public let alwaysAuthenticate: Bool
 
     public init(
         certId: String, signingCapable: Bool, fields: [String: [String: CertField]],
-        keyUsageBits: UInt32, ekus: [String], chainSubjectCns: [String], trustStatus: UInt32
+        keyUsageBits: UInt32, ekus: [String], chainSubjectCns: [String], trustStatus: UInt32,
+        alwaysAuthenticate: Bool
     ) {
         self.certId = certId
         self.signingCapable = signingCapable
@@ -1012,6 +1017,7 @@ public struct CertificateInfo: Sendable, Equatable {
         self.ekus = ekus
         self.chainSubjectCns = chainSubjectCns
         self.trustStatus = trustStatus
+        self.alwaysAuthenticate = alwaysAuthenticate
     }
 }
 

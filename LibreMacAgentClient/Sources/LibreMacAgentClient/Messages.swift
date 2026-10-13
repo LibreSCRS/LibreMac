@@ -604,7 +604,8 @@ private func parseCertInfo(_ v: CBORValue) throws(MessageError) -> CertificateIn
         keyUsageBits: UInt32(truncatingIfNeeded: try requireUInt64(m, "keyUsageBits")),
         ekus: ekus,
         chainSubjectCns: chainSubjectCns,
-        trustStatus: UInt32(truncatingIfNeeded: try requireUInt64(m, "trustStatus")))
+        trustStatus: UInt32(truncatingIfNeeded: try requireUInt64(m, "trustStatus")),
+        alwaysAuthenticate: try requireBool(m, "alwaysAuthenticate"))
 }
 
 private func parseSignMeta(_ v: CBORValue) throws(MessageError) -> SignMeta {
