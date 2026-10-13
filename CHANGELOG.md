@@ -76,6 +76,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The token extension no longer logs in before every signature; the PIN is
+  asked for when the card's rule for the key requires it (every signature
+  for a key the card marks, once per agent lease otherwise).
 - The App Group is named after the team the build is signed by,
   `<TeamID>.org.librescrs.LibreMac`, because macOS 27 refuses the
   unprovisioned `group.org.librescrs.LibreMac` container to the sandboxed host

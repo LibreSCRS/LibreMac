@@ -3,19 +3,13 @@
 import CryptoTokenKit
 import LibreMacAgentClient
 
-// Protected-auth operation: the secret NEVER reaches the extension. finish() (the
-// Swift bridge of -finishWithError:) asks the agent to prompt+verify; no PIN is
-// passed. The certId is threaded in by the session's beginAuthFor (read from the
-// token's keychain key), NOT from the constraint.
+// Auth operation for the signData constraint: it succeeds without touching the
+// agent. The secret NEVER reaches the extension, and the agent asks for the PIN
+// itself when a signature needs one (every signature for a key the card marks,
+// once per lease otherwise). A login here would only reset the lease's verified
+// state and cost an unmarked key a prompt it does not need.
 final class TokenAuthOperation: TKTokenAuthOperation {
-    // The session's connection, not a snapshot of it: a login that finds the
-    // connection closed rebuilds it for the sign that follows as well.
-    private let agent: ReconnectingTokenEngine
-    private let certId: String
-
-    init(agent: ReconnectingTokenEngine, certId: String) {
-        self.agent = agent
-        self.certId = certId
+    override init() {
         super.init()
     }
 
@@ -27,11 +21,5 @@ final class TokenAuthOperation: TKTokenAuthOperation {
         fatalError("TokenAuthOperation is not NSCoding-decodable")
     }
 
-    override func finish() throws {
-        do {
-            try agent.withEngine { try $0.login(certId: certId) }
-        } catch let TokenOpError.mapped(code) {
-            throw NSError(tkError: code)
-        }
-    }
+    override func finish() throws {}
 }

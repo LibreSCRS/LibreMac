@@ -12,7 +12,7 @@ final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
     // restarts, so a connection the agent closed is rebuilt once per operation
     // (see `ReconnectingTokenEngine` for when replaying is safe); a failure that
     // cannot be recovered surfaces as `TKError.communicationError` from the
-    // delegate call that needed it (`signData` / `beginAuthFor`). The connection
+    // delegate call that needed it (`signData`). The connection
     // is closed via `TokenAgentClient.deinit` when it fails or when the session
     // itself deallocates.
     private let agent = ReconnectingTokenEngine(connect: { try TokenAgentClient() })
@@ -32,32 +32,22 @@ final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
                        keyObjectID: TKToken.ObjectID, algorithm: TKTokenKeyAlgorithm) throws -> Data {
         let certId = try objectIDString(keyObjectID)
         do {
-            // Every key requires a fresh login for every signature, mirroring
-            // the client PKCS#11 proxy's always-authenticate advertisement:
-            // the extension only ever sees an opaque certId and has no
-            // reliable way to tell a non-repudiation key from an
-            // authentication key, so a uniform per-signature prompt is the
-            // only safe default.
+            // The card decides: the agent asks for the PIN before every
+            // signature with a key the card marks for consent per operation,
+            // and within its lease for any other key. The token adds no login
+            // of its own, so what the user sees follows the card.
             return try agent.withEngine {
-                try $0.sign(certId: certId, digestInfo: dataToSign, requireFreshAuth: true)
+                try $0.sign(certId: certId, digestInfo: dataToSign)
             }
         } catch let TokenOpError.mapped(code) {
             throw NSError(tkError: code)
         }
     }
 
-    // We do NOT trust `constraint` to carry the objectID — the framework hands it
-    // back as an opaque authID. The real objectID is read from the token's
-    // keychain key. TKTokenKeychainContents exposes only `items` (no `keys`
-    // accessor), so filter it to the key item.
+    // The auth operation needs nothing from the constraint or the key: the
+    // agent enforces the card's PIN rule at the signature itself.
     func tokenSession(_ session: TKTokenSession, beginAuthFor operation: TKTokenOperation,
                        constraint: Any) throws -> TKTokenAuthOperation {
-        guard let key = self.token.keychainContents?.items
-            .compactMap({ $0 as? TKTokenKeychainKey }).first
-        else {
-            throw NSError(tkError: .objectNotFound)
-        }
-        let certId = try objectIDString(key.objectID)
-        return TokenAuthOperation(agent: agent, certId: certId)
+        TokenAuthOperation()
     }
 }

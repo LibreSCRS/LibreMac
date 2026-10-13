@@ -55,7 +55,7 @@ struct TokenSessionReconnectTests {
 
     private func sign(_ unit: ReconnectingTokenEngine) throws -> Data {
         try unit.withEngine {
-            try $0.sign(certId: "cert", digestInfo: Data([0x30]), requireFreshAuth: true)
+            try $0.sign(certId: "cert", digestInfo: Data([0x30]))
         }
     }
 
@@ -157,13 +157,14 @@ struct TokenSessionReconnectTests {
         }
     }
 
-    @Test("an undelivered sign is not replayed once a login already reached the agent")
-    func tokenSessionReconnectKeepsADeliveredLoginFromBeingRepeated() throws {
+    @Test("a sign the agent already answered is not replayed after the login retry is lost")
+    func tokenSessionReconnectDoesNotReplayAfterAnAnsweredSign() throws {
         var made = 0
         let unit = ReconnectingTokenEngine(connect: {
             made += 1
             return FakeTransport([
                 { _ in Self.state },
+                { _ in .err(ErrInfo(code: .name(.userNotLoggedIn))) },
                 { _ in .ack },
                 { _ in throw TokenTransportError.notDelivered },
             ])
@@ -195,7 +196,6 @@ struct TokenSessionReconnectTests {
             return FakeTransport([
                 { _ in twoCarded },
                 { _ in .certDer(der: Data([0x01])) },
-                { _ in .ack },
                 { _ in .rawSignature(sig: Data([0x44])) },
             ])
         })
@@ -213,7 +213,6 @@ struct TokenSessionReconnectTests {
             }
             return FakeTransport([
                 { _ in Self.state },
-                { _ in .ack },
                 { _ in .rawSignature(sig: Data([0x33])) },
             ])
         })

@@ -51,7 +51,7 @@ LIBRESCRS_HW=1 \
 LIBRESCRS_PLUGIN_DIR=<LibreMiddleware install prefix>/lib/librescrs/plugins \
 LIBRESCRS_TEST_CAN=<the card's real CAN> \
 LIBRESCRS_TEST_PIN=<the card's real signing PIN> \
-  ctest --test-dir build -R SignHwSmokeTest --output-on-failure
+  ctest --test-dir build -R SignHwSmokeTest -V
 
 unset LIBRESCRS_TEST_PIN LIBRESCRS_TEST_CAN
 ```
@@ -85,21 +85,30 @@ the rest of the suite.
    no PIN verify attempt reaches the card in this path (removing the card
    must not itself count as, or trigger, a PIN attempt).
 
-4. **Qualified-key sole control.** With the qualified (`nonRepudiation`)
-   identity enabled, sign twice over one warm agent↔card channel after a
-   single PIN entry. Confirm the card demands a fresh `VERIFY` for the
-   second signature (no signature reuse of the first PIN verification) and
-   that the extension re-prompts for the PIN on each sign, not just the
-   first.
-
-   **Reconciliation item:** today the *first* signature in a session prompts
-   twice — once from `beginAuthFor`'s auth operation (`TokenAuthOperation.finish()`
-   calling `engine.login(certId:)`) and once more from the sign path's own
-   `requireFreshAuth: true` login. This is fail-safe (it asks for more
-   consent, never less), but it may be redundant. Confirm on hardware
-   whether the `beginAuthFor` login is in fact redundant with the sign
-   path's login and, if so, make `beginAuthFor`'s auth operation a no-op so
-   each signature prompts exactly once.
+4. **Per-operation consent follows the card.** The token's auth operation
+   does nothing and the extension logs in only after the agent reports a
+   lapsed session, so no login precedes a signature. Run every bullet with
+   `LIBRESCRS_ENABLE_QES_KEYCHAIN=1`, so the qualified (`nonRepudiation`)
+   identity is among the keys tested. On macOS each `TKTokenSession` owns its
+   own agent connection, and the agent lease is keyed on that connection and
+   the card, so a leaseholder is one session, not one machine.
+   - Key the card marks for consent per operation (PKCS#15 `userConsent`;
+     PIV 9C): sign twice in a row within one session; exactly one PIN prompt
+     per signature.
+   - Key the card does not mark: two signatures within one session (same
+     client process and `LAContext`); one PIN prompt for the first, none for
+     the second, if it follows within 45 s. After 45 s idle the agent closes
+     the card session and one more PIN prompt is expected (the recovery path);
+     past 10 min idle the lease lapses and a new `Login granted` and prompt
+     follow. A second client process (or a new `LAContext`) gets its own
+     session and lease, and is prompted once again; that is expected, not a
+     defect.
+   - In the agent log, count `pkcs11: Login granted` lines: exactly one per
+     session, logged after the first signature's `userNotLoggedIn`, and none
+     for later signatures in that session while the lease lasts (10 min idle).
+   - Record which keys of each test card are marked (the agent's certificate
+     list reports `alwaysAuthenticate`; the smoke test prints the inventory),
+     and which of the two behaviours the qualified key shows.
 
 5. **No decrypt.** Confirm the token identity is not offered for decrypt
    operations anywhere in the system UI or API surface — the token is
@@ -109,6 +118,10 @@ the rest of the suite.
 
 The qualified (`nonRepudiation`) identity stays disabled behind the
 `LIBRESCRS_ENABLE_QES_KEYCHAIN` environment variable (unset/off by default)
-until all five checks above pass on a Developer-ID-signed build. Do not set
+until all five checks above pass on a Developer-ID-signed build, with check 4
+run with that identity enabled. The qualified key prompts for a PIN on each
+signature only if the card marks it for per-operation consent; otherwise it
+signs on one PIN per session, and the recorded result of check 4 states which
+applies to the card being released. Do not set
 that variable for a release build before this gate has been run and its
 results recorded.

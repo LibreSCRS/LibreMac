@@ -140,8 +140,8 @@ public final class TokenIdentityRegistrar {
                 let keychainKey = TKTokenKeychainKey(certificate: secCert, objectID: objectID)
             else { continue }
             keychainKey.canSign = true
-            // Attach a constraint on signData so a sign triggers
-            // beginAuthForOperation: (the token extension's auth bridge).
+            // The constraint only routes ctkd through the token's no-op auth
+            // operation; the agent enforces the PIN at the signature itself.
             keychainKey.constraints = [NSNumber(value: TKTokenOperation.signData.rawValue): ["authID": objectID]]
 
             let iid = instanceID(cert.certId)

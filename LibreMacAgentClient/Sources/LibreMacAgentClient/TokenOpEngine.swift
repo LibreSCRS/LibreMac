@@ -37,44 +37,37 @@ public struct TokenOpEngine {
         throw TokenOpError.mapped(.tokenNotFound)
     }
 
-    /// Performs a fresh `Pkcs11.Login` on the reader holding `certId`'s
-    /// card. Used by `beginAuth`, ahead of a `sign` that requires fresh
-    /// consent.
-    public func login(certId: String) throws {
+    /// Signs `digestInfo` under `certId`. When the agent reports the session
+    /// as not logged in (no lease, or the lease lapsed), logs in and retries
+    /// once. No login is made ahead of the signature: the agent asks for the
+    /// PIN itself whenever the card's rule for the key requires it.
+    public func sign(certId: String, digestInfo: Data) throws -> Data {
         let reader = try resolveReader(certId: certId)
-        if case .err(let info) = try transport.send(.pkLogin(reader: reader)) {
-            throw TokenOpError.mapped(map(info))
-        }
-    }
-
-    /// Signs `digestInfo` under `certId`. When `requireFreshAuth` is
-    /// false and the agent reports the session as not logged in, retries
-    /// once after a login rather than surfacing the stale-session error.
-    public func sign(certId: String, digestInfo: Data, requireFreshAuth: Bool) throws -> Data {
-        let reader = try resolveReader(certId: certId)
-        if requireFreshAuth {
-            if case .err(let info) = try transport.send(.pkLogin(reader: reader)) {
-                throw TokenOpError.mapped(map(info))
-            }
-        }
         switch try transport.send(.pkSignRaw(reader: reader, cert: certId, data: digestInfo)) {
         case .rawSignature(let sig):
             return sig
         case .err(let info):
-            if !requireFreshAuth, syncError(info) == .userNotLoggedIn {
+            if syncError(info) == .userNotLoggedIn {
                 if case .err(let loginInfo) = try transport.send(.pkLogin(reader: reader)) {
                     throw TokenOpError.mapped(map(loginInfo))
                 }
-                guard case .rawSignature(let sig) =
-                    try transport.send(.pkSignRaw(reader: reader, cert: certId, data: digestInfo))
-                else {
-                    throw TokenOpError.mapped(.communicationError)
-                }
-                return sig
+                // The retry is where a session's first signature raises the
+                // PIN prompt, so its error reply is mapped like the first one:
+                // a cancel or a wrong PIN is an answer, not a device failure.
+                return try signReply(
+                    transport.send(.pkSignRaw(reader: reader, cert: certId, data: digestInfo)))
             }
             throw TokenOpError.mapped(map(info))
         default:
             throw TokenOpError.mapped(.communicationError)
+        }
+    }
+
+    private func signReply(_ reply: AgentReply) throws -> Data {
+        switch reply {
+        case .rawSignature(let sig): return sig
+        case .err(let info): throw TokenOpError.mapped(map(info))
+        default: throw TokenOpError.mapped(.communicationError)
         }
     }
 

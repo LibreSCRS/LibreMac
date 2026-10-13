@@ -287,7 +287,7 @@ struct PeerVerificationTests {
             return try TokenAgentClient(socketPath: listener.path, verifier: { _ in false })
         })
         #expect(throws: TokenOpError.mapped(.communicationError)) {
-            _ = try unit.withEngine { try $0.sign(certId: "cert", digestInfo: Data([0x30]), requireFreshAuth: true) }
+            _ = try unit.withEngine { try $0.sign(certId: "cert", digestInfo: Data([0x30])) }
         }
         #expect(calls.count == 1)
         #expect(listener.bytesFromNextConnection() == 0)
@@ -309,7 +309,7 @@ struct PeerVerificationTests {
             return try TokenAgentClient(socketPath: listener.path, verifier: { _ in false })
         })
         #expect(throws: TokenOpError.mapped(.communicationError)) {
-            _ = try unit.withEngine { try $0.sign(certId: "cert", digestInfo: Data([0x30]), requireFreshAuth: true) }
+            _ = try unit.withEngine { try $0.sign(certId: "cert", digestInfo: Data([0x30])) }
         }
         #expect(calls.count == 2)
         #expect(listener.bytesFromNextConnection() == 0)
