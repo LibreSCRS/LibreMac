@@ -3,6 +3,7 @@
 
 import CryptoKit
 import Foundation
+import Security
 import Testing
 @testable import LibreMacAgentClient
 
@@ -320,5 +321,134 @@ struct TokenOpEngineTests {
         #expect(throws: TokenOpError.mapped(.communicationError)) {
             _ = try TokenOpEngine(transport: ecKeyReply(crv: crv, x: x, y: y)).publicKey(certId: "lk", keySizeInBits: bits)
         }
+    }
+
+    private func helloAck(_ features: [String]) -> AgentReply { .helloAck(agentVer: "test", features: features) }
+
+    @Test("a key exchange asks for the feature, then derives")
+    func keyExchangeReturnsTheSecret() throws {
+        let t = FakeTransport()
+        t.script = [
+            { _ in self.helloAck(["ec-keys"]) },
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .derivedSecret(z: Data(repeating: 0x5A, count: 48)) },
+        ]
+        let point = Data([0x04] + [UInt8](repeating: 0x33, count: 96))
+        let z = try TokenOpEngine(transport: t).performKeyExchange(certId: "lk", peerPoint: point, keySizeInBits: 384)
+        #expect(z == Data(repeating: 0x5A, count: 48))
+        guard case .pkDerive(_, let cert, let data) = t.sent[2] else { Issue.record("no pkDerive"); return }
+        #expect(cert == "lk")
+        #expect(data == point)
+    }
+
+    @Test("an agent without ec-keys is never sent a derive")
+    func keyExchangeNeedsTheFeature() {
+        let t = FakeTransport()
+        t.script = [{ _ in self.helloAck(["credentials"]) }]
+        #expect(throws: TokenOpError.mapped(.notImplemented)) {
+            _ = try TokenOpEngine(transport: t).performKeyExchange(certId: "lk", peerPoint: Data([0x04]), keySizeInBits: 384)
+        }
+        #expect(!t.sent.contains { if case .pkDerive = $0 { return true } else { return false } })
+    }
+
+    @Test("a key exchange logs in and retries once after a lapsed session")
+    func keyExchangeRetriesAfterUserNotLoggedIn() throws {
+        let t = FakeTransport()
+        t.script = [
+            { _ in self.helloAck(["ec-keys"]) },
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .err(ErrInfo(code: .name(.userNotLoggedIn))) },
+            { _ in .ack },
+            { _ in .derivedSecret(z: Data(repeating: 0x01, count: 48)) },
+        ]
+        let z = try TokenOpEngine(transport: t).performKeyExchange(certId: "lk", peerPoint: Data([0x04]),
+                                                                   keySizeInBits: 384)
+        #expect(z == Data(repeating: 0x01, count: 48))
+        #expect(t.script.isEmpty)
+    }
+
+    @Test("a key exchange retry's error maps like the first request's", arguments: [
+        (SyncError.cancelled, TKErrorMapped.canceledByUser),
+        (.authFailed, .authenticationFailed),
+        (.invalidRequest, .badParameter),
+        (.keyNotFound, .objectNotFound),
+    ])
+    func keyExchangeRetryErrorMapsLikeTheFirst(name: SyncError, expected: TKErrorMapped) {
+        let t = FakeTransport()
+        t.script = [
+            { _ in self.helloAck(["ec-keys"]) },
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .err(ErrInfo(code: .name(.userNotLoggedIn))) },
+            { _ in .ack },
+            { _ in .err(ErrInfo(code: .name(name))) },
+        ]
+        #expect(throws: TokenOpError.mapped(expected)) {
+            _ = try TokenOpEngine(transport: t).performKeyExchange(certId: "lk", peerPoint: Data([0x04]), keySizeInBits: 384)
+        }
+        #expect(t.script.isEmpty)
+    }
+
+    @Test("a point the agent refuses is a bad parameter")
+    func keyExchangeRefusedPointIsBadParameter() {
+        let t = FakeTransport()
+        t.script = [
+            { _ in self.helloAck(["ec-keys"]) },
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .err(ErrInfo(code: .name(.invalidRequest))) },
+        ]
+        #expect(throws: TokenOpError.mapped(.badParameter)) {
+            _ = try TokenOpEngine(transport: t).performKeyExchange(certId: "lk", peerPoint: Data([0x04]), keySizeInBits: 384)
+        }
+    }
+
+    private func deriveReply(_ z: Data) -> FakeTransport {
+        let t = FakeTransport()
+        t.script = [
+            { _ in self.helloAck(["ec-keys"]) },
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .derivedSecret(z: z) },
+        ]
+        return t
+    }
+
+    @Test("a secret of the curve's field width is handed on, on every curve")
+    func keyExchangeAcceptsTheCurvesWidth() throws {
+        for (bits, width) in [(256, 32), (384, 48), (521, 66)] {
+            let z = Data(repeating: 0x5A, count: width)
+            #expect(try TokenOpEngine(transport: deriveReply(z))
+                .performKeyExchange(certId: "lk", peerPoint: Data([0x04]), keySizeInBits: bits) == z, "\(bits)")
+        }
+    }
+
+    @Test("a secret that is not the curve's field width is refused", arguments: [
+        (47, 384), (49, 384), (32, 384), (65, 521), (0, 256),
+    ])
+    func keyExchangeRefusesASecretOfTheWrongWidth(width: Int, bits: Int) {
+        #expect(throws: TokenOpError.mapped(.communicationError)) {
+            _ = try TokenOpEngine(transport: deriveReply(Data(repeating: 0x5A, count: width)))
+                .performKeyExchange(certId: "lk", peerPoint: Data([0x04]), keySizeInBits: bits)
+        }
+    }
+
+    @Test("the token offers raw ECDH, standard and cofactor, and no KDF variant")
+    func keyExchangeAlgorithmsAreTheRawOnes() {
+        let offered = Set(TokenOpEngine.keyExchangeAlgorithms.map { $0.rawValue as String })
+        #expect(offered == [SecKeyAlgorithm.ecdhKeyExchangeStandard.rawValue as String,
+                            SecKeyAlgorithm.ecdhKeyExchangeCofactor.rawValue as String])
+    }
+
+    @Test("a key the agent signs with offers its family's signatures; a key it does not sign with offers none")
+    func signAlgorithmsFollowTheKey() {
+        func offered(_ type: CFString, _ canSign: Bool) -> Set<String> {
+            Set(TokenOpEngine.signAlgorithms(keyType: type as String, canSign: canSign).map { $0.rawValue as String })
+        }
+        let ecdsa: Set<String> = Set([SecKeyAlgorithm.ecdsaSignatureDigestX962, .ecdsaSignatureDigestX962SHA256,
+                                      .ecdsaSignatureDigestX962SHA384, .ecdsaSignatureDigestX962SHA512]
+            .map { $0.rawValue as String })
+        #expect(offered(kSecAttrKeyTypeECSECPrimeRandom, true) == ecdsa)
+        #expect(offered(kSecAttrKeyTypeRSA, true) == [SecKeyAlgorithm.rsaSignatureDigestPKCS1v15Raw.rawValue as String])
+        // An EC key published for key agreement only is never offered for a signature.
+        #expect(offered(kSecAttrKeyTypeECSECPrimeRandom, false).isEmpty)
+        #expect(offered(kSecAttrKeyTypeRSA, false).isEmpty)
     }
 }

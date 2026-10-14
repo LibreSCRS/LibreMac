@@ -64,7 +64,7 @@ struct TokenIdentityRegistrarTests {
         let der = try realCertDER()
         let certId = sha256hex(der)
 
-        registrar.onCardPresent(certs: [PublishableCert(certId: certId, der: der, isQualified: false, keyType: .rsa, signingCapable: true)])
+        registrar.onCardPresent(certs: [PublishableCert(certId: certId, der: der, isQualified: false, keyType: .rsa, signingCapable: true, canDerive: false)])
         #expect(store.tokens.count == 1, "one token configuration per published cert")
 
         registrar.onCardRemoved()
@@ -77,7 +77,7 @@ struct TokenIdentityRegistrarTests {
         let registrar = TokenIdentityRegistrar(store: store)
         let der = try realCertDER()
 
-        registrar.onCardPresent(certs: [PublishableCert(certId: "deadbeef", der: der, isQualified: false, keyType: .rsa, signingCapable: true)])
+        registrar.onCardPresent(certs: [PublishableCert(certId: "deadbeef", der: der, isQualified: false, keyType: .rsa, signingCapable: true, canDerive: false)])
         #expect(store.tokens.isEmpty, "certId != sha256(DER) must never publish")
     }
 
@@ -87,7 +87,7 @@ struct TokenIdentityRegistrarTests {
         let registrar = TokenIdentityRegistrar(store: store)
         let der = try realCertDER()
         let certId = sha256hex(der)
-        let cert = PublishableCert(certId: certId, der: der, isQualified: false, keyType: .rsa, signingCapable: true)
+        let cert = PublishableCert(certId: certId, der: der, isQualified: false, keyType: .rsa, signingCapable: true, canDerive: false)
 
         registrar.onCardPresent(certs: [cert])
         #expect(store.tokens.count == 1)
@@ -119,7 +119,7 @@ struct TokenIdentityRegistrarTests {
         let der = try realCertDER()
         let certId = sha256hex(der)
 
-        registrar.onCardPresent(certs: [PublishableCert(certId: certId, der: der, isQualified: true, keyType: .rsa, signingCapable: true)])
+        registrar.onCardPresent(certs: [PublishableCert(certId: certId, der: der, isQualified: true, keyType: .rsa, signingCapable: true, canDerive: false)])
         #expect(
             ProcessInfo.processInfo.environment["LIBRESCRS_ENABLE_QES_KEYCHAIN"] != "1",
             "test process must not have opted in for this assertion to be meaningful")
@@ -132,12 +132,12 @@ struct TokenIdentityRegistrarTests {
         let registrar = TokenIdentityRegistrar(store: store)
         let der = try ecCertDER()
         registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
-                                                        keyType: .ec, signingCapable: true)])
+                                                        keyType: .ec, signingCapable: true, canDerive: false)])
         let key = try #require(publishedKey(store))
         #expect(key.keyType == kSecAttrKeyTypeECSECPrimeRandom as String)
         #expect(key.keySizeInBits == 384)
         #expect(key.canSign)
-        #expect(!key.canPerformKeyExchange, "no key exchange until the agent derives with this key")
+        #expect(!key.canPerformKeyExchange, "no key exchange unless the agent derives with this key")
     }
 
     @Test("a key the agent reports as another kind is never published")
@@ -146,7 +146,7 @@ struct TokenIdentityRegistrarTests {
         let registrar = TokenIdentityRegistrar(store: store)
         let der = try ecCertDER()
         registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
-                                                        keyType: .other, signingCapable: true)])
+                                                        keyType: .other, signingCapable: true, canDerive: false)])
         #expect(store.tokens.isEmpty)
     }
 
@@ -156,7 +156,61 @@ struct TokenIdentityRegistrarTests {
         let registrar = TokenIdentityRegistrar(store: store)
         let der = try realCertDER()
         registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
-                                                        keyType: .rsa, signingCapable: false)])
-        #expect(store.tokens.isEmpty, "nothing to publish without signing (key exchange comes with derive)")
+                                                        keyType: .rsa, signingCapable: false, canDerive: false)])
+        #expect(store.tokens.isEmpty, "a key that neither signs nor derives has nothing to publish")
+    }
+
+    @Test("an EC key the agent derives with can perform key exchange")
+    func ecKeyThatDerivesCanPerformKeyExchange() throws {
+        let store = FakeTokenConfigStore()
+        let registrar = TokenIdentityRegistrar(store: store)
+        let der = try ecCertDER()
+        registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
+                                                        keyType: .ec, signingCapable: true, canDerive: true)])
+        let key = try #require(publishedKey(store))
+        #expect(key.canPerformKeyExchange)
+        let constraints = try #require(key.constraints)
+        #expect(constraints[NSNumber(value: TKTokenOperation.performKeyExchange.rawValue)] != nil)
+        #expect(constraints[NSNumber(value: TKTokenOperation.signData.rawValue)] != nil)
+    }
+
+    @Test("a key that only derives is published for key exchange alone")
+    func deriveOnlyKeyIsPublishedWithoutSign() throws {
+        let store = FakeTokenConfigStore()
+        let registrar = TokenIdentityRegistrar(store: store)
+        let der = try ecCertDER()
+        registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
+                                                        keyType: .ec, signingCapable: false, canDerive: true)])
+        let key = try #require(publishedKey(store))
+        #expect(!key.canSign)
+        #expect(key.canPerformKeyExchange)
+        let constraints = try #require(key.constraints)
+        #expect(constraints[NSNumber(value: TKTokenOperation.signData.rawValue)] == nil)
+    }
+
+    @Test("no published key is offered for decryption, whatever its certificate allows", arguments: [false, true])
+    func noKeyIsOfferedForDecryption(ec: Bool) throws {
+        let store = FakeTokenConfigStore()
+        let registrar = TokenIdentityRegistrar(store: store)
+        let der = try ec ? ecCertDER() : realCertDER()
+        registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
+                                                        keyType: ec ? .ec : .rsa, signingCapable: true,
+                                                        canDerive: ec)])
+        let key = try #require(publishedKey(store))
+        #expect(!key.canDecrypt, "the token never decrypts")
+    }
+
+    @Test("an RSA key is never offered key exchange, whatever the agent reports")
+    func rsaKeyIsNeverOfferedKeyExchange() throws {
+        let store = FakeTokenConfigStore()
+        let registrar = TokenIdentityRegistrar(store: store)
+        let der = try realCertDER()
+        registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
+                                                        keyType: .rsa, signingCapable: true, canDerive: true)])
+        let key = try #require(publishedKey(store))
+        #expect(key.canSign)
+        #expect(!key.canPerformKeyExchange)
+        let constraints = try #require(key.constraints)
+        #expect(constraints[NSNumber(value: TKTokenOperation.performKeyExchange.rawValue)] == nil)
     }
 }

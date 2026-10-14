@@ -151,6 +151,9 @@ struct CatalogCompletenessTests {
         // the framing above the entry field
         "prompter_requested_by",
         "prompter_document",
+        "prompter_operation",
+        "prompter_operation_pkcs11",
+        "prompter_operation_pkcs11_derive",
         "prompter_reader",
         "prompter_reader_contact",
         "prompter_reader_contactless",
@@ -389,6 +392,26 @@ struct CatalogCompletenessTests {
         let sr = Set(try Self.ids(of: Self.srCatalog))
         #expect(Self.readerPickerIds.subtracting(en).isEmpty)
         #expect(Self.readerPickerIds.subtracting(sr).isEmpty)
+    }
+
+    /// An id present in both catalogs still renders English in Serbian when
+    /// its Serbian body is empty or marked unfinished, and the id checks above
+    /// stay green over it.
+    @Test("every message carries a translated body in both locales")
+    func everyMessageIsTranslated() throws {
+        for (locale, url) in [("en", Self.enCatalog), ("sr", Self.srCatalog)] {
+            let ids = try Self.ids(of: url)
+            let table = try Self.translationForms(of: url)
+            for id in ids {
+                let forms = table[id] ?? []
+                #expect(
+                    !forms.isEmpty && forms.allSatisfy { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty },
+                    "\(locale) \(id) has no translated body")
+            }
+            // A `<translation type=...>` body is not matched at all, and the
+            // lazy match then pairs its id with the next message's body.
+            #expect(table.count == ids.count, "\(locale): \(ids.count) ids, \(table.count) translated bodies")
+        }
     }
 
     @Test("every prompter id exists in both catalogs")

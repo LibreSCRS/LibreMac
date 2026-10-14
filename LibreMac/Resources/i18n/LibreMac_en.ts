@@ -731,6 +731,18 @@
         <source>Document:</source>
         <translation>Document:</translation>
     </message>
+    <message id="prompter_operation">
+        <source>Operation:</source>
+        <translation>Operation:</translation>
+    </message>
+    <message id="prompter_operation_pkcs11">
+        <source>Cryptographic token operation</source>
+        <translation>Cryptographic token operation</translation>
+    </message>
+    <message id="prompter_operation_pkcs11_derive">
+        <source>Key agreement with the card key</source>
+        <translation>Key agreement with the card key</translation>
+    </message>
     <message id="prompter_retry_generic">
         <source>The value you entered was not accepted. Please try again.</source>
         <translation>The value you entered was not accepted. Please try again.</translation>

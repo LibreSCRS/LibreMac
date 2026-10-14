@@ -732,6 +732,18 @@
         <source>Document:</source>
         <translation>Документ:</translation>
     </message>
+    <message id="prompter_operation">
+        <source>Operation:</source>
+        <translation>Радња:</translation>
+    </message>
+    <message id="prompter_operation_pkcs11">
+        <source>Cryptographic token operation</source>
+        <translation>Криптографска операција токена</translation>
+    </message>
+    <message id="prompter_operation_pkcs11_derive">
+        <source>Key agreement with the card key</source>
+        <translation>Договор о кључу кључем са картице</translation>
+    </message>
     <message id="prompter_retry_generic">
         <source>The value you entered was not accepted. Please try again.</source>
         <translation>Унета вредност није прихваћена. Покушајте поново.</translation>

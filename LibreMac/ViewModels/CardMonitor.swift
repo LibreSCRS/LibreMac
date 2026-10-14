@@ -301,9 +301,10 @@ public final class CardMonitor {
 
     // MARK: - Token identity publishing
 
-    /// Resolves a `PublishableCert` for every signing-capable RSA or EC cert
-    /// in `certificates` (a key of another kind is never offered, nor an RSA
-    /// key of a card that needs pre-authentication -- `preAuth`), fetching
+    /// Resolves a `PublishableCert` for every RSA or EC cert in
+    /// `certificates` whose key the agent signs with, or an EC one it derives
+    /// with (a key of another kind is never offered, nor an RSA key of a card
+    /// that needs pre-authentication -- `preAuth`), fetching
     /// each one's DER via `fetchDer`. A cert whose
     /// DER fetch fails is skipped (logged) rather than aborting the whole
     /// batch — mirrors `TokenIdentityRegistrar.onCardPresent`'s own
@@ -326,7 +327,8 @@ public final class CardMonitor {
         // mechanism, which a DigestInfo cannot use). ECDSA signs a digest on every card, so EC keys stay.
         let rsaSigns = preAuth == .none
         for cert in certificates
-        where cert.signingCapable && (cert.keyType == .ec || (cert.keyType == .rsa && rsaSigns)) {
+        where (cert.keyType == .rsa && cert.signingCapable && rsaSigns)
+            || (cert.keyType == .ec && (cert.signingCapable || cert.canDerive)) {
             do {
                 let der = try await fetchDer(reader, cert.certId)
                 // RFC 5280 §4.2.1.3 KeyUsage, natural ordinal bit order (bit
@@ -339,7 +341,7 @@ public final class CardMonitor {
                 result.append(
                     PublishableCert(
                         certId: cert.certId, der: der, isQualified: isQualified, keyType: cert.keyType,
-                        signingCapable: cert.signingCapable))
+                        signingCapable: cert.signingCapable, canDerive: cert.canDerive))
             } catch {
                 Logger.card.error(
                     "certificateDer failed for \(cert.certId, privacy: .public): \(error.localizedDescription, privacy: .public)"

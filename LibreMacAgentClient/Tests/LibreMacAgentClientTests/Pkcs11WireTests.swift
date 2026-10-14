@@ -32,6 +32,16 @@ struct Pkcs11WireTests {
         #expect(sig == Data([0x01, 0x02]))
     }
 
+    @Test func derivedSecretReplyDecodes() throws {
+        let body = CBORValue.map([
+            (Data("t".utf8), .text("Reply")), (Data("req".utf8), .int(9)),
+            (Data("z".utf8), .bytes(Data([0x5A, 0x5B]))),
+        ]).encode()
+        let env = try AgentMessages.decodeReply(body)
+        #expect(env.req == 9)
+        #expect(env.reply == .derivedSecret(z: Data([0x5A, 0x5B])))
+    }
+
     @Test func publicKeyReplyDecodesRSA() throws {
         let body = CBORValue.map([
             (Data("t".utf8), .text("Reply")), (Data("req".utf8), .int(3)),

@@ -87,6 +87,13 @@ struct CrossImplementationFixtureTests {
                                              y: Data(repeating: 0x22, count: 32))))
     }
 
+    @Test("DerivedSecret.cbor")
+    func derivedSecret() throws {
+        let env = try AgentMessages.decodeReply(try fixture("DerivedSecret"))
+        #expect(env.req == 16)
+        #expect(env.reply == .derivedSecret(z: Data(repeating: 0x5A, count: 32)))
+    }
+
     @Test("CertDer.cbor")
     func certDer() throws {
         let env = try AgentMessages.decodeReply(try fixture("CertDer"))
@@ -260,6 +267,13 @@ struct CrossImplementationFixtureTests {
         #expect(body == (try fixture("PkDecrypt")))
     }
 
+    @Test("PkDerive.cbor is what this package encodes")
+    func pkDeriveRequest() throws {
+        var point = Data(repeating: 0x33, count: 65)
+        point[0] = 0x04
+        #expect(AgentRequest.pkDerive(reader: "r", cert: "c", data: point).encode(req: 1) == (try fixture("PkDerive")))
+    }
+
     // ---- events ----
 
     @Test("ReaderAdded.cbor")
@@ -404,6 +418,7 @@ struct CrossImplementationFixtureTests {
             "HelloAck", "OpStarted", "State", "CertList", "CertDer", "Config", "Ack", "SignRecovery", "ErrCode",
             "ErrName", "ErrNameUnknownCredential", "ErrNameNoResult", "ReadTokenInfo", "ListCredentials", "ManagePin",
             "ActivateSigningKey", "PublicKeyEc", "PkSignRaw", "PkDecrypt",
+            "DerivedSecret", "PkDerive",
             "ReaderAdded", "ReaderRemoved", "CardAdded", "CardRemoved", "PropertyChanged",
             "ConfigChanged", "OpProgress", "OpResultReadyIdentity", "OpResultReadyPhoto",
             "OpResultReadyCertificates", "OpResultReadySign", "OpResultReadyCredentialsList",

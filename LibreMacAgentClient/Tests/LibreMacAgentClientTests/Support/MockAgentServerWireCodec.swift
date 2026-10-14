@@ -81,6 +81,10 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
         request = .pkDecrypt(
             reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "", mech: mech,
             data: mwBytes(pairs, "data") ?? Data())
+    case "Pkcs11.Derive":
+        request = .pkDerive(
+            reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "",
+            data: mwBytes(pairs, "data") ?? Data())
     case "ListCredentials":
         request = .listCredentials(card: mwText(pairs, "card") ?? "")
     case "ManagePin":
@@ -167,6 +171,7 @@ func requestTag(_ request: AgentRequest) -> String {
     case .pkPublicKey: return "Pkcs11.PublicKey"
     case .pkSignRaw: return "Pkcs11.SignRaw"
     case .pkDecrypt: return "Pkcs11.Decrypt"
+    case .pkDerive: return "Pkcs11.Derive"
     case .listCredentials: return "ListCredentials"
     case .managePin: return "ManagePin"
     case .activateSigningKey: return "ActivateSigningKey"
@@ -202,6 +207,8 @@ func encodeReply(_ reply: AgentReply, req: UInt64) -> Data {
         pairs.append(("y", .bytes(y)))
     case .rawSignature(let sig):
         pairs.append(("sig", .bytes(sig)))
+    case .derivedSecret(let z):
+        pairs.append(("z", .bytes(z)))
     case .config(let entries):
         pairs.append(("entries", .map(entries.map { (Data($0.key.utf8), $0.value) })))
     case .ack:

@@ -18,11 +18,11 @@ import Foundation
 /// replay would prompt the person again and sign twice. `Pkcs11.Login` raises
 /// no prompt — it opens the card channel and grants a lease — but it is not a
 /// read either, and it is the step before the sign, so it is not replayed. Only
-/// `GetState`, `GetCertDer` and `Pkcs11.PublicKey` may have been delivered
-/// before the failure; any other request counts once its frame was written
-/// whole, answered or not. Every operation starts with `GetState`, which is
-/// what meets a connection the agent closed while idle, so that case is always
-/// rebuilt.
+/// `Hello`, `GetState`, `GetCertDer` and `Pkcs11.PublicKey` may have been
+/// delivered before the failure; any other request counts once its frame was
+/// written whole, answered or not. Every operation starts with `GetState` (a
+/// key exchange with `Hello`), which is what meets a connection the agent
+/// closed while idle, so that case is always rebuilt.
 ///
 /// A connection that cannot be opened — including one whose serving process
 /// fails the identity check — is never retried: the operation answers
@@ -144,7 +144,8 @@ private final class DeliveryTracker: TokenTransport {
     /// consequential, so the default is the safe one.
     private static func isRead(_ request: AgentRequest) -> Bool {
         switch request {
-        case .getState, .getCertDer, .pkPublicKey: return true
+        // A Hello only asks what the agent serves.
+        case .getState, .getCertDer, .pkPublicKey, .hello: return true
         default: return false
         }
     }

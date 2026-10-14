@@ -219,4 +219,26 @@ struct TokenSessionReconnectTests {
         #expect(try sign(unit) == Data([0x33]))
         #expect(made == 2)
     }
+
+    /// A key exchange opens with a Hello, so that is the request which meets a
+    /// connection the agent closed while idle. It only asks what the agent
+    /// serves, so the operation is rebuilt like one that opens with GetState.
+    @Test("a key exchange whose Hello met a closed connection is rebuilt and derives once")
+    func tokenSessionReconnectRebuildsAKeyExchangeAfterItsHello() throws {
+        var made = 0
+        let unit = ReconnectingTokenEngine(connect: {
+            made += 1
+            if made == 1 {
+                return FakeTransport([{ _ in throw TokenTransportError.closed }])
+            }
+            return FakeTransport([
+                { _ in .helloAck(agentVer: "test", features: ["ec-keys"]) },
+                { _ in Self.state },
+                { _ in .derivedSecret(z: Data(repeating: 0x5A, count: 32)) },
+            ])
+        })
+        let z = try unit.withEngine { try $0.performKeyExchange(certId: "c", peerPoint: Data([0x04]), keySizeInBits: 256) }
+        #expect(z == Data(repeating: 0x5A, count: 32))
+        #expect(made == 2)
+    }
 }

@@ -14983,6 +14983,57 @@
         }
       }
     },
+    "prompter_operation" : {
+      "comment" : "prompter_operation",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Operation:"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Радња:"
+          }
+        }
+      }
+    },
+    "prompter_operation_pkcs11" : {
+      "comment" : "prompter_operation_pkcs11",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cryptographic token operation"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Криптографска операција токена"
+          }
+        }
+      }
+    },
+    "prompter_operation_pkcs11_derive" : {
+      "comment" : "prompter_operation_pkcs11_derive",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key agreement with the card key"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Договор о кључу кључем са картице"
+          }
+        }
+      }
+    },
     "prompter_reader" : {
       "comment" : "prompter_reader",
       "localizations" : {

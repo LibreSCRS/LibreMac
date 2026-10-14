@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 hirashix0
 import CryptoTokenKit
 import LibreMacAgentClient
-import Security
 
 final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
     // One agent connection per session, opened lazily on the first delegate
@@ -16,13 +15,6 @@ final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
     // delegate call that needed it. The connection is closed via
     // `TokenAgentClient.deinit` when it fails or when the session deallocates.
     private let agent = ReconnectingTokenEngine(connect: { try TokenAgentClient() })
-
-    private static let ecdsaAlgorithms: [SecKeyAlgorithm] = [
-        .ecdsaSignatureDigestX962,
-        .ecdsaSignatureDigestX962SHA256,
-        .ecdsaSignatureDigestX962SHA384,
-        .ecdsaSignatureDigestX962SHA512,
-    ]
 
     override init(token: TKToken) {
         super.init(token: token)
@@ -40,17 +32,18 @@ final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
     }
 
     // What the agent can do with the card's key: RSA PKCS#1 v1.5 over a
-    // DigestInfo, ECDSA over a digest.
+    // DigestInfo and ECDSA over a digest with a key it signs with, and ECDH
+    // with an EC key it derives with.
     func tokenSession(_ session: TKTokenSession, supports operation: TKTokenOperation,
                        keyObjectID: TKToken.ObjectID, algorithm: TKTokenKeyAlgorithm) -> Bool {
         guard let key = key(for: keyObjectID) else { return false }
         switch operation {
         case .signData:
-            if Self.isEc(key) {
-                return Self.ecdsaAlgorithms.contains { algorithm.isAlgorithm($0) }
-            }
-            return key.keyType == kSecAttrKeyTypeRSA as String
-                && algorithm.isAlgorithm(.rsaSignatureDigestPKCS1v15Raw)
+            return TokenOpEngine.signAlgorithms(keyType: key.keyType, canSign: key.canSign)
+                .contains { algorithm.isAlgorithm($0) }
+        case .performKeyExchange:
+            return Self.isEc(key) && key.canPerformKeyExchange
+                && TokenOpEngine.keyExchangeAlgorithms.contains { algorithm.isAlgorithm($0) }
         default:
             return false
         }
@@ -67,9 +60,30 @@ final class TokenSession: TKTokenSession, TKTokenSessionDelegate {
             // of its own, so what the user sees follows the card.
             return try agent.withEngine { engine in
                 if Self.isEc(key) {
-                    return try engine.signEcdsa(certId: certId, digest: dataToSign, keySizeInBits: key.keySizeInBits)
+                    return try engine.signEcdsa(certId: certId, digest: dataToSign,
+                                                keySizeInBits: key.keySizeInBits)
                 }
                 return try engine.sign(certId: certId, digestInfo: dataToSign)
+            }
+        } catch let TokenOpError.mapped(code) {
+            throw NSError(tkError: code)
+        }
+    }
+
+    // ECDH with the card's key: Keychain hands the other party's X9.63 point,
+    // the agent answers the raw secret. `parameters` (requestedSize,
+    // sharedInfo) are not applied on purpose: they belong to the KDF variants,
+    // which `supports` refuses and Security runs in process over this raw
+    // result; the raw variants return Z as it is.
+    func tokenSession(_ session: TKTokenSession, performKeyExchange otherPartyPublicKeyData: Data,
+                       keyObjectID: TKToken.ObjectID, algorithm: TKTokenKeyAlgorithm,
+                       parameters: TKTokenKeyExchangeParameters) throws -> Data {
+        let certId = try objectIDString(keyObjectID)
+        guard let key = key(for: keyObjectID) else { throw NSError(tkError: .objectNotFound) }
+        do {
+            return try agent.withEngine {
+                try $0.performKeyExchange(certId: certId, peerPoint: otherPartyPublicKeyData,
+                                          keySizeInBits: key.keySizeInBits)
             }
         } catch let TokenOpError.mapped(code) {
             throw NSError(tkError: code)

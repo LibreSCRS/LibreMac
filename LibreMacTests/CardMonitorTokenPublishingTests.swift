@@ -115,16 +115,20 @@ struct CardMonitorTokenPublishingTests {
         #expect(store.tokens.isEmpty, "removal clears every published instance id")
     }
 
-    @Test("only RSA and EC signing keys are offered for publication")
+    @Test("only RSA and EC keys that sign or derive are offered for publication")
     func publishesOnlyRsaAndEcSigningKeys() async throws {
         let certs = [
             certInfo(certId: "rsa", signingCapable: true, keyType: .rsa),
             certInfo(certId: "ec", signingCapable: true, keyType: .ec),
             certInfo(certId: "other", signingCapable: true, keyType: .other),
+            certInfo(certId: "derive", signingCapable: false, keyType: .ec, canDerive: true),
+            certInfo(certId: "neither", signingCapable: false, keyType: .ec),
+            certInfo(certId: "rsa-derive", signingCapable: false, keyType: .rsa, canDerive: true),
         ]
         let published = await CardMonitor.publishableCerts(certs, reader: "r", preAuth: .none) { _, _ in Data([0x30]) }
-        #expect(published.map(\.certId) == ["rsa", "ec"])
-        #expect(published.map(\.keyType) == [.rsa, .ec])
+        #expect(published.map(\.certId) == ["rsa", "ec", "derive"])
+        #expect(published.map(\.keyType) == [.rsa, .ec, .ec])
+        #expect(published.map(\.canDerive) == [false, false, true])
     }
 
     // A card opened through PACE (CAN or MRZ) hashes on the card: Keychain
@@ -138,13 +142,14 @@ struct CardMonitorTokenPublishingTests {
         let certs = [
             certInfo(certId: "rsa", signingCapable: true, keyType: .rsa),
             certInfo(certId: "ec", signingCapable: true, keyType: .ec),
+            certInfo(certId: "derive", signingCapable: false, keyType: .ec, canDerive: true),
         ]
         var fetchedFor: [String] = []
         let published = await CardMonitor.publishableCerts(certs, reader: "r", preAuth: preAuth) { _, certId in
             fetchedFor.append(certId)
             return Data([0x30])
         }
-        #expect(published.map(\.certId) == ["ec"])
-        #expect(fetchedFor == ["ec"], "the RSA cert's DER is never fetched")
+        #expect(published.map(\.certId) == ["ec", "derive"])
+        #expect(fetchedFor == ["ec", "derive"], "the RSA cert's DER is never fetched")
     }
 }

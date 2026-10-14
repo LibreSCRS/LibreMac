@@ -3,6 +3,7 @@
 
 import CryptoKit
 import Foundation
+import Security
 
 /// CTK-free operation logic for the token extension: reader resolution,
 /// login/sign sequencing, and agent-error -> `TKErrorMapped` mapping.
@@ -58,6 +59,20 @@ public struct TokenOpEngine {
         return try Self.ecdsaDer(fromRaw: raw, keySizeInBits: keySizeInBits)
     }
 
+    /// The signatures the token offers for a published key (`keyType` is the
+    /// key's `kSecAttrKeyType`): ECDSA over a digest for an EC key, PKCS#1
+    /// v1.5 over a DigestInfo for an RSA key, and none for a key the agent
+    /// does not sign with -- an EC key published for key agreement only.
+    public static func signAlgorithms(keyType: String, canSign: Bool) -> [SecKeyAlgorithm] {
+        guard canSign else { return [] }
+        if keyType == kSecAttrKeyTypeECSECPrimeRandom as String {
+            return [.ecdsaSignatureDigestX962, .ecdsaSignatureDigestX962SHA256,
+                    .ecdsaSignatureDigestX962SHA384, .ecdsaSignatureDigestX962SHA512]
+        }
+        if keyType == kSecAttrKeyTypeRSA as String { return [.rsaSignatureDigestPKCS1v15Raw] }
+        return []
+    }
+
     /// r||s (each half ceil(bits/8) bytes) -> X9.62 DER, for P-256, P-384 or P-521.
     public static func ecdsaDer(fromRaw raw: Data, keySizeInBits: Int) throws -> Data {
         do {
@@ -78,31 +93,60 @@ public struct TokenOpEngine {
     private func signRaw(certId: String, mech: PkSignMech, input: Data) throws -> Data {
         let reader = try resolveReader(certId: certId)
         let request = AgentRequest.pkSignRaw(reader: reader, cert: certId, mech: mech, data: input)
-        switch try transport.send(request) {
-        case .rawSignature(let sig):
-            return sig
-        case .err(let info):
-            if syncError(info) == .userNotLoggedIn {
-                if case .err(let loginInfo) = try transport.send(.pkLogin(reader: reader)) {
-                    throw TokenOpError.mapped(map(loginInfo))
-                }
-                // The retry is where a session's first signature raises the
-                // PIN prompt, so its error reply is mapped like the first one:
-                // a cancel or a wrong PIN is an answer, not a device failure.
-                return try signReply(transport.send(request))
-            }
-            throw TokenOpError.mapped(map(info))
-        default:
-            throw TokenOpError.mapped(.communicationError)
+        return try consentedRequest(request, reader: reader) {
+            if case .rawSignature(let sig) = $0 { return sig }
+            return nil
         }
     }
 
-    private func signReply(_ reply: AgentReply) throws -> Data {
-        switch reply {
-        case .rawSignature(let sig): return sig
-        case .err(let info): throw TokenOpError.mapped(map(info))
-        default: throw TokenOpError.mapped(.communicationError)
+    /// The key exchanges the token offers: raw ECDH, whose result is Z itself.
+    /// The cofactor variant gives the same Z on the NIST curves (cofactor 1).
+    /// A KDF variant never reaches the token: Security runs the KDF in process
+    /// over the raw result.
+    public static let keyExchangeAlgorithms: [SecKeyAlgorithm] = [
+        .ecdhKeyExchangeStandard,
+        .ecdhKeyExchangeCofactor,
+    ]
+
+    /// ECDH with the card's EC key against `peerPoint` (X9.63 uncompressed,
+    /// 04||X||Y): the raw shared secret Z, exactly the field width of the
+    /// curve `keySizeInBits` names (anything else is refused as
+    /// `communicationError`). The agent is asked first whether it serves key
+    /// agreement at all -- one without the "ec-keys" feature drops the
+    /// connection on the request.
+    public func performKeyExchange(certId: String, peerPoint: Data, keySizeInBits: Int) throws -> Data {
+        let hello = try transport.send(.hello(proto: UInt64(kProtocolVersion), client: nil))
+        guard case .helloAck(_, let features) = hello, features.contains("ec-keys") else {
+            throw TokenOpError.mapped(.notImplemented)
         }
+        let reader = try resolveReader(certId: certId)
+        let z = try consentedRequest(.pkDerive(reader: reader, cert: certId, data: peerPoint), reader: reader) {
+            if case .derivedSecret(let z) = $0 { return z }
+            return nil
+        }
+        guard z.count == (keySizeInBits + 7) / 8 else { throw TokenOpError.mapped(.communicationError) }
+        return z
+    }
+
+    // A request the agent may answer "not logged in": log in and retry once.
+    // No login is made ahead of it -- the agent asks for the PIN itself
+    // whenever the card's rule for the key requires it. The retry is where a
+    // session's first operation raises the PIN prompt, so its error reply is
+    // mapped like the first one: a cancel or a wrong PIN is an answer, not a
+    // device failure.
+    private func consentedRequest(_ request: AgentRequest, reader: String,
+                                  answer: (AgentReply) -> Data?) throws -> Data {
+        let first = try transport.send(request)
+        if let value = answer(first) { return value }
+        guard case .err(let info) = first else { throw TokenOpError.mapped(.communicationError) }
+        guard syncError(info) == .userNotLoggedIn else { throw TokenOpError.mapped(map(info)) }
+        if case .err(let loginInfo) = try transport.send(.pkLogin(reader: reader)) {
+            throw TokenOpError.mapped(map(loginInfo))
+        }
+        let retry = try transport.send(request)
+        if let value = answer(retry) { return value }
+        if case .err(let retryInfo) = retry { throw TokenOpError.mapped(map(retryInfo)) }
+        throw TokenOpError.mapped(.communicationError)
     }
 
     /// Fetches the public key for `certId`: RSA or EC. An EC key is returned

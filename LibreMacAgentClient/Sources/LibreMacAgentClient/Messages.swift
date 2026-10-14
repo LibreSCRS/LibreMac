@@ -139,6 +139,9 @@ public enum AgentRequest: Sendable, Equatable {
     case pkPublicKey(reader: String, cert: String)
     case pkSignRaw(reader: String, cert: String, mech: PkSignMech, data: Data)
     case pkDecrypt(reader: String, cert: String, mech: PkDecryptMech, data: Data)
+    /// Gate on the `"ec-keys"` feature token: an agent without it drops the
+    /// connection on this tag.
+    case pkDerive(reader: String, cert: String, data: Data)
     /// Credentials1 seam — gate all three on the `"credentials"` HelloAck
     /// feature token (`hello-ack`, `librescrs-agent.cddl`): an agent predating
     /// that contract fails an unknown request `t` closed and DROPS the
@@ -207,6 +210,9 @@ extension AgentRequest {
         case .pkDecrypt(let reader, let cert, let mech, let data):
             pairs = [("t", .text("Pkcs11.Decrypt")), ("reader", .text(reader)),
                      ("cert", .text(cert)), ("mech", .text(mech.rawValue)), ("data", .bytes(data))]
+        case .pkDerive(let reader, let cert, let data):
+            pairs = [("t", .text("Pkcs11.Derive")), ("reader", .text(reader)),
+                     ("cert", .text(cert)), ("data", .bytes(data))]
         case .listCredentials(let card):
             pairs = [("t", .text("ListCredentials")), ("card", .text(card))]
         case .managePin(let card, let pinId, let verb, let activateKey):
@@ -288,6 +294,7 @@ public enum AgentReply: Sendable, Equatable {
     case certDer(der: Data)
     case publicKey(PublicKey)
     case rawSignature(sig: Data)
+    case derivedSecret(z: Data)
     case config(entries: [String: CBORValue])
     case ack
     case signRecovery(SignResult)
@@ -379,6 +386,10 @@ public enum AgentMessages {
         if let sigRaw = mapGet(m, "sig") {
             guard case .bytes(let sig) = sigRaw else { throw .wrongType("sig") }
             return AgentReplyEnvelope(req: req, reply: .rawSignature(sig: sig))
+        }
+        if let zRaw = mapGet(m, "z") {
+            guard case .bytes(let z) = zRaw else { throw .wrongType("z") }
+            return AgentReplyEnvelope(req: req, reply: .derivedSecret(z: z))
         }
         if let ktyRaw = mapGet(m, "kty") {
             guard case .text(let kty) = ktyRaw else { throw .wrongType("kty") }

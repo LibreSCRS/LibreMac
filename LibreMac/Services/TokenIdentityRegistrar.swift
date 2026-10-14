@@ -5,7 +5,7 @@
 // presence. Only the host app (the appex's container app) may populate
 // `TKTokenDriver.Configuration.driverConfigurations` — this is that
 // publisher: one `TKTokenKeychainCertificate` + `TKTokenKeychainKey` token
-// configuration per signing cert on insert, all of them cleared on removal
+// configuration per cert whose key signs or derives, on insert, all of them cleared on removal
 // (remove-on-eject).
 //
 // Trust is re-derived here, not assumed from the caller: a cert is only
@@ -22,8 +22,8 @@ import LibreMacShared
 import Security
 import os
 
-/// A signing certificate eligible for Keychain publication, as reported by
-/// the card-presence pipeline.
+/// A certificate whose key the token signs or derives with, eligible for
+/// Keychain publication, as reported by the card-presence pipeline.
 public struct PublishableCert: Equatable, Sendable {
     /// SHA-256 hex of `der`, as computed by the reporting layer. Re-verified
     /// against `der` before publication — never trusted as-is.
@@ -37,13 +37,17 @@ public struct PublishableCert: Equatable, Sendable {
     public let keyType: KeyType
     /// The agent can sign with this key.
     public let signingCapable: Bool
+    /// The agent runs a key agreement with this key.
+    public let canDerive: Bool
 
-    public init(certId: String, der: Data, isQualified: Bool, keyType: KeyType, signingCapable: Bool) {
+    public init(certId: String, der: Data, isQualified: Bool, keyType: KeyType, signingCapable: Bool,
+                canDerive: Bool) {
         self.certId = certId
         self.der = der
         self.isQualified = isQualified
         self.keyType = keyType
         self.signingCapable = signingCapable
+        self.canDerive = canDerive
     }
 }
 
@@ -139,7 +143,9 @@ public final class TokenIdentityRegistrar {
             if cert.isQualified && !Self.qesKeychainEnabled { continue }
             // Only keys this token can drive: RSA, and EC on the NIST curves.
             guard cert.keyType == .rsa || cert.keyType == .ec else { continue }
-            guard cert.signingCapable else { continue }
+            // Key agreement is offered only for an EC key.
+            let derives = cert.canDerive && cert.keyType == .ec
+            guard cert.signingCapable || derives else { continue }
 
             let computed = SHA256.hash(data: cert.der).map { String(format: "%02x", $0) }.joined()
             guard computed == cert.certId else { continue }
@@ -150,16 +156,23 @@ public final class TokenIdentityRegistrar {
                 let keychainKey = TKTokenKeychainKey(certificate: secCert, objectID: objectID)
             else { continue }
             keychainKey.canSign = cert.signingCapable
-            // The certificate's keyAgreement bit alone would advertise key
-            // exchange; the token offers none until the agent derives with the
-            // key.
-            keychainKey.canPerformKeyExchange = false
+            // Set from what the agent does, not from the certificate's
+            // keyAgreement bit, which the initializer would follow.
+            keychainKey.canPerformKeyExchange = derives
             // The token never decrypts; the initializer would offer it from
             // the certificate's key usage.
             keychainKey.canDecrypt = false
-            // The constraint only routes ctkd through the token's no-op auth
-            // operation; the agent enforces the PIN at the signature itself.
-            keychainKey.constraints = [NSNumber(value: TKTokenOperation.signData.rawValue): ["authID": objectID]]
+            // The constraints only route ctkd through the token's no-op auth
+            // operation; the agent enforces the PIN at the operation itself.
+            var constraints: [NSNumber: Any] = [:]
+            if cert.signingCapable {
+                constraints[NSNumber(value: TKTokenOperation.signData.rawValue)] = ["authID": objectID]
+            }
+            if derives {
+                let operation = NSNumber(value: TKTokenOperation.performKeyExchange.rawValue)
+                constraints[operation] = ["authID": objectID]
+            }
+            keychainKey.constraints = constraints
 
             let iid = instanceID(cert.certId)
             store.addToken(instanceID: iid, items: [keychainCert, keychainKey])
