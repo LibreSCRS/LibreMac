@@ -38,7 +38,7 @@ GetState -> ReadCertificates -> Sign) against the live card over a real
 socket, and it is the only thing in this project that actually reads
 `LIBRESCRS_HW` / `LIBRESCRS_TEST_CAN` / `LIBRESCRS_TEST_PIN`. A pass here is
 confidence in the lower layers before debugging the CTK/Keychain path by
-hand; it is not a substitute for Checks 1-5, which exercise `ctkd` and the
+hand; it is not a substitute for Checks 1-7, which exercise `ctkd` and the
 extension that this test does not touch.
 
 ```bash
@@ -72,7 +72,10 @@ the rest of the suite.
    `…DigestPKCS1v15Raw` over the token identity. Confirm the call path runs
    `ctkd` → `LibreMacToken.appex` → agent → prompter, that the prompter
    collects the PIN, and that the returned signature verifies against the
-   certificate's public key.
+   certificate's public key. A card opened with a CAN whose RSA key the card
+   hashes for itself cannot sign a DigestInfo: confirm none of its RSA keys
+   appears in `security find-identity -v` (its EC keys, if any, still do), so
+   no PIN prompt is ever raised for a signature it would refuse.
 
 2. **Presence tracking.** Remove the card and confirm the identity
    disappears from `security find-identity -v`. Re-insert the card and
@@ -111,14 +114,37 @@ the rest of the suite.
      and which of the two behaviours the qualified key shows.
 
 5. **No decrypt.** Confirm the token identity is not offered for decrypt
-   operations anywhere in the system UI or API surface — the token is
-   sign-only.
+   operations anywhere in the system UI or API surface — the token signs and,
+   with an EC key the agent derives with, performs key exchange (check 7); it
+   never decrypts.
+
+6. **EC signature (new Serbian ID card, P-384).** The identity appears in
+   `security find-identity -v`; a `SecKeyCreateSignature` with
+   `.ecdsaSignatureDigestX962SHA384` over a 48-byte digest returns a DER
+   signature that verifies against the certificate; a 20-byte digest with
+   `.ecdsaSignatureDigestX962` (no hash named, so Security.framework passes it
+   through to the token) is refused — `SecKeyCreateSignature` reports
+   `errSecParam` or `TKError.badParameter` — and the agent log shows no
+   `Pkcs11.SignRaw`. In
+   the agent's certificate inventory (smoke test) the key reads `keyType=EC
+   keyBits=384` and its ID is the card's own (16 bytes).
+
+7. **Key exchange (EC key the agent derives with).** With a card whose plugin
+   derives (the new Serbian ID card once its driver is pinned),
+   `SecKeyCopyKeyExchangeResult` with `.ecdhKeyExchangeStandard` against a
+   fresh P-384 key returns the same secret as the other side computes. When
+   the agent asks for the PIN (the first operation of a session, or every
+   operation with a key the card marks for consent per operation; a key
+   agreement inside a session already logged in raises no prompt), the
+   prompt's operation line reads "Operation: Key agreement with the card key". Until then the identity
+   offers no key exchange (`canPerformKeyExchange` is false) — record which.
 
 ## Gating
 
 The qualified (`nonRepudiation`) identity stays disabled behind the
 `LIBRESCRS_ENABLE_QES_KEYCHAIN` environment variable (unset/off by default)
-until all five checks above pass on a Developer-ID-signed build, with check 4
+until all seven checks above pass on a Developer-ID-signed build (check 7
+passes by recording which of its two outcomes the card shows), with check 4
 run with that identity enabled. The qualified key prompts for a PIN on each
 signature only if the card marks it for per-operation consent; otherwise it
 signs on one PIN per session, and the recorded result of check 4 states which

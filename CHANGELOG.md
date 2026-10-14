@@ -26,6 +26,11 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The token extension signs with EC keys (P-256, P-384, P-521) through
+  Keychain — ECDSA over the caller's digest, returned as X9.62 DER; the new
+  Serbian ID card's key is published as the EC key it is.
+- Key exchange (ECDH) through Keychain with an EC card key the agent derives
+  with; the agent's `ec-keys` feature is checked first.
 - The agent client reads whether the card asks for the PIN before every
   operation with a certificate's key (`CertificateInfo.alwaysAuthenticate`).
   An agent that omits the field is rejected.
@@ -76,6 +81,14 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- A digest of the wrong length, or input the agent refuses before any PIN
+  prompt, is reported as a bad parameter instead of a communication failure.
+- A card opened with a CAN, or any other pre-authentication, publishes no RSA
+  identity to Keychain: such a card hashes on the card and cannot sign the
+  DigestInfo Keychain hands over (its EC keys are still published). An EC key
+  published for key agreement only is no longer offered for a signature, and
+  the agent client rejects an EC public key off its curve or its width and a
+  key size too wide for 32 bits, as the C++ client does.
 - The token extension no longer logs in before every signature; the PIN is
   asked for when the card's rule for the key requires it (every signature
   for a key the card marks, once per agent lease otherwise).
