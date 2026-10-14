@@ -26,6 +26,7 @@ extension NSError {
         case .communicationError: c = .communicationError
         case .notImplemented: c = .notImplemented
         case .canceledByUser: c = .canceledByUser
+        case .badParameter: c = .badParameter
         }
         self.init(domain: TKErrorDomain, code: c.rawValue, userInfo: nil)
     }

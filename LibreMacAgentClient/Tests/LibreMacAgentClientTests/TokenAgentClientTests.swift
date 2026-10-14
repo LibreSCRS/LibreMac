@@ -14,18 +14,17 @@ struct TokenAgentClientTests {
         server.onRequest = { req, tag in
             if tag == "Pkcs11.PublicKey" {
                 server.sendEventRaw(.cardRemoved(handle: "reader/0")) // noise before the reply
-                server.sendReplyRaw(.publicKey(kty: "RSA", n: Data([0xAA]), e: Data([0x01, 0x00, 0x01])), req: req)
+                server.sendReplyRaw(.publicKey(.rsa(n: Data([0xAA]), e: Data([0x01, 0x00, 0x01]))), req: req)
             }
         }
 
         let client = TokenAgentClient(connectedFd: server.connectedFd())
         let reply = try client.send(.pkPublicKey(reader: "reader/0", cert: "certid"))
 
-        guard case .publicKey(let kty, let n, let e) = reply else {
+        guard case .publicKey(.rsa(let n, let e)) = reply else {
             Issue.record("expected .publicKey, got \(reply)")
             return
         }
-        #expect(kty == "RSA")
         #expect(n == Data([0xAA]))
         #expect(e == Data([0x01, 0x00, 0x01]))
     }
@@ -98,7 +97,7 @@ struct TokenAgentClientTests {
 
         // The peer does not read, so the large frame stalls part-way and the
         // write deadline expires.
-        let big = AgentRequest.pkSignRaw(reader: "r", cert: "c", data: Data(count: 512 * 1024))
+        let big = AgentRequest.pkSignRaw(reader: "r", cert: "c", mech: .rsaPkcs, data: Data(count: 512 * 1024))
         let frameLength = 4 + big.encode(req: 1).count
         #expect(throws: TokenTransportError.timedOut) { _ = try client.send(big) }
         #expect(throws: TokenTransportError.notDelivered) { _ = try client.send(.getState) }

@@ -137,8 +137,8 @@ public enum AgentRequest: Sendable, Equatable {
     case pkLogin(reader: String)
     case pkLogout(reader: String)
     case pkPublicKey(reader: String, cert: String)
-    case pkSignRaw(reader: String, cert: String, data: Data)
-    case pkDecrypt(reader: String, cert: String, data: Data)
+    case pkSignRaw(reader: String, cert: String, mech: PkSignMech, data: Data)
+    case pkDecrypt(reader: String, cert: String, mech: PkDecryptMech, data: Data)
     /// Credentials1 seam — gate all three on the `"credentials"` HelloAck
     /// feature token (`hello-ack`, `librescrs-agent.cddl`): an agent predating
     /// that contract fails an unknown request `t` closed and DROPS the
@@ -201,12 +201,12 @@ extension AgentRequest {
             pairs = [("t", .text("Pkcs11.Logout")), ("reader", .text(reader))]
         case .pkPublicKey(let reader, let cert):
             pairs = [("t", .text("Pkcs11.PublicKey")), ("reader", .text(reader)), ("cert", .text(cert))]
-        case .pkSignRaw(let reader, let cert, let data):
+        case .pkSignRaw(let reader, let cert, let mech, let data):
             pairs = [("t", .text("Pkcs11.SignRaw")), ("reader", .text(reader)),
-                     ("cert", .text(cert)), ("data", .bytes(data))]
-        case .pkDecrypt(let reader, let cert, let data):
+                     ("cert", .text(cert)), ("mech", .text(mech.rawValue)), ("data", .bytes(data))]
+        case .pkDecrypt(let reader, let cert, let mech, let data):
             pairs = [("t", .text("Pkcs11.Decrypt")), ("reader", .text(reader)),
-                     ("cert", .text(cert)), ("data", .bytes(data))]
+                     ("cert", .text(cert)), ("mech", .text(mech.rawValue)), ("data", .bytes(data))]
         case .listCredentials(let card):
             pairs = [("t", .text("ListCredentials")), ("card", .text(card))]
         case .managePin(let card, let pinId, let verb, let activateKey):
@@ -286,7 +286,7 @@ public enum AgentReply: Sendable, Equatable {
     case state(readers: [ReaderState], cards: [CardState])
     case certList(certs: [CertificateInfo])
     case certDer(der: Data)
-    case publicKey(kty: String, n: Data, e: Data)
+    case publicKey(PublicKey)
     case rawSignature(sig: Data)
     case config(entries: [String: CBORValue])
     case ack
@@ -381,10 +381,26 @@ public enum AgentMessages {
             return AgentReplyEnvelope(req: req, reply: .rawSignature(sig: sig))
         }
         if let ktyRaw = mapGet(m, "kty") {
-            guard case .text(let kty) = ktyRaw, kty == "RSA" else { throw .wrongType("kty") }
-            guard case .bytes(let n)? = mapGet(m, "n") else { throw .missingField("n") }
-            guard case .bytes(let e)? = mapGet(m, "e") else { throw .missingField("e") }
-            return AgentReplyEnvelope(req: req, reply: .publicKey(kty: kty, n: n, e: e))
+            guard case .text(let kty) = ktyRaw else { throw .wrongType("kty") }
+            switch kty {
+            case "RSA":
+                guard case .bytes(let n)? = mapGet(m, "n") else { throw .missingField("n") }
+                guard case .bytes(let e)? = mapGet(m, "e") else { throw .missingField("e") }
+                return AgentReplyEnvelope(req: req, reply: .publicKey(.rsa(n: n, e: e)))
+            case "EC":
+                let crv = try requireText(m, "crv")
+                guard case .bytes(let x)? = mapGet(m, "x") else { throw .missingField("x") }
+                guard case .bytes(let y)? = mapGet(m, "y") else { throw .missingField("y") }
+                // One of the three curves, each coordinate at exactly its field
+                // width (the C++ codec's rule): a key the client cannot place on
+                // a curve is malformed, not passed on.
+                guard let width = ecFieldBytes(crv) else { throw .wrongType("crv") }
+                guard x.count == width else { throw .wrongType("x") }
+                guard y.count == width else { throw .wrongType("y") }
+                return AgentReplyEnvelope(req: req, reply: .publicKey(.ec(crv: crv, x: x, y: y)))
+            default:
+                throw .wrongType("kty")
+            }
         }
         if let entriesRaw = mapGet(m, "entries") {
             let entriesMap = try requireMap(entriesRaw, field: "entries")
@@ -605,7 +621,11 @@ private func parseCertInfo(_ v: CBORValue) throws(MessageError) -> CertificateIn
         ekus: ekus,
         chainSubjectCns: chainSubjectCns,
         trustStatus: UInt32(truncatingIfNeeded: try requireUInt64(m, "trustStatus")),
-        alwaysAuthenticate: try requireBool(m, "alwaysAuthenticate"))
+        alwaysAuthenticate: try requireBool(m, "alwaysAuthenticate"),
+        keyId: try requireNonEmptyBytes(m, "keyId"),
+        keyType: KeyType(rawValue: try requireText(m, "keyType")) ?? .other,
+        keyBits: try requireUInt32(m, "keyBits"),
+        canDerive: try requireBool(m, "canDerive"))
 }
 
 private func parseSignMeta(_ v: CBORValue) throws(MessageError) -> SignMeta {
@@ -762,6 +782,12 @@ private func requireText(_ m: [(Data, CBORValue)], _ key: String) throws(Message
     return s
 }
 
+private func requireNonEmptyBytes(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> Data {
+    guard let raw = mapGet(m, key) else { throw .missingField(key) }
+    guard case .bytes(let b) = raw, !b.isEmpty else { throw .wrongType(key) }
+    return b
+}
+
 private func requireTextArray(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> [String] {
     let arr = try requireArray(m, key)
     var result: [String] = []
@@ -778,6 +804,24 @@ private func requireUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(Messa
     return u
 }
 
+/// A count bounded to `UInt32`, as the C++ codec reads it: a value too wide
+/// for it is a malformed frame, never truncated to a small one.
+private func requireUInt32(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt32 {
+    let raw = try requireUInt64(m, key)
+    guard raw <= UInt64(UInt32.max) else { throw .wrongType(key) }
+    return UInt32(raw)
+}
+
+/// The field width in bytes of the curves a card key is on.
+private func ecFieldBytes(_ crv: String) -> Int? {
+    switch crv {
+    case "P-256": return 32
+    case "P-384": return 48
+    case "P-521": return 66
+    default: return nil
+    }
+}
+
 /// Width-bounded `UInt64` -> `UInt32` conversion for the three numeric wire
 /// enum fields whose C++ storage is `uint32_t` (`phase`, `status`, `code`):
 /// rejects ONLY a value too wide for `UInt32` to represent losslessly — a
@@ -790,9 +834,7 @@ private func requireUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(Messa
 /// doc comment). For the two `uint8_t`-storage enums (`preAuth`, `reason`),
 /// see `requireWireEnumValue8` below instead.
 private func requireWireEnumValue32(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt32 {
-    let raw = try requireUInt64(m, key)
-    guard raw <= UInt64(UInt32.max) else { throw .wrongType(key) }
-    return UInt32(raw)
+    try requireUInt32(m, key)
 }
 
 /// Width-bounded `UInt64` -> `UInt32` conversion for the two numeric wire

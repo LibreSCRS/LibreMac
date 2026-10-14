@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // SPDX-FileCopyrightText: 2026 hirashix0
 
+import CryptoKit
 import Foundation
 
 /// CTK-free operation logic for the token extension: reader resolution,
@@ -37,13 +38,47 @@ public struct TokenOpEngine {
         throw TokenOpError.mapped(.tokenNotFound)
     }
 
-    /// Signs `digestInfo` under `certId`. When the agent reports the session
-    /// as not logged in (no lease, or the lease lapsed), logs in and retries
-    /// once. No login is made ahead of the signature: the agent asks for the
-    /// PIN itself whenever the card's rule for the key requires it.
+    /// Signs `digestInfo` (a complete PKCS#1 v1.5 DigestInfo) under `certId`
+    /// with the card's RSA key. When the agent reports the session as not
+    /// logged in (no lease, or the lease lapsed), logs in and retries once. No
+    /// login is made ahead of the signature: the agent asks for the PIN itself
+    /// whenever the card's rule for the key requires it.
     public func sign(certId: String, digestInfo: Data) throws -> Data {
+        try signRaw(certId: certId, mech: .rsaPkcs, input: digestInfo)
+    }
+
+    /// Signs `digest` (SHA-256, -384 or -512: 32, 48 or 64 bytes) under
+    /// `certId` with the card's EC key and returns the X9.62 DER signature
+    /// Keychain expects. A digest of any other length is refused here, before
+    /// the agent; the agent answers r||s, converted for the curve
+    /// `keySizeInBits` names.
+    public func signEcdsa(certId: String, digest: Data, keySizeInBits: Int) throws -> Data {
+        guard [32, 48, 64].contains(digest.count) else { throw TokenOpError.mapped(.badParameter) }
+        let raw = try signRaw(certId: certId, mech: .ecdsa, input: digest)
+        return try Self.ecdsaDer(fromRaw: raw, keySizeInBits: keySizeInBits)
+    }
+
+    /// r||s (each half ceil(bits/8) bytes) -> X9.62 DER, for P-256, P-384 or P-521.
+    public static func ecdsaDer(fromRaw raw: Data, keySizeInBits: Int) throws -> Data {
+        do {
+            switch keySizeInBits {
+            case 256: return try P256.Signing.ECDSASignature(rawRepresentation: raw).derRepresentation
+            case 384: return try P384.Signing.ECDSASignature(rawRepresentation: raw).derRepresentation
+            case 521: return try P521.Signing.ECDSASignature(rawRepresentation: raw).derRepresentation
+            default: throw TokenOpError.mapped(.notImplemented)
+            }
+        } catch let error as TokenOpError {
+            throw error
+        } catch {
+            // The agent's r||s does not have the curve's width.
+            throw TokenOpError.mapped(.communicationError)
+        }
+    }
+
+    private func signRaw(certId: String, mech: PkSignMech, input: Data) throws -> Data {
         let reader = try resolveReader(certId: certId)
-        switch try transport.send(.pkSignRaw(reader: reader, cert: certId, data: digestInfo)) {
+        let request = AgentRequest.pkSignRaw(reader: reader, cert: certId, mech: mech, data: input)
+        switch try transport.send(request) {
         case .rawSignature(let sig):
             return sig
         case .err(let info):
@@ -54,8 +89,7 @@ public struct TokenOpEngine {
                 // The retry is where a session's first signature raises the
                 // PIN prompt, so its error reply is mapped like the first one:
                 // a cancel or a wrong PIN is an answer, not a device failure.
-                return try signReply(
-                    transport.send(.pkSignRaw(reader: reader, cert: certId, data: digestInfo)))
+                return try signReply(transport.send(request))
             }
             throw TokenOpError.mapped(map(info))
         default:
@@ -71,13 +105,13 @@ public struct TokenOpEngine {
         }
     }
 
-    /// Fetches the RSA public key (modulus, exponent) for `certId`.
-    public func publicKey(certId: String) throws -> (n: Data, e: Data) {
+    /// Fetches the public key for `certId`: RSA or EC.
+    public func publicKey(certId: String) throws -> PublicKey {
         let reader = try resolveReader(certId: certId)
-        guard case .publicKey(_, let n, let e) = try transport.send(.pkPublicKey(reader: reader, cert: certId)) else {
+        guard case .publicKey(let key) = try transport.send(.pkPublicKey(reader: reader, cert: certId)) else {
             throw TokenOpError.mapped(.objectNotFound)
         }
-        return (n, e)
+        return key
     }
 
     private func syncError(_ info: ErrInfo) -> SyncError? {
@@ -100,6 +134,9 @@ public struct TokenOpEngine {
         case .authFailed, .notAuthorized: return .authenticationFailed
         case .userNotLoggedIn: return .authenticationNeeded
         case .notSupported: return .notImplemented
+        case .invalidRequest:
+            // The agent refused the input before any prompt.
+            return .badParameter
         case .cancelled:
             // The person dismissed the prompt. CryptoTokenKit has a code for
             // exactly this. Answering `communicationError` instead reports a
@@ -111,7 +148,7 @@ public struct TokenOpEngine {
         case .rateLimited, .communicationError, .unknownConfigKey, .readOnlyConfig,
              .invalidConfigValue, .unsupportedProtocol, .unsupportedOnThisCard,
              .unsupportedSignatureParameter, .inputTooLarge, .unknownCredential,
-             .invalidRequest, .noResult, .masterListReplayed:
+             .noResult, .masterListReplayed:
             return .communicationError
         }
     }

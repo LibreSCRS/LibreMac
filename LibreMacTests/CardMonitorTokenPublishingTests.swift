@@ -33,12 +33,14 @@ private func sha256hex(_ data: Data) -> String {
 }
 
 private func certInfo(
-    certId: String, signingCapable: Bool, keyUsageBits: UInt32 = 0, alwaysAuthenticate: Bool = false
+    certId: String, signingCapable: Bool, keyUsageBits: UInt32 = 0, alwaysAuthenticate: Bool = false,
+    keyType: KeyType = .rsa, canDerive: Bool = false
 ) -> CertificateInfo {
     CertificateInfo(
         certId: certId, signingCapable: signingCapable, fields: [:],
         keyUsageBits: keyUsageBits, ekus: [], chainSubjectCns: [], trustStatus: 0,
-        alwaysAuthenticate: alwaysAuthenticate)
+        alwaysAuthenticate: alwaysAuthenticate, keyId: Data([0x01]), keyType: keyType,
+        keyBits: keyType == .ec ? 384 : 2048, canDerive: canDerive)
 }
 
 @Suite("CardMonitor token publishing")

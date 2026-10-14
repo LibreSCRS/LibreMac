@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // SPDX-FileCopyrightText: 2026 hirashix0
 
-import Testing
+import CryptoKit
 import Foundation
+import Testing
 @testable import LibreMacAgentClient
 
 @Suite("TokenOpEngine")
@@ -37,7 +38,7 @@ struct TokenOpEngineTests {
         ]
         let sig = try TokenOpEngine(transport: t).sign(certId: "certX", digestInfo: Data([0x31]))
         #expect(sig == Data([0x99]))
-        guard case .pkSignRaw(let r, let c, _) = t.sent[1] else {
+        guard case .pkSignRaw(let r, let c, _, _) = t.sent[1] else {
             Issue.record("expected a pkSignRaw request, got \(t.sent[1])")
             return
         }
@@ -183,10 +184,71 @@ struct TokenOpEngineTests {
         ]
         let sig = try TokenOpEngine(transport: t).sign(certId: "certY", digestInfo: Data([0x02]))
         #expect(sig == Data([0x55]))
-        guard case .pkSignRaw(let r, _, _) = t.sent.last else {
+        guard case .pkSignRaw(let r, _, _, _) = t.sent.last else {
             Issue.record("expected a pkSignRaw request, got \(String(describing: t.sent.last))")
             return
         }
         #expect(r == "r1")
+    }
+
+    @Test("an RSA signature asks for exactly rsa-pkcs")
+    func rsaSignNamesItsMechanism() throws {
+        let t = FakeTransport()
+        t.script = [
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .rawSignature(sig: Data([0x99])) },
+        ]
+        _ = try TokenOpEngine(transport: t).sign(certId: "certX", digestInfo: Data([0x31]))
+        guard case .pkSignRaw(_, _, let mech, _) = t.sent[1] else { Issue.record("no pkSignRaw"); return }
+        #expect(mech == .rsaPkcs)
+    }
+
+    @Test("an EC signature sends the digest as ecdsa and returns X9.62 DER")
+    func ecdsaSignReturnsDer() throws {
+        let key = P384.Signing.PrivateKey()
+        let digest = Data(SHA384.hash(data: Data("interop".utf8)))
+        let reference = try key.signature(for: SHA384.hash(data: Data("interop".utf8)))
+        let t = FakeTransport()
+        t.script = [
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .rawSignature(sig: reference.rawRepresentation) },
+        ]
+        let der = try TokenOpEngine(transport: t).signEcdsa(certId: "lk", digest: digest, keySizeInBits: 384)
+        #expect(der == reference.derRepresentation)
+        guard case .pkSignRaw(_, _, let mech, let data) = t.sent[1] else { Issue.record("no pkSignRaw"); return }
+        #expect(mech == .ecdsa)
+        #expect(data == digest)
+    }
+
+    @Test("a digest of the wrong length never reaches the agent")
+    func ecdsaRefusesAWrongDigestLength() {
+        let t = FakeTransport()
+        #expect(throws: TokenOpError.mapped(.badParameter)) {
+            _ = try TokenOpEngine(transport: t).signEcdsa(certId: "lk", digest: Data(count: 20), keySizeInBits: 384)
+        }
+        #expect(t.sent.isEmpty)
+    }
+
+    @Test("r||s with a short r converts on every curve")
+    func ecdsaDerKeepsAShortR() throws {
+        for (bits, width) in [(256, 32), (384, 48), (521, 66)] {
+            var raw = Data(count: 2 * width)
+            raw[width - 1] = 0x01            // r = 1: every byte but the last is a leading zero
+            raw[2 * width - 1] = 0x02        // s = 2
+            let der = try TokenOpEngine.ecdsaDer(fromRaw: raw, keySizeInBits: bits)
+            #expect(der == Data([0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02]), "curve \(bits)")
+        }
+    }
+
+    @Test("InvalidRequest from the agent is a bad parameter, not a device failure")
+    func invalidRequestMapsToBadParameter() {
+        let t = FakeTransport()
+        t.script = [
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .err(ErrInfo(code: .name(.invalidRequest))) },
+        ]
+        #expect(throws: TokenOpError.mapped(.badParameter)) {
+            _ = try TokenOpEngine(transport: t).signEcdsa(certId: "lk", digest: Data(count: 48), keySizeInBits: 384)
+        }
     }
 }

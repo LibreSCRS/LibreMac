@@ -32,9 +32,13 @@ public enum TokenTransportError: Error, Equatable {
 /// alternative — folding it into `communicationError` — reports a dismissed
 /// PIN prompt as a device failure, which is a different claim about the reader
 /// and the card than the one the person actually made.
+///
+/// `badParameter`: the agent refused the input before any prompt — a digest of
+/// the wrong length, a point off the key's curve; the caller's mistake, not the
+/// reader's.
 public enum TKErrorMapped: Sendable, Equatable {
     case tokenNotFound, authenticationFailed, objectNotFound
     case authenticationNeeded, communicationError, notImplemented
-    case canceledByUser
+    case canceledByUser, badParameter
 }
 public enum TokenOpError: Error, Equatable { case mapped(TKErrorMapped) }

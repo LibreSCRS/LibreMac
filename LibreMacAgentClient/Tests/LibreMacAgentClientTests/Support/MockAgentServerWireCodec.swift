@@ -72,14 +72,14 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
     case "Pkcs11.PublicKey":
         request = .pkPublicKey(reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "")
     case "Pkcs11.SignRaw":
+        guard let mech = PkSignMech(rawValue: mwText(pairs, "mech") ?? "") else { throw MockWireError.malformed }
         request = .pkSignRaw(
-            reader: mwText(pairs, "reader") ?? "",
-            cert: mwText(pairs, "cert") ?? "",
+            reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "", mech: mech,
             data: mwBytes(pairs, "data") ?? Data())
     case "Pkcs11.Decrypt":
+        guard let mech = PkDecryptMech(rawValue: mwText(pairs, "mech") ?? "") else { throw MockWireError.malformed }
         request = .pkDecrypt(
-            reader: mwText(pairs, "reader") ?? "",
-            cert: mwText(pairs, "cert") ?? "",
+            reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "", mech: mech,
             data: mwBytes(pairs, "data") ?? Data())
     case "ListCredentials":
         request = .listCredentials(card: mwText(pairs, "card") ?? "")
@@ -191,10 +191,15 @@ func encodeReply(_ reply: AgentReply, req: UInt64) -> Data {
         pairs.append(("certs", .array(certs.map(encodeCertInfo))))
     case .certDer(let der):
         pairs.append(("der", .bytes(der)))
-    case .publicKey(let kty, let n, let e):
-        pairs.append(("kty", .text(kty)))
+    case .publicKey(.rsa(let n, let e)):
+        pairs.append(("kty", .text("RSA")))
         pairs.append(("n", .bytes(n)))
         pairs.append(("e", .bytes(e)))
+    case .publicKey(.ec(let crv, let x, let y)):
+        pairs.append(("kty", .text("EC")))
+        pairs.append(("crv", .text(crv)))
+        pairs.append(("x", .bytes(x)))
+        pairs.append(("y", .bytes(y)))
     case .rawSignature(let sig):
         pairs.append(("sig", .bytes(sig)))
     case .config(let entries):
@@ -276,6 +281,8 @@ private func encodeCertInfo(_ info: CertificateInfo) -> CBORValue {
         ("chainSubjectCns", .array(info.chainSubjectCns.map { .text($0) })),
         ("trustStatus", .uint(UInt64(info.trustStatus))),
         ("alwaysAuthenticate", .bool(info.alwaysAuthenticate)),
+        ("keyId", .bytes(info.keyId)), ("keyType", .text(info.keyType.rawValue)),
+        ("keyBits", .uint(UInt64(info.keyBits))), ("canDerive", .bool(info.canDerive)),
     ])
 }
 

@@ -229,6 +229,37 @@ public enum SyncError: String, Sendable, Equatable, CaseIterable {
     case cancelled = "Cancelled"
 }
 
+/// The family of a certificate's key (`key-type`, `librescrs-agent.cddl`).
+/// `.ec` is a NIST curve (P-256, P-384, P-521) only; a token this build does
+/// not know decodes as `.other`, never as an error.
+public enum KeyType: String, Sendable, Equatable, CaseIterable {
+    case rsa = "RSA"
+    case ec = "EC"
+    case other = "OTHER"
+}
+
+/// `pk-sign-mech`: the primitive a raw signature asks the agent for.
+public enum PkSignMech: String, Sendable, Equatable, CaseIterable {
+    /// A complete PKCS#1 v1.5 block (a DigestInfo).
+    case rsaPkcs = "rsa-pkcs"
+    /// The raw message; the card hashes it with SHA-256.
+    case sha256RsaPkcs = "sha256-rsa-pkcs"
+    /// The digest (32, 48 or 64 bytes); answered as r||s.
+    case ecdsa = "ecdsa"
+}
+
+/// `pk-decrypt-mech`: the primitive a raw decryption asks for.
+public enum PkDecryptMech: String, Sendable, Equatable, CaseIterable {
+    case rsaPkcs = "rsa-pkcs"
+}
+
+/// A certificate's public key as `Pkcs11.PublicKey` serves it.
+public enum PublicKey: Sendable, Equatable {
+    case rsa(n: Data, e: Data)
+    /// `crv` is "P-256", "P-384" or "P-521"; x and y are each ceil(bits/8) bytes.
+    case ec(crv: String, x: Data, y: Data)
+}
+
 /// `Operation1` progress phase. Mirrors
 /// `LibreSCRS::Agent::Operations::OperationPhase` (LibreAgent) and CDDL
 /// `op-phase` (`librescrs-agent.cddl`). Append-only.
@@ -995,6 +1026,10 @@ public struct CertField: Sendable, Equatable {
 ///
 /// `alwaysAuthenticate`: the card asks for the PIN before every operation with
 /// this certificate's key; the agent enforces it, a client only tells the user.
+///
+/// `keyId` is the key's PKCS#11 `CKA_ID` (never empty); `keyType`/`keyBits`
+/// its family and size; `canDerive` whether the agent runs a key agreement
+/// with it.
 public struct CertificateInfo: Sendable, Equatable {
     public let certId: String
     public let signingCapable: Bool
@@ -1004,11 +1039,15 @@ public struct CertificateInfo: Sendable, Equatable {
     public let chainSubjectCns: [String]
     public let trustStatus: UInt32
     public let alwaysAuthenticate: Bool
+    public let keyId: Data
+    public let keyType: KeyType
+    public let keyBits: UInt32
+    public let canDerive: Bool
 
     public init(
         certId: String, signingCapable: Bool, fields: [String: [String: CertField]],
         keyUsageBits: UInt32, ekus: [String], chainSubjectCns: [String], trustStatus: UInt32,
-        alwaysAuthenticate: Bool
+        alwaysAuthenticate: Bool, keyId: Data, keyType: KeyType, keyBits: UInt32, canDerive: Bool
     ) {
         self.certId = certId
         self.signingCapable = signingCapable
@@ -1018,6 +1057,10 @@ public struct CertificateInfo: Sendable, Equatable {
         self.chainSubjectCns = chainSubjectCns
         self.trustStatus = trustStatus
         self.alwaysAuthenticate = alwaysAuthenticate
+        self.keyId = keyId
+        self.keyType = keyType
+        self.keyBits = keyBits
+        self.canDerive = canDerive
     }
 }
 
