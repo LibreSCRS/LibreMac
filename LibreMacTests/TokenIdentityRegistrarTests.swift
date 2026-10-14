@@ -7,7 +7,9 @@
 // than a synthetic DER, so a parse failure in the gate cannot pass silently.
 
 import CryptoKit
+import CryptoTokenKit
 import Foundation
+import LibreMacAgentClient
 import Testing
 @testable import LibreMac
 
@@ -38,6 +40,16 @@ private func realCertDER() throws -> Data {
     return try Data(contentsOf: url)
 }
 
+private func ecCertDER() throws -> Data {
+    let url = try #require(
+        Bundle(for: TestBundleAnchor.self).url(forResource: "test-cert-p384", withExtension: "der"))
+    return try Data(contentsOf: url)
+}
+
+private func publishedKey(_ store: FakeTokenConfigStore) -> TKTokenKeychainKey? {
+    store.tokens.values.first?.compactMap { $0 as? TKTokenKeychainKey }.first
+}
+
 private func sha256hex(_ data: Data) -> String {
     SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
 }
@@ -52,7 +64,7 @@ struct TokenIdentityRegistrarTests {
         let der = try realCertDER()
         let certId = sha256hex(der)
 
-        registrar.onCardPresent(certs: [PublishableCert(certId: certId, der: der, isQualified: false)])
+        registrar.onCardPresent(certs: [PublishableCert(certId: certId, der: der, isQualified: false, keyType: .rsa, signingCapable: true)])
         #expect(store.tokens.count == 1, "one token configuration per published cert")
 
         registrar.onCardRemoved()
@@ -65,7 +77,7 @@ struct TokenIdentityRegistrarTests {
         let registrar = TokenIdentityRegistrar(store: store)
         let der = try realCertDER()
 
-        registrar.onCardPresent(certs: [PublishableCert(certId: "deadbeef", der: der, isQualified: false)])
+        registrar.onCardPresent(certs: [PublishableCert(certId: "deadbeef", der: der, isQualified: false, keyType: .rsa, signingCapable: true)])
         #expect(store.tokens.isEmpty, "certId != sha256(DER) must never publish")
     }
 
@@ -75,7 +87,7 @@ struct TokenIdentityRegistrarTests {
         let registrar = TokenIdentityRegistrar(store: store)
         let der = try realCertDER()
         let certId = sha256hex(der)
-        let cert = PublishableCert(certId: certId, der: der, isQualified: false)
+        let cert = PublishableCert(certId: certId, der: der, isQualified: false, keyType: .rsa, signingCapable: true)
 
         registrar.onCardPresent(certs: [cert])
         #expect(store.tokens.count == 1)
@@ -107,10 +119,44 @@ struct TokenIdentityRegistrarTests {
         let der = try realCertDER()
         let certId = sha256hex(der)
 
-        registrar.onCardPresent(certs: [PublishableCert(certId: certId, der: der, isQualified: true)])
+        registrar.onCardPresent(certs: [PublishableCert(certId: certId, der: der, isQualified: true, keyType: .rsa, signingCapable: true)])
         #expect(
             ProcessInfo.processInfo.environment["LIBRESCRS_ENABLE_QES_KEYCHAIN"] != "1",
             "test process must not have opted in for this assertion to be meaningful")
         #expect(store.tokens.isEmpty, "qualified certs are gated off by default")
+    }
+
+    @Test("an EC P-384 card key is published as an EC signing key of its size")
+    func publishesAnEcKey() throws {
+        let store = FakeTokenConfigStore()
+        let registrar = TokenIdentityRegistrar(store: store)
+        let der = try ecCertDER()
+        registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
+                                                        keyType: .ec, signingCapable: true)])
+        let key = try #require(publishedKey(store))
+        #expect(key.keyType == kSecAttrKeyTypeECSECPrimeRandom as String)
+        #expect(key.keySizeInBits == 384)
+        #expect(key.canSign)
+        #expect(!key.canPerformKeyExchange, "no key exchange until the agent derives with this key")
+    }
+
+    @Test("a key the agent reports as another kind is never published")
+    func otherKeyIsNotPublished() throws {
+        let store = FakeTokenConfigStore()
+        let registrar = TokenIdentityRegistrar(store: store)
+        let der = try ecCertDER()
+        registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
+                                                        keyType: .other, signingCapable: true)])
+        #expect(store.tokens.isEmpty)
+    }
+
+    @Test("a key the agent cannot sign with is not published")
+    func nonSigningKeyIsNotPublished() throws {
+        let store = FakeTokenConfigStore()
+        let registrar = TokenIdentityRegistrar(store: store)
+        let der = try realCertDER()
+        registrar.onCardPresent(certs: [PublishableCert(certId: sha256hex(der), der: der, isQualified: false,
+                                                        keyType: .rsa, signingCapable: false)])
+        #expect(store.tokens.isEmpty, "nothing to publish without signing (key exchange comes with derive)")
     }
 }

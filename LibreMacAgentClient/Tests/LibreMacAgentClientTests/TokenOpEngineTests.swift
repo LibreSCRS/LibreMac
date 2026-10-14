@@ -251,4 +251,74 @@ struct TokenOpEngineTests {
             _ = try TokenOpEngine(transport: t).signEcdsa(certId: "lk", digest: Data(count: 48), keySizeInBits: 384)
         }
     }
+
+    @Test("an EC signature after a lapsed session logs in, retries with ecdsa and returns DER")
+    func ecdsaRetriesAfterUserNotLoggedIn() throws {
+        let key = P256.Signing.PrivateKey()
+        let digest = Data(SHA256.hash(data: Data("retry".utf8)))
+        let reference = try key.signature(for: SHA256.hash(data: Data("retry".utf8)))
+        let t = FakeTransport()
+        t.script = [
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .err(ErrInfo(code: .name(.userNotLoggedIn))) },
+            { _ in .ack },
+            { _ in .rawSignature(sig: reference.rawRepresentation) },
+        ]
+        let der = try TokenOpEngine(transport: t).signEcdsa(certId: "lk", digest: digest, keySizeInBits: 256)
+        #expect(der == reference.derRepresentation)
+        guard t.sent.count == 4, case .pkLogin = t.sent[2],
+              case .pkSignRaw(_, _, let mech, let data) = t.sent[3] else {
+            Issue.record("expected sign, login, sign; got \(t.sent)")
+            return
+        }
+        #expect(mech == .ecdsa)
+        #expect(data == digest)
+    }
+
+    @Test("an EC retry's error maps like the first signature's", arguments: [
+        (SyncError.cancelled, TKErrorMapped.canceledByUser),
+        (.authFailed, .authenticationFailed),
+        (.invalidRequest, .badParameter),
+    ])
+    func ecdsaRetryErrorMapsLikeTheFirst(name: SyncError, expected: TKErrorMapped) {
+        let t = retryFails(with: name)
+        #expect(throws: TokenOpError.mapped(expected)) {
+            _ = try TokenOpEngine(transport: t).signEcdsa(certId: "lk", digest: Data(count: 48), keySizeInBits: 384)
+        }
+        #expect(t.script.isEmpty)
+    }
+
+    private func ecKeyReply(crv: String, x: Int, y: Int) -> FakeTransport {
+        let t = FakeTransport()
+        t.script = [
+            { _ in .state(readers: [reader()], cards: [card()]) },
+            { _ in .publicKey(.ec(crv: crv, x: Data(repeating: 0x11, count: x), y: Data(repeating: 0x22, count: y))) },
+        ]
+        return t
+    }
+
+    @Test("an EC public key of the certificate's curve and width is accepted on every curve")
+    func ecPublicKeyOfTheRightCurveIsAccepted() throws {
+        for (bits, crv, width) in [(256, "P-256", 32), (384, "P-384", 48), (521, "P-521", 66)] {
+            let key = try TokenOpEngine(transport: ecKeyReply(crv: crv, x: width, y: width))
+                .publicKey(certId: "lk", keySizeInBits: bits)
+            #expect(key == .ec(crv: crv, x: Data(repeating: 0x11, count: width),
+                               y: Data(repeating: 0x22, count: width)), "curve \(crv)")
+        }
+    }
+
+    @Test("an EC public key on another curve, of the wrong width or not the certificate's size is refused",
+          arguments: [
+              ("P-192", 48, 48, 384),   // a curve the token does not drive, at the right width
+              ("P-384", 66, 66, 521),   // the right width for the size, but another curve
+              ("P-384", 47, 48, 384),   // x one byte short
+              ("P-384", 48, 49, 384),   // y one byte long
+              ("P-256", 32, 32, 384),   // a valid key, but not the certificate's size
+              ("P-521", 65, 65, 521),   // P-521 coordinates are 66 bytes, not 65
+          ])
+    func ecPublicKeyThatDoesNotFitIsRefused(crv: String, x: Int, y: Int, bits: Int) {
+        #expect(throws: TokenOpError.mapped(.communicationError)) {
+            _ = try TokenOpEngine(transport: ecKeyReply(crv: crv, x: x, y: y)).publicKey(certId: "lk", keySizeInBits: bits)
+        }
+    }
 }

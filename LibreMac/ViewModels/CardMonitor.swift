@@ -284,7 +284,9 @@ public final class CardMonitor {
                 "Read \(certs.count, privacy: .public) certificates from \(cardHandle, privacy: .public)")
 
             if let tokenRegistrar {
-                let publishable = await Self.publishableCerts(certs, reader: card.reader) {
+                let publishable = await Self.publishableCerts(
+                    certs, reader: card.reader, preAuth: card.preAuth
+                ) {
                     reader, certId in
                     try await client.certificateDer(reader: reader, certId: certId)
                 }
@@ -299,8 +301,10 @@ public final class CardMonitor {
 
     // MARK: - Token identity publishing
 
-    /// Resolves a `PublishableCert` for every signing-capable cert in
-    /// `certificates`, fetching each one's DER via `fetchDer`. A cert whose
+    /// Resolves a `PublishableCert` for every signing-capable RSA or EC cert
+    /// in `certificates` (a key of another kind is never offered, nor an RSA
+    /// key of a card that needs pre-authentication -- `preAuth`), fetching
+    /// each one's DER via `fetchDer`. A cert whose
     /// DER fetch fails is skipped (logged) rather than aborting the whole
     /// batch — mirrors `TokenIdentityRegistrar.onCardPresent`'s own
     /// "skip, never crash the presence pipeline" contract.
@@ -311,10 +315,18 @@ public final class CardMonitor {
     static func publishableCerts(
         _ certificates: [CertificateInfo],
         reader: String,
+        preAuth: PreReadAuth,
         fetchDer: (_ reader: String, _ certId: String) async throws -> Data
     ) async -> [PublishableCert] {
         var result: [PublishableCert] = []
-        for cert in certificates where cert.signingCapable {
+        // A card opened through PACE (`preAuth` not `.none`) hashes on the
+        // card, and Keychain only ever hands the token a DigestInfo: such a
+        // card's RSA key cannot serve it, so the token does not publish it (the
+        // PKCS#11 facade does publish it, but offers it only the hash-on-card
+        // mechanism, which a DigestInfo cannot use). ECDSA signs a digest on every card, so EC keys stay.
+        let rsaSigns = preAuth == .none
+        for cert in certificates
+        where cert.signingCapable && (cert.keyType == .ec || (cert.keyType == .rsa && rsaSigns)) {
             do {
                 let der = try await fetchDer(reader, cert.certId)
                 // RFC 5280 §4.2.1.3 KeyUsage, natural ordinal bit order (bit
@@ -325,7 +337,9 @@ public final class CardMonitor {
                 // == 1`), not a reversed DER BIT STRING bit order.
                 let isQualified = cert.keyUsageBits & (1 << 1) != 0
                 result.append(
-                    PublishableCert(certId: cert.certId, der: der, isQualified: isQualified))
+                    PublishableCert(
+                        certId: cert.certId, der: der, isQualified: isQualified, keyType: cert.keyType,
+                        signingCapable: cert.signingCapable))
             } catch {
                 Logger.card.error(
                     "certificateDer failed for \(cert.certId, privacy: .public): \(error.localizedDescription, privacy: .public)"

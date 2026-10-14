@@ -17,6 +17,7 @@
 import CryptoKit
 import CryptoTokenKit
 import Foundation
+import LibreMacAgentClient
 import LibreMacShared
 import Security
 import os
@@ -32,11 +33,17 @@ public struct PublishableCert: Equatable, Sendable {
     /// Qualified-certificate flag; gates publication behind
     /// `LIBRESCRS_ENABLE_QES_KEYCHAIN` (default off).
     public let isQualified: Bool
+    /// The key's family as the agent reports it; only `.rsa` and `.ec` keys are published.
+    public let keyType: KeyType
+    /// The agent can sign with this key.
+    public let signingCapable: Bool
 
-    public init(certId: String, der: Data, isQualified: Bool) {
+    public init(certId: String, der: Data, isQualified: Bool, keyType: KeyType, signingCapable: Bool) {
         self.certId = certId
         self.der = der
         self.isQualified = isQualified
+        self.keyType = keyType
+        self.signingCapable = signingCapable
     }
 }
 
@@ -130,6 +137,9 @@ public final class TokenIdentityRegistrar {
             // Qualified-certificate publication is gated separately behind
             // an explicit opt-in; unqualified certs are always eligible.
             if cert.isQualified && !Self.qesKeychainEnabled { continue }
+            // Only keys this token can drive: RSA, and EC on the NIST curves.
+            guard cert.keyType == .rsa || cert.keyType == .ec else { continue }
+            guard cert.signingCapable else { continue }
 
             let computed = SHA256.hash(data: cert.der).map { String(format: "%02x", $0) }.joined()
             guard computed == cert.certId else { continue }
@@ -139,7 +149,14 @@ public final class TokenIdentityRegistrar {
             guard let keychainCert = TKTokenKeychainCertificate(certificate: secCert, objectID: objectID),
                 let keychainKey = TKTokenKeychainKey(certificate: secCert, objectID: objectID)
             else { continue }
-            keychainKey.canSign = true
+            keychainKey.canSign = cert.signingCapable
+            // The certificate's keyAgreement bit alone would advertise key
+            // exchange; the token offers none until the agent derives with the
+            // key.
+            keychainKey.canPerformKeyExchange = false
+            // The token never decrypts; the initializer would offer it from
+            // the certificate's key usage.
+            keychainKey.canDecrypt = false
             // The constraint only routes ctkd through the token's no-op auth
             // operation; the agent enforces the PIN at the signature itself.
             keychainKey.constraints = [NSNumber(value: TKTokenOperation.signData.rawValue): ["authID": objectID]]

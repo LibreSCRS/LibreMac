@@ -105,11 +105,21 @@ public struct TokenOpEngine {
         }
     }
 
-    /// Fetches the public key for `certId`: RSA or EC.
-    public func publicKey(certId: String) throws -> PublicKey {
+    /// Fetches the public key for `certId`: RSA or EC. An EC key is returned
+    /// only when it is the curve `keySizeInBits` names (the size the
+    /// certificate gives) and each coordinate is exactly that curve's width;
+    /// anything else is refused as `communicationError`, never handed on.
+    public func publicKey(certId: String, keySizeInBits: Int) throws -> PublicKey {
         let reader = try resolveReader(certId: certId)
         guard case .publicKey(let key) = try transport.send(.pkPublicKey(reader: reader, cert: certId)) else {
             throw TokenOpError.mapped(.objectNotFound)
+        }
+        if case .ec(let crv, let x, let y) = key {
+            let curves = [256: "P-256", 384: "P-384", 521: "P-521"]
+            let width = (keySizeInBits + 7) / 8
+            guard curves[keySizeInBits] == crv, x.count == width, y.count == width else {
+                throw TokenOpError.mapped(.communicationError)
+            }
         }
         return key
     }
