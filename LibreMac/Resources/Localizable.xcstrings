@@ -1004,6 +1004,91 @@
         }
       }
     },
+    "lc-agent-guidance-not-in-applications" : {
+      "comment" : "lc-agent-guidance-not-in-applications",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move LibreMac and LibreCelik into Applications, then open LibreCelik again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Преместите LibreMac и LibreCelik у Applications, па поново отворите LibreCelik."
+          }
+        }
+      }
+    },
+    "lc-agent-guidance-not-installed" : {
+      "comment" : "lc-agent-guidance-not-installed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install LibreSCRS for macOS: drag LibreMac and LibreCelik from the same disk image into Applications."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Инсталирајте LibreSCRS за macOS: превуците LibreMac и LibreCelik са исте слике диска у Applications."
+          }
+        }
+      }
+    },
+    "lc-agent-guidance-starting" : {
+      "comment" : "lc-agent-guidance-starting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting LibreMac…"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Покрећем LibreMac…"
+          }
+        }
+      }
+    },
+    "lc-agent-guidance-still-missing" : {
+      "comment" : "lc-agent-guidance-still-missing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LibreMac did not start the card agent."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LibreMac није покренуо агента за картице."
+          }
+        }
+      }
+    },
+    "lc-agent-guidance-still-missing-hint" : {
+      "comment" : "lc-agent-guidance-still-missing-hint",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open LibreMac and allow it to run in the background (System Settings → General → Login Items), then try again."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отворите LibreMac и дозволите му рад у позадини (System Settings → General → Login Items), па покушајте поново."
+          }
+        }
+      }
+    },
     "lc-agent-msg-cancelled" : {
       "comment" : "lc-agent-msg-cancelled",
       "localizations" : {
