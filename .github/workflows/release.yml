@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 name: Release
 
-# A release of LibreMac is a universal (x86_64 + arm64) disk image holding the
+# A release is one universal (x86_64 + arm64) disk image holding LibreMac (the
 # menu-bar app, its token extension, and the agent and prompter built from the
 # LibreDarwin revision deps.lock names, with the LibreMiddleware libraries that
-# revision locks. Scripts/bundle-agent.sh stages, Scripts/sign-bundle.sh signs,
+# revision locks) and LibreCelik, both from the revisions deps.lock names.
+# Scripts/bundle-agent.sh stages, Scripts/sign-bundle.sh signs,
 # Scripts/verify-bundle.sh checks -- including running the agent -- before it
-# is imaged.
+# is imaged. LibreCelik is built and tested here and packaged by its own
+# scripts/macos/build-app.sh, then launched once before it is imaged.
 #
 # The bundle is signed ad hoc: there is no Developer ID yet, so it is not
 # notarised and Gatekeeper refuses it on first open until the user allows it
@@ -128,11 +130,11 @@ jobs:
       - name: Select the Xcode in .xcode-version and its SDK
         run: ./Scripts/select-xcode.sh
 
-      - name: Checkout LibreAgent and LibreDarwin at this repository's lock
+      - name: Checkout LibreAgent, LibreDarwin and LibreCelik at this repository's lock
         id: deps
         uses: LibreSCRS/ci/actions/checkout-deps@2e5c95f7e9a54325bc0321775c0d8c08002aebea
         with:
-          names: LibreAgent LibreDarwin
+          names: LibreAgent LibreDarwin LibreCelik
           fetch-depth: '0'
 
       - name: Checkout LibreMiddleware at LibreDarwin's lock
@@ -214,27 +216,84 @@ jobs:
           ./Scripts/sign-bundle.sh "$app"
           ./Scripts/verify-bundle.sh "$app"
 
+      - name: Install Qt for LibreCelik
+        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125  # v4.4.1
+        with:
+          version: '6.10.3'
+          host: mac
+          target: desktop
+          arch: clang_64
+          modules: 'qtimageformats qtpdf'
+          cache: true
+
+      - name: Install jsonschema into Qt's Python
+        # The Qt action puts its own Python first on PATH; LibreCelik's manifest
+        # code generator runs in that one.
+        run: python3 -m pip install --break-system-packages --user jsonschema
+
+      - name: Build and test LibreCelik (Release, universal)
+        env:
+          LC_SRC: ${{ steps.deps.outputs.librecelik-path }}
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          cmake -S "$LC_SRC" -B "$LC_SRC/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DLIBRESCRS_TEAM_ID="$LIBRESCRS_TEAM_ID"
+          cmake --build "$LC_SRC/build" -j4
+          # Serial, as in LibreCelik's own CI: its suites share state.
+          ctest --output-on-failure --no-tests=error --test-dir "$LC_SRC/build"
+
+      - name: Package LibreCelik and run it
+        # A bundle that verifies can still die in dyld when launched (an agent
+        # that verified clean did, fixed in LibreMac 07321cd); the launch is
+        # the check.
+        env:
+          LC_SRC: ${{ steps.deps.outputs.librecelik-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          "$LC_SRC/scripts/macos/build-app.sh" "$LC_SRC/build" "$RUNNER_TEMP/lc"
+          bin="$RUNNER_TEMP/lc/LibreCelik.app/Contents/MacOS/LibreCelik"
+          for arch in x86_64 arm64; do lipo "$bin" -verify_arch "$arch"; done
+          QT_QPA_PLATFORM=offscreen "$bin" --version
+          # The Intel slice runs only where Rosetta is present.
+          if /usr/bin/pgrep -q oahd || arch -x86_64 /usr/bin/true 2>/dev/null; then
+            QT_QPA_PLATFORM=offscreen arch -x86_64 "$bin" --version
+          else
+            echo "::notice::no Rosetta on this runner; the x86_64 slice is checked by lipo only"
+          fi
+          cp "$RUNNER_TEMP/lc/sbom-librecelik-macos.cdx.json" out/
+
       - name: Disk image
         run: |
           set -euo pipefail
           stage="$RUNNER_TEMP/dmg"
           mkdir -p "$stage" out
           ditto DerivedData/Build/Products/Release/LibreMac.app "$stage/LibreMac.app"
+          ditto "$RUNNER_TEMP/lc/LibreCelik.app" "$stage/LibreCelik.app"
           ln -s /Applications "$stage/Applications"
           # On the hosted xcode-27 image hdiutil create has failed with
           # "Resource busy" on a tree that verified clean, while the same
           # command passes locally on macOS 27. Three tries, each failure said.
           for try in 1 2 3; do
-            if hdiutil create -volname "LibreMac $VERSION" -srcfolder "$stage" \
-                 -format UDZO -o "out/LibreMac-$VERSION-macos.dmg"; then
+            if hdiutil create -volname "LibreSCRS $VERSION" -srcfolder "$stage" \
+                 -format UDZO -o "out/LibreSCRS-$VERSION-macos.dmg"; then
               break
             fi
             echo "::warning::hdiutil create failed (try $try of 3)"
-            rm -f "out/LibreMac-$VERSION-macos.dmg"
+            rm -f "out/LibreSCRS-$VERSION-macos.dmg"
             [ "$try" -lt 3 ] || exit 1
             sleep 15
           done
-          hdiutil verify "out/LibreMac-$VERSION-macos.dmg"
+          # verify right after create has failed once with "Resource
+          # temporarily unavailable" on an image that then verified clean.
+          for try in 1 2 3; do
+            if hdiutil verify "out/LibreSCRS-$VERSION-macos.dmg"; then
+              break
+            fi
+            echo "::warning::hdiutil verify failed (try $try of 3)"
+            [ "$try" -lt 3 ] || exit 1
+            sleep 15
+          done
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -289,7 +348,7 @@ jobs:
       - name: Refuse a release whose bill of materials is missing or empty
         # Before anything is signed: a signature over a document this job is
         # about to reject is worth not creating.
-        run: python3 .ci/scripts/check-sbom artifacts/sbom-macos.cdx.json
+        run: python3 .ci/scripts/check-sbom artifacts/sbom-macos.cdx.json artifacts/sbom-librecelik-macos.cdx.json
 
       - uses: LibreSCRS/ci/actions/release-seal@2e5c95f7e9a54325bc0321775c0d8c08002aebea
         with:

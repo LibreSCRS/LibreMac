@@ -9,19 +9,25 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Download
 
-- `LibreMac-5.0.0-macos.dmg` is a universal build (Apple silicon and Intel)
+- `LibreSCRS-5.0.0-macos.dmg` is a universal build (Apple silicon and Intel)
   for macOS 15 or later. It holds the menu-bar app, its token extension, and
   the LibreSCRS agent and credential prompter the app starts as Login Items.
-  Drag LibreMac to Applications.
-- The app is **not notarised**: it is signed ad hoc, without an Apple
-  Developer ID, so macOS refuses to open it the first time. Open it once, then
-  go to System Settings → Privacy & Security, find the message about LibreMac
-  near the bottom and choose **Open Anyway**. Alternatively, from Terminal:
-  `xattr -dr com.apple.quarantine /Applications/LibreMac.app`.
+  Drag LibreMac and LibreCelik to Applications.
+- The same disk image carries LibreCelik, built and tested from the revision
+  `deps.lock` names. LibreCelik is GPL-3.0-or-later; its source is
+  `librecelik_<ver>.orig.tar.gz` in the LibreCelik release of the same tag.
+- The apps are **not notarised**: they are signed ad hoc, without an Apple
+  Developer ID, so macOS refuses to open each of them the first time. Open
+  each application once, then go to System Settings → Privacy & Security,
+  find the message about that application near the bottom and choose
+  **Open Anyway** — once for LibreMac and once for LibreCelik. Alternatively,
+  from Terminal:
+  `xattr -dr com.apple.quarantine /Applications/LibreMac.app` and
+  `xattr -dr com.apple.quarantine /Applications/LibreCelik.app`.
 - Check the download before opening it: `shasum -a 256 -c SHA256SUMS
   --ignore-missing` in the folder holding both files. Every asset also carries
   a cosign signature bundle (`*.sigstore.json`) and a build provenance
-  attestation (`gh attestation verify LibreMac-5.0.0-macos.dmg --repo
+  attestation (`gh attestation verify LibreSCRS-5.0.0-macos.dmg --repo
   LibreSCRS/LibreMac`).
 
 ### Added

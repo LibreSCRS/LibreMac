@@ -8,7 +8,8 @@
 # names none, so Xcode cannot sign a second, different set). Order: staged
 # dylibs and plugins -> prompter -> agent -> code nested in the token
 # extension -> the token extension -> the host, last. Nothing may touch the
-# bundle afterwards.
+# bundle afterwards. LibreCelik's scripts/macos/build-app.sh applies the same
+# identity rules to its own bundle.
 #
 # Xcode builds unsigned because Xcode 26 refuses an ad hoc build that carries
 # application-groups or keychain-access-groups ("requires a provisioning

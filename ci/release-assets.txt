@@ -7,7 +7,8 @@
 # in the step before `gh release create`; --published <tag> compares it against
 # the release that exists. Changing what the workflow publishes without
 # changing this file fails the release before it is created.
-LibreMac-*-macos.dmg  universal macOS build (x86_64 + arm64) with the agent inside; ad hoc signed, not notarised
-sbom-macos.cdx.json   CycloneDX bill of materials for the disk image
+LibreSCRS-*-macos.dmg          universal macOS build (x86_64 + arm64): LibreMac with the agent inside, and LibreCelik; ad hoc signed, not notarised
+sbom-macos.cdx.json            CycloneDX bill of materials for LibreMac and its agent
+sbom-librecelik-macos.cdx.json CycloneDX bill of materials for LibreCelik in the disk image
 SHA256SUMS            checksums over every other asset in this release
 *.sigstore.json       cosign keyless signature bundle, one per asset
