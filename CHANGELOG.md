@@ -208,6 +208,10 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Opening LibreMac starts the agent or the credential prompter when either
+  is enabled but not running. launchd restarts them only after a crash, so
+  one that had exited cleanly stayed down, and PIN prompts failed while the
+  agent's socket still looked healthy to clients.
 - Replacing LibreMac.app with another build of the same version now restarts
   the agent and the prompter from the new bundle. The app recycled them only
   when `CFBundleVersion` changed, so a rebuilt bundle kept the previous agent

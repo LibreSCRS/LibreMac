@@ -11,6 +11,7 @@ import LibreMacAgentClient
 import LibreMacShared
 import Security
 import ServiceManagement
+import os
 
 /// `LaunchAgentRegistering` backed by a real `SMAppService.agent(plistName:)`.
 ///
@@ -48,6 +49,30 @@ struct SMAppServiceAgent: LaunchAgentRegistering {
     func unregister() throws {
         try service().unregister()
     }
+
+    /// `launchctl kickstart` without `-k`, which starts the job only when it
+    /// is not running. It works from inside the app sandbox.
+    func start() {
+        let label = (plistName as NSString).deletingPathExtension
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = ["kickstart", "gui/\(getuid())/\(label)"]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        process.terminationHandler = { finished in
+            if finished.terminationStatus != 0 {
+                Logger.agent.error(
+                    "kickstart \(label, privacy: .public) exited \(finished.terminationStatus)")
+            }
+        }
+        do {
+            try process.run()
+        } catch {
+            let reason = error.localizedDescription
+            Logger.agent.error(
+                "kickstart \(label, privacy: .public) did not run: \(reason, privacy: .public)")
+        }
+    }
 }
 
 /// The host itself as a login item (`SMAppService.mainApp`), behind the same
@@ -72,6 +97,9 @@ struct SMAppServiceMainApp: LaunchAgentRegistering {
     func unregister() throws {
         try SMAppService.mainApp.unregister()
     }
+
+    /// Nothing to start: whoever calls this is the host, already running.
+    func start() {}
 }
 
 extension LoginItemSetting {

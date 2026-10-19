@@ -3,7 +3,7 @@
 //
 // State-machine tests for AgentRegistrar via the `LaunchAgentRegistering`
 // protocol seam (SMAppService itself is not mockable). The scripted fake
-// records register()/unregister() calls and advances its own status, so the
+// records register()/unregister()/start() calls and advances its own status, so the
 // recycle-vs-register decision and the aggregate-state derivation are exercised
 // without touching the real launchd.
 
@@ -20,6 +20,7 @@ final class FakeLaunchAgent: LaunchAgentRegistering, @unchecked Sendable {
     private let registerError: Error?
     private(set) var registerCount = 0
     private(set) var unregisterCount = 0
+    private(set) var startCount = 0
 
     init(
         label: String,
@@ -49,6 +50,11 @@ final class FakeLaunchAgent: LaunchAgentRegistering, @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         unregisterCount += 1
         currentStatus = .notRegistered
+    }
+
+    func start() {
+        lock.lock(); defer { lock.unlock() }
+        startCount += 1
     }
 }
 
@@ -96,6 +102,22 @@ struct AgentRegistrarTests {
 
         #expect(agent.registerCount == 1)
         #expect(prompter.registerCount == 1)
+        #expect(agent.startCount == 0 && prompter.startCount == 0)
+        #expect(registrar.state == .registered)
+    }
+
+    @Test("already enabled services are started, not registered again")
+    func startsEnabledServices() async {
+        let agent = FakeLaunchAgent(label: "agent", status: .enabled)
+        let prompter = FakeLaunchAgent(label: "prompter", status: .enabled)
+        let registrar = makeRegistrar(services: [agent, prompter], recycle: false)
+
+        await registrar.activate()
+
+        #expect(agent.startCount == 1)
+        #expect(prompter.startCount == 1)
+        #expect(agent.registerCount == 0 && agent.unregisterCount == 0)
+        #expect(prompter.registerCount == 0 && prompter.unregisterCount == 0)
         #expect(registrar.state == .registered)
     }
 
@@ -108,6 +130,7 @@ struct AgentRegistrarTests {
         await registrar.activate()
 
         #expect(agent.registerCount == 0)
+        #expect(agent.startCount == 0)
         #expect(registrar.state == .requiresApproval)
     }
 
@@ -123,6 +146,7 @@ struct AgentRegistrarTests {
         #expect(agent.registerCount == 1)
         #expect(prompter.unregisterCount == 1)
         #expect(prompter.registerCount == 1)
+        #expect(agent.startCount == 0 && prompter.startCount == 0)
         #expect(registrar.state == .registered)
     }
 
@@ -199,6 +223,7 @@ struct AgentRegistrarTests {
         #expect(registrar.state == .translocated)
         #expect(agent.registerCount == 0 && agent.unregisterCount == 0)
         #expect(prompter.registerCount == 0 && prompter.unregisterCount == 0)
+        #expect(agent.startCount == 0 && prompter.startCount == 0)
         #expect(touched.callCount == 0)
     }
 

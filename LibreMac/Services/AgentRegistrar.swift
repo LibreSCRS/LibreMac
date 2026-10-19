@@ -44,6 +44,11 @@ public protocol LaunchAgentRegistering: Sendable {
     func register() throws
     /// Disable the LaunchAgent.
     func unregister() throws
+    /// Ask launchd to start an enabled service that is not running, and
+    /// leave a running one alone. Best effort: `KeepAlive` restarts only a
+    /// crash, so a service that exited cleanly stays down until something
+    /// starts it.
+    func start()
 }
 
 /// Observable registrar that both host launch and the UI read: `state`
@@ -117,7 +122,7 @@ public final class AgentRegistrar {
 
     /// Runs the launch flow: materialize the container off-main, then ensure
     /// every service is registered (recycling any whose captured launch
-    /// constraint is stale), and publish the aggregate `state`.
+    /// constraint is stale) and running, and publish the aggregate `state`.
     public func activate() async {
         if isTranslocated() {
             Logger.agent.notice("running translocated; not registering the agent")
@@ -164,7 +169,11 @@ public final class AgentRegistrar {
         switch service.status() {
         case .notRegistered, .notFound:
             try service.register()
-        case .requiresApproval, .enabled:
+        case .enabled:
+            // Registered earlier, but it may have exited cleanly since —
+            // and then nothing else brings it back.
+            service.start()
+        case .requiresApproval:
             break
         }
     }
