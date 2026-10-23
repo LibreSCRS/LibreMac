@@ -47,6 +47,10 @@ cat > "$work/main4.c" <<'C'
 int librescrs_fixture(void);
 int main(int argc, char **argv) { (void)argc; (void)argv; return librescrs_fixture() + 4; }
 C
+cat > "$work/main5.c" <<'C'
+int librescrs_fixture(void);
+int main(int argc, char **argv) { (void)argc; (void)argv; return librescrs_fixture() + 5; }
+C
 cat > "$work/dlv.plist" <<'P'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -130,6 +134,7 @@ make_app nodlv main2.c - || { echo "cannot build the fixture"; exit 2; }
 make_app dlv main2.c "$work/dlv.plist" || exit 2
 make_app exit1 main1.c "$work/dlv.plist" || exit 2
 make_app exit4 main4.c "$work/dlv.plist" || exit 2
+make_app exit5 main5.c "$work/dlv.plist" || exit 2
 mkdir -p "$work/noagent.app/Contents/MacOS"
 make_app teamgroup main2.c "$work/in-group.plist" ABCDE12345 || exit 2
 make_app teamteam main2.c "$work/in-team.plist" ABCDE12345 || exit 2
@@ -150,6 +155,7 @@ expect dlv PASS 'exited 2' green "$verify"
 expect exit1 FAIL 'exit 1, wanted 2' red "$verify"
 expect noagent FAIL 'not present' red "$verify"
 expect exit4 FAIL 'exit 4 -- the agent refused to start.*subsystem == "rs\.librescrs\.agent"' red "$verify"
+expect exit5 FAIL 'exit 5 -- the agent refused to start: it is not signed with com\.apple\.security\.smartcard' red "$verify"
 
 # Perturbation: a smoke that accepts any exit must turn a wrong exit green, or
 # the cases above are not testing the comparison. Over exit1, which is red on

@@ -414,6 +414,8 @@ else
             pass "librescrs-agent smoke: started from the bundle and exited 2 on an unknown argument (dyld loaded every linked library)"
         elif [ "$smoke_rc" -eq 4 ]; then
             fail "librescrs-agent smoke: exit 4 -- the agent refused to start: its signature does not match the build (team, or the App Group that team names); it says why only in the unified log: log show --last 5m --predicate 'subsystem == \"rs.librescrs.agent\"'"
+        elif [ "$smoke_rc" -eq 5 ]; then
+            fail "librescrs-agent smoke: exit 5 -- the agent refused to start: it is not signed with com.apple.security.smartcard, so it would see no card or reader"
         elif [ "$smoke_rc" -eq 134 ]; then
             fail "librescrs-agent smoke: exit 134 -- dyld refused to load it: $(grep -m1 -E 'Library not loaded|Reason|Team ID' "$smoke_err" | tr -s ' ')$(grep -m1 -o 'different Team IDs' "$smoke_err" | sed 's/^/ (/;s/$/)/')"
         else
