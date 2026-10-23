@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2026 hirashix0
 #
 # Stages librescrs-agent + librescrs-prompter + the agent PKCS#11 module (built
-# by the LibreDarwin repo) plus the LibreMiddleware dylib/pkcs11/plugin closure
+# by the LibreDarwin repo) plus the LibreMiddleware dylib/plugin closure
 # into a built LibreMac host .app. It signs nothing: Scripts/sign-bundle.sh
 # signs the result. This is packaging glue only -- it does NOT build LibreMac or
 # LibreDarwin; run generate-project.sh + xcodebuild (or the release pipeline)
@@ -14,7 +14,6 @@
 #   Contents/MacOS/librescrs-agent           <- LIBREDARWIN_PREFIX/agent/librescrs-agent
 #   Contents/MacOS/librescrs-prompter        <- LIBREDARWIN_PREFIX/prompter/librescrs-prompter
 #   Contents/Frameworks/libLibreSCRS_*.dylib <- LM_LIB_PREFIX/libLibreSCRS_*.<soname>.dylib
-#   Contents/Frameworks/librescrs-pkcs11.dylib <- LM_LIB_PREFIX/pkcs11/librescrs-pkcs11.<soname>.dylib
 #   Contents/Frameworks/librescrs-pkcs11-agent.dylib <- LIBREDARWIN_PREFIX/pkcs11-module/librescrs-pkcs11-agent.dylib
 #   Contents/PlugIns/librescrs/*.dylib       <- LM_LIB_PREFIX/librescrs/plugins/*.dylib
 #   Contents/Library/LaunchAgents/org.librescrs.{agent,prompter}.plist <- Packaging/
@@ -94,9 +93,9 @@ cp -R "$CERTS_SRC"/. "$RESOURCES/certificates/"
 cp "$LIBREDARWIN_PREFIX/agent/librescrs-agent" "$MACOS/librescrs-agent"
 cp "$LIBREDARWIN_PREFIX/prompter/librescrs-prompter" "$MACOS/librescrs-prompter"
 chmod u+w "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter"
-# The PKCS#11 module other applications load to reach the agent. Not to be
-# confused with librescrs-pkcs11.dylib below, which drives the card directly
-# and is the agent's own.
+# The PKCS#11 module other applications load to reach the agent. LibreMiddleware's
+# direct module is not staged: the agent opens the card through its own
+# session, and a second module would be a second connection to the same card.
 cp "$LIBREDARWIN_PREFIX/pkcs11-module/librescrs-pkcs11-agent.dylib" "$FRAMEWORKS/librescrs-pkcs11-agent.dylib"
 chmod u+w "$FRAMEWORKS/librescrs-pkcs11-agent.dylib"
 
@@ -108,9 +107,6 @@ chmod u+w "$FRAMEWORKS/librescrs-pkcs11-agent.dylib"
 # The soname integer is LIBRESCRS_ABI_SOVERSION, not the release version, and it
 # was hard-coded here as 4 until LibreMiddleware moved to 5 -- see
 # Scripts/lm-soname.sh for why neither a literal nor PROJECT_VERSION is right.
-#
-# The PKCS#11 module is versioned with the same soname, and a prefix reused
-# across an ABI bump carries both, so the soname picks the module as well.
 shopt -s nullglob
 lm_soname="$("$SCRIPT_DIR/lm-soname.sh" "$LM_LIB_PREFIX")" || exit 1
 lm_dylibs=("$LM_LIB_PREFIX"/libLibreSCRS_*."$lm_soname".dylib)
@@ -120,14 +116,6 @@ for lib in "${lm_dylibs[@]}"; do
     cp -L "$lib" "$FRAMEWORKS/$(basename "$lib")"
     chmod u+w "$FRAMEWORKS/$(basename "$lib")"
 done
-# pkcs11 module: LM's resolvePkcs11Module candidate 3 is
-# exe/../Frameworks/librescrs-pkcs11.dylib — the target NAME must be exactly
-# that (not the versioned basename) or the candidate lookup misses.
-pkcs11_src="$LM_LIB_PREFIX/pkcs11/librescrs-pkcs11.$lm_soname.dylib"
-[ -e "$pkcs11_src" ] || { echo "bundle-agent: no librescrs-pkcs11.$lm_soname.dylib under $LM_LIB_PREFIX/pkcs11" >&2; exit 1; }
-cp -L "$pkcs11_src" "$FRAMEWORKS/librescrs-pkcs11.dylib"
-chmod u+w "$FRAMEWORKS/librescrs-pkcs11.dylib"
-
 # plugins
 plugin_srcs=("$LM_LIB_PREFIX"/librescrs/plugins/*.dylib)
 [ "${#plugin_srcs[@]}" -gt 0 ] || { echo "bundle-agent: no plugins under $LM_LIB_PREFIX/librescrs/plugins" >&2; exit 1; }
@@ -136,7 +124,7 @@ for p in "${plugin_srcs[@]}"; do
     chmod u+w "$PLUGINS/$(basename "$p")"
 done
 shopt -u nullglob
-echo "bundle-agent: staged ${#lm_dylibs[@]} LM dylib(s), pkcs11 module, ${#plugin_srcs[@]} plugin(s)"
+echo "bundle-agent: staged ${#lm_dylibs[@]} LM dylib(s), ${#plugin_srcs[@]} plugin(s)"
 
 # ---------------------------------------------------------------- stage plists
 cp "$REPO_ROOT/Packaging/org.librescrs.agent.plist" "$LAUNCHAGENTS/org.librescrs.agent.plist"

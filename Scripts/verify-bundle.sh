@@ -124,21 +124,14 @@ else
     done
 fi
 
-# ---------------------------------------------------------------- pkcs11 dylib
-if [ -f "$FRAMEWORKS/librescrs-pkcs11.dylib" ]; then
-    pass "librescrs-pkcs11.dylib present in Contents/Frameworks (LM resolvePkcs11Module candidate 3)"
-    # Present is not enough: a prefix reused across an ABI bump carries the
-    # previous release's module too, and that one links libraries this bundle
-    # does not ship. It has to name the soname the libraries were staged at.
-    if [ -n "$lm_soname" ]; then
-        if otool -L "$FRAMEWORKS/librescrs-pkcs11.dylib" | grep -qE "libLibreSCRS_[A-Za-z0-9]+\.${lm_soname}\.dylib"; then
-            pass "librescrs-pkcs11.dylib links LibreMiddleware soname $lm_soname"
-        else
-            fail "librescrs-pkcs11.dylib does not link any libLibreSCRS_<Name>.$lm_soname.dylib (otool -L: $(otool -L "$FRAMEWORKS/librescrs-pkcs11.dylib" | grep libLibreSCRS_ | tr -s ' \t' ' ' | paste -sd';' -))"
-        fi
-    fi
+# ---------------------------------------------------------------- no direct PKCS#11 module
+# The agent opens the card through its own session. LibreMiddleware's direct
+# module, loaded beside it, would open a second connection to the same card,
+# and on a contactless card the second one wedges the first.
+if [ -e "$FRAMEWORKS/librescrs-pkcs11.dylib" ]; then
+    fail "librescrs-pkcs11.dylib is in Contents/Frameworks: the direct PKCS#11 module must not ship beside the agent"
 else
-    fail "librescrs-pkcs11.dylib missing from Contents/Frameworks"
+    pass "no direct PKCS#11 module (librescrs-pkcs11.dylib) in Contents/Frameworks"
 fi
 
 # ---------------------------------------------------------------- agent PKCS#11 module
@@ -331,8 +324,8 @@ rm -f "$ents_plist"
 # Packaging/entitlements/, which holds no build variable. An entitlement that
 # still carries "$(" was signed from a file that does, and names a keychain
 # group no process holds.
-signed_five=("$APP_PATH" "$TOKEN_APPEX" "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter" "$FRAMEWORKS/librescrs-pkcs11.dylib")
-for code in "${signed_five[@]}"; do
+signed_four=("$APP_PATH" "$TOKEN_APPEX" "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter")
+for code in "${signed_four[@]}"; do
     [ -e "$code" ] || continue
     if codesign -d --entitlements - --xml "$code" 2>/dev/null | grep -qF '$('; then
         fail "$(basename "$code") carries an unexpanded \$( build variable in its entitlements"
@@ -344,7 +337,7 @@ done
 # ---------------------------------------------------------------- hardened runtime
 # Every signature sign-bundle.sh makes carries --options runtime. A hardened host with a nested
 # executable that is not hardened is a notarization reject.
-for code in "${signed_five[@]}"; do
+for code in "${signed_four[@]}"; do
     [ -e "$code" ] || continue
     if codesign -dv --verbose=4 "$code" 2>&1 | grep -E '^CodeDirectory .*flags=' | grep -q 'runtime'; then
         pass "$(basename "$code") is signed with the hardened runtime"
@@ -385,11 +378,11 @@ fi
 # from the bundle and with a clean environment, with an argument it does not
 # know: exit 2 means dyld loaded every linked library, the agent's check that
 # its own signature matches the build passed (team, and the App Group that team
-# names), and main parsed the arguments (card plugins and the PKCS#11 module
-# are dlopened later, so they are not proved). Exit 4 is that check refusing:
-# the signature does not match the build. On macOS 27 the sandbox already
-# touches the App Group container when the process starts, so this run is not
-# free of it. Not the prompter: it ignores argv and binds its socket at once.
+# names), and main parsed the arguments (card plugins are dlopened later, so
+# they are not proved). Exit 4 is that check refusing: the signature does not
+# match the build. On macOS 27 the sandbox already touches the App Group
+# container when the process starts, so this run is not free of it. Not the
+# prompter: it ignores argv and binds its socket at once.
 #
 # With System Integrity Protection off -- the hosted macOS runners -- dyld does
 # not enforce library validation, so there exit 2 proves the libraries link and

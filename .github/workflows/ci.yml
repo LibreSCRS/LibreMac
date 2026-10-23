@@ -3,8 +3,8 @@ name: CI
 
 # LibreMac is a pure-Swift macOS host: a SwiftUI menu-bar app plus a CTK
 # token extension. It is LibreMiddleware-FREE at link time — the per-user
-# agent (built from LibreDarwin and shipped inside the release image) owns the card via
-# LM's PKCS#11 module, and this repo's host/extension only talk to the agent
+# agent (built from LibreDarwin and shipped inside the release image) owns the card
+# through LibreMiddleware, and this repo's host/extension only talk to the agent
 # over the App-Group socket. There is no C/C++ left in the host, so there is
 # no clang-format gate here; the Swift compiler's strict-concurrency and
 # warnings-as-errors settings are the format/lint gate.

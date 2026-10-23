@@ -17,8 +17,9 @@
 # write the one group into every component, with a secure timestamp on every
 # signature exactly when the identity is not ad hoc.
 #
-# Also the agent PKCS#11 module (present, one export, system libraries only)
-# and the minimum macOS: every fixture is built for 15.0 and its Info.plist
+# Also the agent PKCS#11 module (present, one export, system libraries only),
+# the direct PKCS#11 module (never shipped beside the agent) and the minimum
+# macOS: every fixture is built for 15.0 and its Info.plist
 # claims 15.0; a binary built for 27.0 -- what the compiler picks on a macOS 27
 # host when nothing says otherwise -- must fail by name.
 set -uo pipefail
@@ -327,6 +328,17 @@ expect_line "Info.plist says 15, agent 15.0" bare15 "$(minos_of librescrs-agent)
 expect_line "Mach-O lipo cannot read" noarch "$(minos_of 'libcut\.dylib')" FAIL 'unreadable: lipo names no architecture' red
 expect_line "Mach-O with no readable minos" nominosread "$(minos_of 'libcut\.dylib')" FAIL 'minos none unreadable' red
 expect_line "no LSMinimumSystemVersion" nominos 'Contents/Info\.plist carries no LSMinimumSystemVersion' FAIL 'no minimum macOS' red
+
+# The direct module: any file under that name is the defect, so a copy of the
+# fixture library stands in for it.
+make_app direct main2.c "$work/dlv.plist" && cp "$work/libfix.dylib" "$work/direct.app/Contents/Frameworks/librescrs-pkcs11.dylib" || exit 2
+direct='(no direct PKCS#11 module|librescrs-pkcs11\.dylib is in)'
+expect_line "no direct module" modok "$direct" PASS 'no direct PKCS#11 module' green
+expect_line "direct module shipped" direct "$direct" FAIL 'must not ship beside the agent' red
+# Perturbation: a check that never looks must pass the bundle carrying it.
+if perturbed verify-nodirect.sh 's|-e "\$FRAMEWORKS/librescrs-pkcs11\.dylib"|-e /nonexistent|' "$verify"; then
+    expect_line "perturbation: direct module not looked for" direct "$direct" PASS '' green "$work/verify-nodirect.sh"
+fi
 
 # Perturbation: a minos check that compares nothing must pass the agent built
 # for 27.0, or the case above is not testing the comparison.

@@ -87,6 +87,11 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The app no longer ships LibreMiddleware's direct PKCS#11 module
+  (`Contents/Frameworks/librescrs-pkcs11.dylib`). The agent opens each card
+  through its own session, so nothing in the bundle opens a second connection
+  to the same card; `Scripts/verify-bundle.sh` fails a bundle that carries it.
+  Applications that load a PKCS#11 module use `librescrs-pkcs11-agent.dylib`.
 - A digest of the wrong length, or input the agent refuses before any PIN
   prompt, is reported as a bad parameter instead of a communication failure.
 - A card opened with a CAN, or any other pre-authentication, publishes no RSA
