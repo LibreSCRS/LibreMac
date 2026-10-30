@@ -90,6 +90,10 @@
         <source>Quit LibreMac</source>
         <translation>Quit LibreMac</translation>
     </message>
+    <message id="libremac_open_in_librecelik">
+        <source>Open in LibreCelik</source>
+        <translation>Open in LibreCelik</translation>
+    </message>
     <message id="libremac_presence_agent_unavailable">
         <source>The signing agent is not running</source>
         <translation>The signing agent is not running</translation>

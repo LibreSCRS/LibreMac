@@ -13079,6 +13079,23 @@
         }
       }
     },
+    "libremac_open_in_librecelik" : {
+      "comment" : "libremac_open_in_librecelik",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in LibreCelik"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отвори у Слободном Челику"
+          }
+        }
+      }
+    },
     "libremac_prefs_placeholder" : {
       "comment" : "libremac_prefs_placeholder",
       "localizations" : {

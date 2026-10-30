@@ -32,6 +32,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Open in LibreCelik** in the menu while a card is in the reader, as in
+  the KDE widget. It opens LibreCelik from an Applications folder, or brings
+  it to the front when it is already running.
 - The token extension signs with EC keys (P-256, P-384, P-521) through
   Keychain — ECDSA over the caller's digest, returned as X9.62 DER; the new
   Serbian ID card's key is published as the EC key it is.

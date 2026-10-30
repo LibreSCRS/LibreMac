@@ -90,6 +90,10 @@
         <source>Quit LibreMac</source>
         <translation>Изађи из LibreMac-а</translation>
     </message>
+    <message id="libremac_open_in_librecelik">
+        <source>Open in LibreCelik</source>
+        <translation>Отвори у Слободном Челику</translation>
+    </message>
     <message id="libremac_presence_agent_unavailable">
         <source>The signing agent is not running</source>
         <translation>Агент за потписивање није покренут</translation>

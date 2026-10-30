@@ -158,6 +158,15 @@ struct LibreMacApp: App {
         ReaderPickerMenu()
             .environment(appDelegate.monitor)
 
+        if LibreCelikLauncher.offers(for: appDelegate.monitor.presence),
+            let libreCelik = LibreCelikLauncher.installedURL()
+        {
+            Divider()
+            Button(loc("libremac_open_in_librecelik", "Open in LibreCelik")) {
+                LibreCelikLauncher.open(libreCelik)
+            }
+        }
+
         if appDelegate.registrar.state == .requiresApproval {
             Divider()
             Button(loc("libremac_registrar_approve", "Approve the signing agent in Login Items…")) {
