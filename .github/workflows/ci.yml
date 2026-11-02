@@ -46,7 +46,7 @@ jobs:
       # the vendored agent contract is byte-for-byte the one at the LibreAgent
       # lock); and CHANGELOG against VERSION.
       - name: Shared gates
-        uses: LibreSCRS/ci/actions/gates@164794a2151a30d5772355b7498acc2d73a2f7fa
+        uses: LibreSCRS/ci/actions/gates@d68f5d781a665759eaba63c67ef0e6eb1f738063
         with:
           gates: check-workflows selftests deps-lock check-version-lockstep
 
@@ -112,7 +112,7 @@ jobs:
       - name: Self-tests that need macOS
         # verify-bundle.selftest.sh declares darwin: the ubuntu lint job lists
         # it as not for linux, and this is the leg that runs it.
-        uses: LibreSCRS/ci/actions/gates@164794a2151a30d5772355b7498acc2d73a2f7fa
+        uses: LibreSCRS/ci/actions/gates@d68f5d781a665759eaba63c67ef0e6eb1f738063
         with:
           gates: selftests
 
