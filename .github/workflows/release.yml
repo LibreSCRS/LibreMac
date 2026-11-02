@@ -192,6 +192,7 @@ jobs:
           cmake -C "$RUNNER_TEMP/openssl.cmake" -S "$LD_SRC" -B "$LD_SRC/build-release" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DLIBREDARWIN_UNIVERSAL=ON \
+            -DBUILD_TESTING=OFF \
             -DLIBRESCRS_WERROR=ON \
             -DCMAKE_PREFIX_PATH="$LM_PREFIX" \
             -DLIBRESCRS_TEAM_ID="$LIBRESCRS_TEAM_ID" \
