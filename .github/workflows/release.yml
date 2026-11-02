@@ -237,16 +237,17 @@ jobs:
         # code generator runs in that one.
         run: python3 -m pip install --break-system-packages --user jsonschema
 
-      - name: Build and test LibreCelik (Release, universal)
+      - name: Build LibreCelik (Release, universal)
+        # What the bundle ships, without its tests: GoogleTest comes from
+        # Homebrew, built for the host alone, so a universal test binary cannot
+        # link. LibreCelik's own CI runs the suites; the bundle is launched below.
         env:
           LC_SRC: ${{ steps.deps.outputs.librecelik-path }}
-          QT_QPA_PLATFORM: offscreen
         run: |
           cmake -S "$LC_SRC" -B "$LC_SRC/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DLIBRESCRS_TEAM_ID="$LIBRESCRS_TEAM_ID"
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DBUILD_TESTING=OFF \
+            -DLIBRESCRS_TEAM_ID="$LIBRESCRS_TEAM_ID"
           cmake --build "$LC_SRC/build" -j4
-          # Serial, as in LibreCelik's own CI: its suites share state.
-          ctest --output-on-failure --no-tests=error --test-dir "$LC_SRC/build"
 
       - name: Package LibreCelik and run it
         # A bundle that verifies can still die in dyld when launched (an agent
