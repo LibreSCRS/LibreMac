@@ -156,7 +156,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DCMAKE_INSTALL_PREFIX="$LM_PREFIX" \
-            -DLIBREMIDDLEWARE_BUILD_SHARED=ON
+            -DBUILD_TESTING=OFF
           cmake --build .build-lm -j4
           cmake --install .build-lm
           # Every library the bundle will stage carries both slices. One arch per
