@@ -90,6 +90,12 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Reader names in the menu and in Card Credentials are the ones the agent
+  gives every LibreSCRS application — the model, and contact or contactless
+  for each slot of a dual-interface reader — instead of LibreMac's own
+  reading of the system's reader name. A label changes when a second reader
+  beside it comes or goes. With an agent that sends no label, the system's
+  reader name is shown.
 - The app no longer ships LibreMiddleware's direct PKCS#11 module
   (`Contents/Frameworks/librescrs-pkcs11.dylib`). The agent opens each card
   through its own session, so nothing in the bundle opens a second connection
@@ -116,7 +122,8 @@ versioning follows [Semantic Versioning](https://semver.org/).
 - Opened straight from the disk image, LibreMac no longer registers the agent
   there; it asks you to move it to Applications first.
 - Every macOS job builds with Xcode 27.0 and its SDK, selected explicitly
-  (`.xcode-version`, `Scripts/select-xcode.sh`) on the `xcode-27` runner.
+  (`.xcode-version`, read by the shared `select-xcode` action of
+  LibreSCRS/ci) on the `xcode-27` runner.
 - `Scripts/verify-bundle.sh` runs the bundled agent, so a bundle whose agent
   cannot start is no longer reported verified.
 - The "Default output folder" setting now takes effect. It used to be stored
@@ -184,6 +191,11 @@ versioning follows [Semantic Versioning](https://semver.org/).
   generator learned to read the plural forms out of the `.ts` sources, so the
   two signing sentences that count files and confirmations, which until now
   rendered their English source to a Serbian reader, are translated as well.
+
+- When an application signs through Keychain, the PIN and confirmation
+  dialogs mark the requester `(Keychain)` in the dialog's own language, from
+  LibreMac's catalog, instead of an English word that came with the agent's
+  request.
 
 - The token extension now waits up to 330 seconds for the agent to answer a
   request, up from 120 seconds, which could run out while you were still
@@ -259,6 +271,19 @@ versioning follows [Semantic Versioning](https://semver.org/).
   signs the agent it builds that way (ad hoc), and the comment in
   `RealAgentSmokeTests.swift` gives the `codesign` command for doing it by
   hand.
+
+- Keychain is offered only the card's ordinary signing certificate. The
+  qualified certificate is left out on purpose, so that no application
+  reaching for a Keychain identity makes a qualified signature in passing;
+  sign with it in LibreCelik. `LIBRESCRS_ENABLE_QES_KEYCHAIN=1` publishes it
+  too, as a development switch.
+
+- The host and the token extension no longer take the agent socket's path
+  from `LIBRESCRS_AGENT_SOCK`: they connect only to the socket in the App
+  Group container, where the agent binds it. A client running outside the
+  signed bundle, which reaches that container by its path under the home
+  directory, takes the home directory from the account rather than from
+  `HOME`, and uses `HOME` only when the account names none.
 
 - Documented, in the README, that without a Developer ID signature the agent
   and prompter can only tell a connecting peer apart by same-user ownership

@@ -13,12 +13,12 @@ final class TokenAuthOperation: TKTokenAuthOperation {
         super.init()
     }
 
-    // TKTokenAuthOperation adopts NSSecureCoding; a subclass with a custom
-    // designated init must supply the required NSCoding initializer. This op is
-    // never archived/unarchived by the system (it is created fresh in
-    // beginAuthFor and finished immediately), so a trapping stub is correct.
+    // TKTokenAuthOperation adopts NSSecureCoding because CryptoTokenKit may
+    // carry an operation between processes. This one has no state of its own,
+    // so decoding it is decoding the superclass; a trap here would end the
+    // extension on any signature where the system does decode it.
     required init?(coder: NSCoder) {
-        fatalError("TokenAuthOperation is not NSCoding-decodable")
+        super.init(coder: coder)
     }
 
     override func finish() throws {}

@@ -78,13 +78,14 @@ struct CredentialsView: View {
         }
     }
 
-    /// A section is titled with its reader's display name (agent-provided
-    /// data, not copy); the raw card handle is the last-resort fallback.
+    /// A section is titled with the same reader label the menu's picker
+    /// shows, so one reader is never named two ways; the raw card handle is
+    /// the last-resort fallback.
     private func sectionTitle(for card: String) -> String {
         guard let cardState = monitor.cards.first(where: { $0.handle == card }),
-              let reader = monitor.readers.first(where: { $0.handle == cardState.reader })
+              monitor.readers.contains(where: { $0.handle == cardState.reader })
         else { return card }
-        return reader.name
+        return monitor.readerLabel(for: cardState.reader)
     }
 
     // MARK: - Record rows

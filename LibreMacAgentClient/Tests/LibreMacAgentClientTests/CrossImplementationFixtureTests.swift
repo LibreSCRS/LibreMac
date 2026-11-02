@@ -64,10 +64,18 @@ struct CrossImplementationFixtureTests {
     func state() throws {
         let env = try AgentMessages.decodeReply(try fixture("State"))
         #expect(env.req == 3)
+        // r2 carries the label the agent reads from its PC/SC name.
         #expect(
             env.reply
                 == .state(
-                    readers: [ReaderState(handle: "r1", name: "Reader One", hasCard: true, card: "c1")],
+                    readers: [
+                        ReaderState(handle: "r1", name: "Reader One", hasCard: true, card: "c1"),
+                        ReaderState(
+                            handle: "r2",
+                            name: "HID Global OMNIKEY 5422 Smartcard Reader "
+                                + "[OMNIKEY 5422CL Smartcard Reader] (IM0O2C00NF10456904) 00 00",
+                            hasCard: false, model: "OMNIKEY 5422", interface: .contactless),
+                    ],
                     cards: [CardState(handle: "c1", reader: "r1", caps: Capabilities(rawValue: 3), preAuth: .can)]
                 ))
     }

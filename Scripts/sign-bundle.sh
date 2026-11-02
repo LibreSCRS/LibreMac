@@ -81,11 +81,18 @@ fi
 # signing team's ID needs no profile. Without a team (CI, tests) it stays
 # "group.". The clients and the agent derive it by the same rule from the same
 # team, so a component signed into any other group cannot reach the socket.
-if [ -n "$LIBRESCRS_TEAM_ID" ]; then
-    app_group="$LIBRESCRS_TEAM_ID.org.librescrs.LibreMac"
-else
-    app_group="group.org.librescrs.LibreMac"
-fi
+# The rule's two parts are read from the agent's wire contract
+# (socket-location), the file the Swift client's tests hold it to.
+CONTRACT="$REPO_ROOT/LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract/wire-vocabulary.json"
+contract_field() {
+    plutil -extract "socket-location.$1" raw -o - "$CONTRACT" 2>/dev/null || {
+        echo "sign-bundle: cannot read socket-location.$1 from $CONTRACT" >&2
+        return 1
+    }
+}
+no_team_prefix="$(contract_field noTeamPrefix)" || exit 1
+app_group_suffix="$(contract_field appGroupSuffix)" || exit 1
+app_group="${LIBRESCRS_TEAM_ID:-$no_team_prefix}$app_group_suffix"
 
 # Every entitlement is signed from a copy here, never from the source file,
 # and all four are written before anything is signed.

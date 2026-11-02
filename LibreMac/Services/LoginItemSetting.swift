@@ -14,6 +14,7 @@
 // moves or vanishes.
 
 import Foundation
+import LibreMacAgentClient
 import LibreMacShared
 import Observation
 import os
@@ -54,9 +55,9 @@ final class LoginItemSetting {
     /// True for a bundle directly inside /Applications or ~/Applications.
     nonisolated static func isInApplicationsFolder(_ bundleURL: URL) -> Bool {
         let parent = bundleURL.standardizedFileURL.deletingLastPathComponent().path
-        // The passwd home: under the App Sandbox the home directory APIs
+        // The account's home: under the App Sandbox the home directory APIs
         // answer with this app's container.
-        let home = getpwuid(getuid()).map { String(cString: $0.pointee.pw_dir) } ?? NSHomeDirectory()
+        let home = AgentSocketPath.accountHomeDirectory() ?? NSHomeDirectory()
         let userApplications = URL(fileURLWithPath: home).appendingPathComponent("Applications").standardizedFileURL.path
         return parent == "/Applications" || parent == userApplications
     }

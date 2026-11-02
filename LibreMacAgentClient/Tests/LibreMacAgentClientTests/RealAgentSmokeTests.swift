@@ -56,11 +56,11 @@ import Foundation
 import Testing
 @testable import LibreMacAgentClient
 
-/// Reads `LIBRESCRS_AGENT_SOCK` directly (not `AgentSocketPath.resolve()`,
-/// which also falls back to the App-Group container) — this suite's whole
-/// point is to be a no-op unless a real socket was explicitly handed to it.
+/// Reads `LIBRESCRS_AGENT_SOCK`, a variable only this suite knows (the
+/// shipped clients take no socket path from the environment) — this suite's
+/// whole point is to be a no-op unless a real socket was explicitly handed to it.
 private func liveAgentSocketPath() -> String? {
-    let value = ProcessInfo.processInfo.environment[AgentSocketPath.environmentOverrideKey]
+    let value = ProcessInfo.processInfo.environment["LIBRESCRS_AGENT_SOCK"]
     return (value?.isEmpty == false) ? value : nil
 }
 

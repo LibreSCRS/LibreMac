@@ -9,7 +9,7 @@
 # one that ran everything.
 #
 # Every case runs the gate inside a throwaway git repository, because the
-# "the floor may only rise" rule reads the previous commit. The summary
+# gate finds the floor file from the checkout's top level. The summary
 # fixture is a real `xcresulttool get test-results summary` output (device id
 # blanked); every red variant is derived from it here, so a field rename in the
 # fixture breaks the green case rather than silently greening the red ones.
@@ -28,9 +28,8 @@ command -v python3 >/dev/null 2>&1 || { echo "python3 is not on PATH -- cannot b
 command -v git >/dev/null 2>&1 || { echo "git is not on PATH -- cannot build the fixtures" >&2; exit 2; }
 
 # The fixtures are git repositories, so the caller's own git configuration
-# must not reach them: tag.gpgsign=true, for one, turns `git tag base` into
-# a signed annotated tag that asks for a message, and every case that names
-# a base then cannot judge. Identity comes from g() below.
+# must not reach them (commit.gpgsign=true, for one, would ask for a key).
+# Identity comes from g() below.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 
 work=$(mktemp -d "${TMPDIR:-/var/tmp}/check-test-floor.XXXXXX") || exit 2
@@ -99,6 +98,7 @@ summary "$S/zero.json"     'd["totalTestCount"]=0; d["passedTests"]=0'
 summary "$S/skipped.json"  'd["skippedTests"]=1; d["passedTests"]-=1'
 summary "$S/failed.json"   'd["failedTests"]=1; d["passedTests"]-=1; d["result"]="Failed"'
 summary "$S/below.json"    'd["totalTestCount"]-=1; d["passedTests"]-=1'
+summary "$S/below2.json"   'd["totalTestCount"]-=2; d["passedTests"]-=2'
 summary "$S/noskip.json"   'del d["skippedTests"]'
 summary "$S/nototal.json"  'del d["totalTestCount"]'
 summary "$S/strtotal.json" 'd["totalTestCount"]=str(d["totalTestCount"])'
@@ -172,75 +172,15 @@ run "c16 a floor of zero measures nothing"                       2 "$d" --summar
 d=$work/r_twofloor; repo "$d" "$N" "$N"; printf '%s\n' "$N" >> "$d/ci/test-floor.macos.txt"
 run "c17 floor file with two numbers"                            2 "$d" --summary "$S/real.json"
 
-# ---- the floor may only rise -------------------------------------------------
-d=$work/r_lowered; repo "$d" "$N" $((N - 10))
-run "c18 floor lowered against HEAD~1"                           1 "$d" --summary "$S/real.json"
-d=$work/r_raised; repo "$d" $((N - 10)) "$N"
-run "c19 floor raised against HEAD~1"                            0 "$d" --summary "$S/real.json"
-d=$work/r_absent; repo "$d" absent "$N"
-run "c20 HEAD~1 carries no floor file (it is being introduced)"  0 "$d" --summary "$S/real.json"
+# ---- a floor lowered in the change is the floor -----------------------------
+# Lowering it is an edit to the file, reviewed with the deletion, as in
+# LibreSCRS/ci's test-floor.py: no commit trailer, no comparison with history.
+d=$work/r_lowered; repo "$d" "$N" $((N - 1))
+run "c18 floor lowered with the tests it counted: judged at the new floor"  0 "$d" --summary "$S/below.json"
+run "c19 the lowered floor still holds: one test below it is red"           1 "$d" --summary "$S/below2.json"
 d=$work/r_root; repo "$d" none "$N"
-run "c21 root commit, full history: nothing to compare"          0 "$d" --summary "$S/real.json"
-d=$work/r_prevbad; repo "$d" "junk" "$N"
-run "c22 HEAD~1's floor file is unreadable"                      2 "$d" --summary "$S/real.json"
-src=$work/r_shallow_src; repo "$src" "$N" "$N"
-d=$work/r_shallow; git clone -q --depth 1 "file://$src" "$d" 2>/dev/null
-[ "$(git -C "$d" rev-parse --is-shallow-repository)" = true ] || { echo "could not build a shallow clone" >&2; exit 2; }
-run "c23 depth-1 checkout: HEAD~1 unreachable"                   2 "$d" --summary "$S/real.json"
-d=$work/r_shallow2; git clone -q --depth 2 "file://$src" "$d" 2>/dev/null
-run "c24 depth-2 checkout (what CI fetches): judged"             0 "$d" --summary "$S/real.json"
-d=$work/r_shallow3; repo "$work/r_shallow3_src" "$N" $((N - 1)); git clone -q --depth 2 "file://$work/r_shallow3_src" "$d" 2>/dev/null
-run "c25 depth-2 checkout, floor lowered"                        1 "$d" --summary "$S/real.json"
-
-# ---- the base of the change and the named lowering ---------------------------
-# step <repo> <floor|-> <message>: one commit; `-` touches only README.
-step() {
-    if [ "$2" = - ]; then printf '%s\n' "$3" >> "$1/README"; g -C "$1" add README
-    else floor_text "$2" > "$1/ci/test-floor.macos.txt"; g -C "$1" add ci/test-floor.macos.txt; fi
-    g -C "$1" commit -q -m "$3" || return 1
-}
-chain() {  # chain <repo>: main at floor N, the base every case below measures from
-    mkdir -p "$1/ci" && g init -q "$1" && step "$1" "$N" "base" && g -C "$1" tag base
-}
-TR='Test-Floor-Lowered'
-
-# Three commits after the base; the MIDDLE one lowers, the last touches nothing.
-d=$work/b_mid; chain "$d"; step "$d" - one; step "$d" $((N - 10)) "drop tests"; step "$d" - three
-run "c42 lowered mid-push, later commit untouched, --base: red"  1 "$d" --summary "$S/real.json" --base "$(g -C "$d" rev-parse base)"
-# Without --base (a local run) the base is HEAD~1, which already carries the
-# lowered number -- green, and exactly why CI always passes --base.
-run "c43 same tree, no --base: HEAD~1 is the base (local mode)"  0 "$d" --summary "$S/real.json"
-
-d=$work/b_named; chain "$d"; step "$d" - one
-step "$d" $((N - 10)) "$(printf 'drop tests\n\n%s: the legacy reader and its tests are gone' "$TR")"; step "$d" - three
-run "c44 lowered, a commit in the range names it: green"         0 "$d" --summary "$S/below.json" --base "$(g -C "$d" rev-parse base)"
-d=$work/b_empty; chain "$d"; step "$d" $((N - 10)) "$(printf 'drop tests\n\n%s:' "$TR")"
-run "c45 lowered, trailer with an empty reason: red"             1 "$d" --summary "$S/real.json" --base "$(g -C "$d" rev-parse base)"
-d=$work/b_body; chain "$d"; step "$d" $((N - 10)) "$(printf 'drop tests\n\n%s: in the body\n\nnot a trailer paragraph' "$TR")"
-run "c46 lowered, the key only in the body, not a trailer: red"  1 "$d" --summary "$S/real.json" --base "$(g -C "$d" rev-parse base)"
-# A trailer on a commit BEFORE the base belongs to an earlier lowering.
-d=$work/b_before; mkdir -p "$d/ci"; g init -q "$d"; step "$d" $((N + 10)) "$(printf 'old\n\n%s: an earlier decision' "$TR")"
-step "$d" "$N" "$(printf 'lower once\n\n%s: an earlier decision' "$TR")"; g -C "$d" tag base; step "$d" $((N - 10)) "drop tests"
-run "c47 a trailer before the base does not excuse this range"  1 "$d" --summary "$S/real.json" --base "$(g -C "$d" rev-parse base)"
-d=$work/b_raise; chain "$d"; step "$d" - one; step "$d" - two
-run "c48 --base, floor unchanged: green"                         0 "$d" --summary "$S/real.json" --base "$(g -C "$d" rev-parse base)"
-
-# All-zeros base: a push that created the branch -> the merge-base with the
-# default ref.
-Z=0000000000000000000000000000000000000000
-d=$work/b_zero; chain "$d"; g -C "$d" checkout -q -b feature; step "$d" - one; step "$d" $((N - 10)) "drop tests"
-run "c49 zeros base, merge-base with main sees the lowering"     1 "$d" --summary "$S/real.json" --base "$Z" --default-ref main
-d=$work/b_zero_ok; chain "$d"; g -C "$d" checkout -q -b feature; step "$d" - one
-run "c50 zeros base, merge-base with main, floor kept: green"    0 "$d" --summary "$S/real.json" --base "$Z" --default-ref main
-run "c51 zeros base, default ref does not resolve"               2 "$d" --summary "$S/real.json" --base "$Z" --default-ref origin/nope
-d=$work/b_orphan; chain "$d"; g -C "$d" checkout -q --orphan other; step "$d" "$N" orphan
-run "c52 zeros base, no merge-base with the default ref"         2 "$d" --summary "$S/real.json" --base "$Z" --default-ref main
-d=$work/b_named
-run "c53 base this checkout cannot reach"                        2 "$d" --summary "$S/real.json" --base 1234567890abcdef1234567890abcdef12345678
-run "c54 base given but empty"                                   2 "$d" --summary "$S/real.json" --base ""
-# A shallow clone that cannot reach the pushed-over commit is rc=2, not a pass.
-d=$work/b_shallow; git clone -q --depth 1 "file://$work/b_mid" "$d" 2>/dev/null
-run "c55 depth-1 checkout, --base is the unfetched before"       2 "$d" --summary "$S/real.json" --base "$(g -C "$work/b_mid" rev-parse base)"
+run "c21 root commit: judged like any other"                     0 "$d" --summary "$S/real.json"
+run "c22 the history options are gone"                           2 "$d" --summary "$S/real.json" --base HEAD
 
 # ---- the fallback: the xcodebuild log ----------------------------------------
 d=$work/r_eq

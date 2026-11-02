@@ -18,27 +18,11 @@
 # A skip counts against the run: this scheme has no environment-gated tests,
 # and a skip that appears is a test that stopped running while staying green.
 #
-# The floor may only rise, unless a commit names the lowering. The floor file
-# at HEAD is compared with the one at the BASE of the change -- --base <sha>,
-# which CI sets to the push's `before` or the pull request's base, so a
-# lowering anywhere in a multi-commit push is seen, not only one in its last
-# commit. A lower floor passes only when a commit in <base>..HEAD carries the
-# trailer
-#
-#     Test-Floor-Lowered: <reason>
-#
-# with a non-empty reason; deleting tests on purpose is then a decision the
-# history records, not an edit to this script.
-#
-#   --base 000...0   (a push that created the branch) -> the merge-base of HEAD
-#                    and --default-ref (default origin/main); none is rc=2
-#   --base ''        (CI could not name one)          -> rc=2
-#   --base <sha> this checkout cannot reach           -> rc=2
-#   no --base        (a local run)                    -> HEAD~1; a shallow
-#                    checkout without it is rc=2, a full-history root commit
-#                    has no previous floor
-#
-# A base without the floor file has no previous floor (the file is new).
+# The floor is the number ci/test-floor.macos.txt holds in the tree being
+# judged. Raising it, or lowering it when tests are deleted on purpose, is an
+# edit to that file in the change that does it -- the rule LibreSCRS/ci's
+# test-floor.py applies to every other repository, so a lowering is reviewed
+# where the deletion is.
 #
 # Fallback, only when the summary cannot be obtained or read: the xcodebuild
 # log given with --log. Swift Testing's `Test run with N tests` lines plus
@@ -48,7 +32,6 @@
 #
 # Usage:
 #   check-test-floor.sh (--xcresult <bundle> | --summary <json>) [--log <file>]
-#                       [--base <sha> [--default-ref <ref>]]
 #
 # Run from inside the repository. Exit: 0 pass, 1 judged and failed,
 # 2 cannot judge (never a pass).
@@ -58,7 +41,7 @@
 set -u
 
 usage() {
-    echo "usage: check-test-floor.sh (--xcresult <bundle> | --summary <json>) [--log <file>] [--base <sha> [--default-ref <ref>]]" >&2
+    echo "usage: check-test-floor.sh (--xcresult <bundle> | --summary <json>) [--log <file>]" >&2
     exit 2
 }
 cannot() { echo "::error::check-test-floor: cannot judge -- $*" >&2; exit 2; }
@@ -66,14 +49,11 @@ fail=0
 bad() { echo "::error::check-test-floor: $*" >&2; fail=1; }
 
 xcresult=""; summary=""; log=""; floor_path="ci/test-floor.macos.txt"
-base=""; base_given=0; default_ref="origin/main"
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --xcresult) [ "$#" -ge 2 ] || usage; xcresult=$2; shift 2 ;;
         --summary)  [ "$#" -ge 2 ] || usage; summary=$2;  shift 2 ;;
         --log)      [ "$#" -ge 2 ] || usage; log=$2;      shift 2 ;;
-        --base)     [ "$#" -ge 2 ] || usage; base=$2; base_given=1; shift 2 ;;
-        --default-ref) [ "$#" -ge 2 ] || usage; default_ref=$2; shift 2 ;;
         *) usage ;;
     esac
 done
@@ -94,53 +74,6 @@ parse_floor() {  # stdin: a floor file -> stdout: its one number, or nothing
 [ -f "$top/$floor_path" ] || cannot "no floor file at $floor_path"
 floor=$(parse_floor < "$top/$floor_path")
 [ -n "$floor" ] || cannot "$floor_path must hold exactly one positive integer"
-
-if [ "$base_given" = 1 ]; then
-    [ -n "$base" ] || cannot "--base is empty: the workflow did not name the commit this change is measured against"
-    if printf '%s\n' "$base" | grep -Eq '^0+$'; then
-        mb=$(git -C "$top" merge-base HEAD "$default_ref" 2>/dev/null) \
-            || cannot "--base is all zeros (a new branch) and HEAD has no merge-base with $default_ref"
-        echo "  -> --base is all zeros: measuring against the merge-base $mb with $default_ref"
-        base=$mb
-    fi
-    git -C "$top" rev-parse --verify -q "$base^{commit}" >/dev/null \
-        || cannot "--base $base is not a commit this checkout can reach, so a lowered floor could not be seen"
-    base=$(git -C "$top" rev-parse --verify -q "$base^{commit}")
-elif git -C "$top" rev-parse --verify -q 'HEAD~1^{commit}' >/dev/null; then
-    base=$(git -C "$top" rev-parse --verify -q 'HEAD~1^{commit}')
-elif [ "$(git -C "$top" rev-parse --is-shallow-repository)" != false ]; then
-    cannot "HEAD~1 is not reachable in this shallow checkout, so a lowered floor could not be seen"
-else
-    echo "  -> HEAD is a root commit: no previous floor to compare"
-fi
-
-if [ -n "$base" ]; then
-    if git -C "$top" cat-file -e "$base:$floor_path" 2>/dev/null; then
-        prev=$(git -C "$top" show "$base:$floor_path" | parse_floor)
-        [ -n "$prev" ] || cannot "$floor_path at $base does not hold one positive integer"
-        if [ "$floor" -lt "$prev" ]; then
-            # Every commit the change brings, not only the last: the trailer
-            # may sit on the commit that deleted the tests.
-            reasons=$(git -C "$top" log --format='%(trailers:key=Test-Floor-Lowered,valueonly)' \
-                        "$base..HEAD") \
-                || cannot "git log $base..HEAD failed -- cannot look for the commit naming the lowering"
-            # A git too old for the placeholder prints it back verbatim, which
-            # would read as a reason.
-            case "$reasons" in *'%(trailers'*) cannot "this git does not expand %(trailers:...)";; esac
-            reasons=$(printf '%s\n' "$reasons" | grep '[^[:space:]]')
-            if [ -n "$reasons" ]; then
-                echo "  -> $floor_path lowers the floor from $prev to $floor, named in $base..HEAD:"
-                printf '%s\n' "$reasons" | sed 's/^/       Test-Floor-Lowered: /'
-            else
-                bad "$floor_path lowers the floor from $prev to $floor since $base, and no commit in that range carries a 'Test-Floor-Lowered: <reason>' trailer (an empty reason does not count)"
-            fi
-        else
-            echo "  -> floor $floor, was $prev at $base"
-        fi
-    else
-        echo "  -> $floor_path does not exist at $base: no previous floor to compare"
-    fi
-fi
 
 # ---- the count ---------------------------------------------------------------
 tmp=$(mktemp -d "${TMPDIR:-/var/tmp}/check-test-floor.XXXXXX") || cannot "no temporary directory"

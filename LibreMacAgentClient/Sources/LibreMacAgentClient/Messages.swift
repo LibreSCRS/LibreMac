@@ -108,7 +108,10 @@ public enum OpResult: Sendable, Equatable {
 /// contract, including the `Pkcs11.*` family used by the CTK extension's
 /// PKCS#11 seam.
 public enum AgentRequest: Sendable, Equatable {
-    case hello(proto: UInt64, client: String?)
+    /// `wantsEvents: false` asks the agent to send this connection no
+    /// presence events; `nil` leaves the key off, which the agent reads as
+    /// `true`.
+    case hello(proto: UInt64, client: String?, wantsEvents: Bool? = nil)
     case getState
     case readIdentity(card: String)
     case getPhoto(card: String)
@@ -156,6 +159,14 @@ public enum AgentRequest: Sendable, Equatable {
 
 extension AgentRequest {
 
+    /// The `Hello` of a client that reads only the replies to its own
+    /// requests (the token extension): it asks for no presence events, which
+    /// it would only discard. Every `Hello` such a connection sends carries
+    /// the same answer, since the key's absence means "send them".
+    static var onDemandHello: AgentRequest {
+        .hello(proto: UInt64(kProtocolVersion), client: nil, wantsEvents: false)
+    }
+
     /// The canonical encoded frame body for this request, addressed by
     /// `req` (the caller-assigned id echoed back on the matching reply).
     /// Emits exactly the wire-specified keys for this request's shape — no
@@ -163,10 +174,13 @@ extension AgentRequest {
     public func encode(req: UInt64) -> Data {
         var pairs: [(String, CBORValue)]
         switch self {
-        case .hello(let proto, let client):
+        case .hello(let proto, let client, let wantsEvents):
             pairs = [("t", .text("Hello")), ("proto", .int(Int64(proto)))]
             if let client {
                 pairs.append(("client", .text(client)))
+            }
+            if let wantsEvents {
+                pairs.append(("wantsEvents", .bool(wantsEvents)))
             }
         case .getState:
             pairs = [("t", .text("GetState"))]
@@ -531,11 +545,17 @@ private func parseErrInfo(_ v: CBORValue) throws(MessageError) -> ErrInfo {
 
 private func parseReaderState(_ v: CBORValue) throws(MessageError) -> ReaderState {
     let m = try requireMap(v, field: "reader")
+    // The label keys are optional: absent (an older agent) or empty means no
+    // label, never a failure, and an interface token this client does not
+    // know is `.unknown`.
+    let model = try optionalText(m, "model")
     return ReaderState(
         handle: try requireText(m, "handle"),
         name: try requireText(m, "name"),
         hasCard: try requireBool(m, "hasCard"),
-        card: try optionalText(m, "card"))
+        card: try optionalText(m, "card"),
+        model: model?.isEmpty == false ? model : nil,
+        interface: try optionalText(m, "interface").map(ReaderInterface.init(token:)) ?? .unknown)
 }
 
 private func parseCardState(_ v: CBORValue) throws(MessageError) -> CardState {

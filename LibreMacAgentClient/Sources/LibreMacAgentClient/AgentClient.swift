@@ -438,8 +438,9 @@ public actor AgentClient {
             closeFds(fds)
             cardsByHandle.removeValue(forKey: handle)
             publishRegistrySnapshot()
-        case .propertyChanged:
+        case .propertyChanged(let handle, let iface, let props):
             closeFds(fds)
+            applyReaderLabel(handle: handle, iface: iface, props: props)
         case .configChanged(let key):
             closeFds(fds)
             configChangesContinuation.yield(key)
@@ -459,6 +460,25 @@ public actor AgentClient {
             closeFds(fds)
             handleOpFinished(op: op, status: status, code: code, msgKey: msgKey, msgFallback: msgFallback)
         }
+    }
+
+    /// A reader's label can change while the reader stays: the agent decides
+    /// it over the whole roster, so a neighbour arriving or leaving relabels
+    /// it with a `PropertyChanged` for `org.librescrs.Agent.Reader1` carrying
+    /// `Model` and `Interface` together. Each key is still optional in the
+    /// contract, so a key the event leaves out keeps the reader's current
+    /// value rather than dropping the change. Other interfaces and keys are
+    /// not read here: presence comes from the card events.
+    private func applyReaderLabel(handle: String, iface: String, props: [String: CBORValue]) {
+        guard iface == "org.librescrs.Agent.Reader1", let reader = readersByHandle[handle] else { return }
+        var model = reader.model
+        var interface = reader.interface
+        if case .text(let text)? = props["Model"] { model = text.isEmpty ? nil : text }
+        if case .text(let token)? = props["Interface"] { interface = ReaderInterface(token: token) }
+        let relabelled = reader.relabelled(model: model, interface: interface)
+        guard relabelled != reader else { return }
+        readersByHandle[handle] = relabelled
+        publishRegistrySnapshot()
     }
 
     /// `OpResultReady` is contractually delivered BEFORE `OpFinished` for

@@ -290,18 +290,22 @@ fi
 # The clients and the agent find each other in the App Group named after the
 # team the host's Info.plist carries (LibreSCRSTeamID): "<team>.org.librescrs.LibreMac",
 # or "group.org.librescrs.LibreMac" with no team -- the rule sign-bundle.sh
-# signs by. Each component must hold exactly that group and no other, judged on
-# its signature: one signed into another group runs and never reaches the socket.
+# signs by, read like there from the agent's wire contract (socket-location).
+# Each component must hold exactly that group and no other, judged on its
+# signature: one signed into another group runs and never reaches the socket.
+CONTRACT="$SCRIPT_DIR/../LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract/wire-vocabulary.json"
 team="$(plutil -extract LibreSCRSTeamID raw -o - "$APP_PATH/Contents/Info.plist" 2>/dev/null || true)"
-if [ -n "$team" ]; then
-    want_group="$team.org.librescrs.LibreMac"
-else
-    want_group="group.org.librescrs.LibreMac"
-fi
+no_team_prefix="$(plutil -extract socket-location.noTeamPrefix raw -o - "$CONTRACT" 2>/dev/null || true)"
+app_group_suffix="$(plutil -extract socket-location.appGroupSuffix raw -o - "$CONTRACT" 2>/dev/null || true)"
+want_group="${team:-$no_team_prefix}$app_group_suffix"
 groups_key=":com.apple.security.application-groups"
 ents_plist="$(mktemp)"
 for code in "$MACOS/librescrs-agent" "$MACOS/librescrs-prompter" "$TOKEN_APPEX" "$APP_PATH"; do
     [ -e "$code" ] || continue
+    if [ -z "$no_team_prefix" ] || [ -z "$app_group_suffix" ]; then
+        fail "$(basename "$code") App Group: the wire contract names no socket-location ($CONTRACT)"
+        continue
+    fi
     name="$(basename "$code")"
     : >"$ents_plist"
     codesign -d --entitlements - --xml "$code" >"$ents_plist" 2>/dev/null || true

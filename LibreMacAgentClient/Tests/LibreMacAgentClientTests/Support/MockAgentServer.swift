@@ -204,6 +204,35 @@ final class MockAgentServer: @unchecked Sendable {
         return pair[1]
     }
 
+    /// Binds an AF_UNIX socket in a fresh private temporary directory and
+    /// serves the first connection made to it exactly like the peer end of
+    /// `connectedFd()`; returns the socket's path. This is what lets a test
+    /// reach `TokenAgentClient` through `init(socketPath:verifier:)`, the
+    /// only constructor production uses. The socket and its directory are
+    /// removed once that connection is accepted, once nobody connected
+    /// within `acceptTimeout`, or once this mock is gone.
+    func listeningPath(acceptTimeout: TimeInterval = 10) throws -> String {
+        let listener = try UnixSocketListener(prefix: "lmma", backlog: 1)
+        Thread.detachNewThread { [weak self] in
+            // `listener` is released, and its socket and directory removed,
+            // when this closure returns.
+            guard let conn = listener.acceptConnection(within: acceptTimeout, while: { self != nil }) else {
+                return
+            }
+            guard let self else {
+                Darwin.close(conn)
+                return
+            }
+            var on: Int32 = 1
+            _ = setsockopt(conn, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+            self.lock.lock()
+            self.rawServeFd = conn
+            self.lock.unlock()
+            self.serve(peerFd: conn)
+        }
+        return listener.path
+    }
+
     /// Background read/decode/onRequest loop over `peerFd`, the mock's end
     /// of the pair vended by `connectedFd()`. Runs until `peerFd` reaches
     /// EOF or a protocol violation poisons the reassembler.

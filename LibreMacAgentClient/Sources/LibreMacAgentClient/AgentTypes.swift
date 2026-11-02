@@ -962,6 +962,21 @@ public enum CredentialRecovery: String, Sendable, Equatable, CaseIterable {
 
 // MARK: - Value models
 
+/// Which physical interface a reader slot is (`reader-state.interface`).
+/// Mirrors CDDL `reader-interface` (`librescrs-agent.cddl`); the raw value IS
+/// the wire token. `contact` is only ever the contact slot of a
+/// dual-interface unit: a single-interface contact reader is `unknown`.
+public enum ReaderInterface: String, Sendable, Equatable, CaseIterable {
+    case unknown = "unknown"
+    case contact = "contact"
+    case contactless = "contactless"
+
+    /// Tolerant wire-token decode: unrecognized -> `.unknown`.
+    public init(token: String) {
+        self = Self(rawValue: token) ?? .unknown
+    }
+}
+
 /// One reader-scoped state cell. Mirrors `LibreSCRS::Darwin::wire::ReaderState`
 /// and CDDL `reader-state` (`librescrs-agent.cddl`).
 public struct ReaderState: Sendable, Equatable {
@@ -969,12 +984,32 @@ public struct ReaderState: Sendable, Equatable {
     public let name: String
     public let hasCard: Bool
     public let card: String?
+    /// The reader's label, read by the agent from the PC/SC name over the
+    /// whole roster: the short model, never empty when present. `nil` when
+    /// the agent sends no label (an older agent); a client then shows `name`.
+    /// A client never parses `name` itself.
+    public let model: String?
+    /// Which interface the slot is; with `model`, the rest of the label.
+    public let interface: ReaderInterface
 
-    public init(handle: String, name: String, hasCard: Bool, card: String? = nil) {
+    public init(
+        handle: String, name: String, hasCard: Bool, card: String? = nil,
+        model: String? = nil, interface: ReaderInterface = .unknown
+    ) {
         self.handle = handle
         self.name = name
         self.hasCard = hasCard
         self.card = card
+        self.model = model
+        self.interface = interface
+    }
+
+    /// This reader with a new label, as a `PropertyChanged` for
+    /// `org.librescrs.Agent.Reader1` carries it when a neighbour arrives or
+    /// leaves.
+    public func relabelled(model: String?, interface: ReaderInterface) -> ReaderState {
+        ReaderState(
+            handle: handle, name: name, hasCard: hasCard, card: card, model: model, interface: interface)
     }
 }
 

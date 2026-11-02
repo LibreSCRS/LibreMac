@@ -29,6 +29,64 @@ struct TokenAgentClientTests {
         #expect(e == Data([0x01, 0x00, 0x01]))
     }
 
+    /// The token client reads only while it waits for its own reply, so an
+    /// agent sending it presence events queues them until its outbound
+    /// backstop closes the connection between two signatures.
+    @Test("opening a connection says Hello and asks for no presence events")
+    func openingAsksForNoPresenceEvents() async throws {
+        let server = MockAgentServer()
+        server.onRequest = { [unowned server] req, tag in
+            if tag == "Hello" { server.sendReplyRaw(.helloAck(agentVer: "1.0", features: []), req: req) }
+        }
+        var requests = server.requests.makeAsyncIterator()
+        _ = try TokenAgentClient(announcingOn: server.connectedFd(), ioTimeout: 5)
+        let first = try #require(await requests.next())
+        #expect(first.request == .hello(proto: UInt64(kProtocolVersion), client: nil, wantsEvents: false))
+    }
+
+    @Test("an agent that does not answer the Hello with HelloAck is no connection")
+    func refusedHelloIsAConnectFailure() {
+        let server = MockAgentServer()
+        server.onRequest = { [unowned server] req, tag in
+            if tag == "Hello" { server.sendReplyRaw(.ack, req: req) }
+        }
+        #expect(throws: TokenTransportError.connectFailed) {
+            _ = try TokenAgentClient(announcingOn: server.connectedFd(), ioTimeout: 5)
+        }
+    }
+
+    /// The token extension reaches the agent only through
+    /// `init(socketPath:verifier:)`, so that constructor itself must say
+    /// Hello: a version of it that wrapped the fd without one would leave the
+    /// tests above green while the agent kept queuing events again.
+    @Test("connecting by socket path says Hello, asking for no presence events, before it returns")
+    func socketPathConnectSaysHello() async throws {
+        let server = MockAgentServer()
+        server.onRequest = { [unowned server] req, tag in
+            if tag == "Hello" { server.sendReplyRaw(.helloAck(agentVer: "1.0", features: []), req: req) }
+        }
+        let path = try server.listeningPath()
+        var requests = server.requests.makeAsyncIterator()
+        _ = try TokenAgentClient(socketPath: path, verifier: { _ in true }, ioTimeout: 5)
+        // Counted before it returns: the constructor waits for the HelloAck.
+        try #require(server.count(of: "Hello") == 1)
+        let first = try #require(await requests.next())
+        #expect(first.request == .hello(proto: UInt64(kProtocolVersion), client: nil, wantsEvents: false))
+    }
+
+    @Test("connecting by socket path to an agent that refuses the Hello is no connection")
+    func socketPathConnectRefusedHelloFails() throws {
+        let server = MockAgentServer()
+        server.onRequest = { [unowned server] req, tag in
+            if tag == "Hello" { server.sendReplyRaw(.ack, req: req) }
+        }
+        let path = try server.listeningPath()
+        #expect(throws: TokenTransportError.connectFailed) {
+            _ = try TokenAgentClient(socketPath: path, verifier: { _ in true }, ioTimeout: 5)
+        }
+        #expect(server.count(of: "Hello") == 1)
+    }
+
     @Test("a request written to a connection the peer already closed is reported as not delivered")
     func writeToClosedPeerIsNotDelivered() {
         var pair: [Int32] = [0, 0]

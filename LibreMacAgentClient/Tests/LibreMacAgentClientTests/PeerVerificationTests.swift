@@ -11,53 +11,18 @@ import Testing
 /// for whatever process serves the agent path. It never writes; tests read
 /// what the client sent it.
 private final class TestListener {
-    let path: String
-    private let directory: String
-    private let fd: Int32
+    private let listener: UnixSocketListener
+    var path: String { listener.path }
 
     init() throws {
-        var template = Array((NSTemporaryDirectory() as NSString).appendingPathComponent("lmpv.XXXXXX").utf8CString)
-        guard let made = mkdtemp(&template) else { throw POSIXError(.EIO) }
-        directory = String(cString: made)
-        path = directory + "/s"
-        fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let bytes = Array(path.utf8)
-        precondition(bytes.count < MemoryLayout.size(ofValue: addr.sun_path))
-        withUnsafeMutableBytes(of: &addr.sun_path) { raw in
-            for (index, byte) in bytes.enumerated() { raw[index] = byte }
-        }
-        let bound = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard bound == 0, listen(fd, 8) == 0 else { throw POSIXError(.EIO) }
-        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK)
-    }
-
-    deinit {
-        close(fd)
-        unlink(path)
-        rmdir(directory)
+        listener = try UnixSocketListener(prefix: "lmpv", backlog: 8)
     }
 
     /// Accepts one connection within `timeout` and returns how many bytes the
     /// client wrote before closing it; nil when nobody connected.
     func bytesFromNextConnection(timeout: TimeInterval = 3) -> Int? {
-        let deadline = Date().addingTimeInterval(timeout)
-        var conn: Int32 = -1
-        while conn < 0 {
-            conn = accept(fd, nil, nil)
-            if conn < 0 {
-                if Date() > deadline { return nil }
-                usleep(10_000)
-            }
-        }
+        guard let conn = listener.acceptConnection(within: timeout) else { return nil }
         defer { close(conn) }
-        _ = fcntl(conn, F_SETFL, fcntl(conn, F_GETFL, 0) & ~O_NONBLOCK)
         var tv = timeval(tv_sec: 3, tv_usec: 0)
         _ = setsockopt(conn, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
         var total = 0

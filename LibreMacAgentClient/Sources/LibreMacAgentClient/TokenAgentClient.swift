@@ -8,6 +8,12 @@ import Foundation
 /// length-prefixed CBOR frames (uint32-LE header via Frame.encodeHeader), and
 /// reads frames via FrameReassembler until the reply matching the request's `req`
 /// arrives. The pk-* seam passes no fds. Not Sendable; confined to the ctkd thread.
+///
+/// It reads only while it waits for a reply, so a connection opened through
+/// `init(socketPath:verifier:)` starts with a `Hello` that asks for no presence
+/// events: otherwise the agent queues every card and reader change for a
+/// connection that may sit idle between two signatures until the agent's
+/// outbound backstop closes it.
 public final class TokenAgentClient: TokenTransport {
     private var fd: Int32
     private var ownsFd: Bool
@@ -18,8 +24,9 @@ public final class TokenAgentClient: TokenTransport {
 
     /// Upper bound on one request, from its first written byte to its reply.
     /// It is one deadline for the whole exchange: inbound events do not
-    /// extend it, since until the agent can be told not to broadcast them a
-    /// steady trickle would otherwise keep a stuck request waiting forever.
+    /// extend it: an agent that predates `Hello.wantsEvents` broadcasts them
+    /// anyway, and a steady trickle would otherwise keep a stuck request
+    /// waiting forever.
     /// It is generous where `OperationDriver.opStallTimeout` is exempt: an
     /// operator-facing wait (PIN entry happens agent-side) sends this seam
     /// no phase events to exempt it with, so the bound must outlast a slow
@@ -45,12 +52,15 @@ public final class TokenAgentClient: TokenTransport {
     }
 
     /// Connects via the shared `connectUnixSocket(path:verifier:)` helper
-    /// (the one AF_UNIX connect sequence in this package). A serving process
+    /// (the one AF_UNIX connect sequence in this package), then opens the
+    /// conversation (`init(announcingOn:ioTimeout:)`). A serving process
     /// `verifier` rejects is `TokenTransportError.peerRejected`; every other
     /// connect-time failure folds into `connectFailed` — this seam has no use
-    /// for the finer-grained `SocketConnectionError` split.
+    /// for the finer-grained `SocketConnectionError` split. `ioTimeout`
+    /// bounds every request, the `Hello` included (see `defaultIoTimeout`).
     public convenience init(
-        socketPath: String = AgentSocketPath.resolve(), verifier: PeerVerifier = defaultPeerVerifier()
+        socketPath: String = AgentSocketPath.resolve(), verifier: PeerVerifier = defaultPeerVerifier(),
+        ioTimeout: TimeInterval = TokenAgentClient.defaultIoTimeout
     ) throws {
         let fd: Int32
         do {
@@ -60,7 +70,21 @@ public final class TokenAgentClient: TokenTransport {
         } catch {
             throw TokenTransportError.connectFailed
         }
-        self.init(connectedFd: fd)
+        try self.init(announcingOn: fd, ioTimeout: ioTimeout)
+    }
+
+    /// Wraps `connectedFd` like `init(connectedFd:ioTimeout:)` and sends
+    /// `AgentRequest.onDemandHello`. Anything but a `HelloAck` — a refused
+    /// protocol version, a closed or silent connection — is `connectFailed`,
+    /// and the fd is closed: `Hello` only asks, so nothing was acted on.
+    convenience init(
+        announcingOn connectedFd: Int32, ioTimeout: TimeInterval = TokenAgentClient.defaultIoTimeout
+    ) throws {
+        self.init(connectedFd: connectedFd, ioTimeout: ioTimeout)
+        guard case .helloAck? = try? send(.onDemandHello) else {
+            retire()
+            throw TokenTransportError.connectFailed
+        }
     }
 
     deinit { if ownsFd, fd >= 0 { close(fd) } }

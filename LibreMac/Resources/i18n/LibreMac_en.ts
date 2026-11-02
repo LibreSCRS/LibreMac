@@ -791,6 +791,10 @@
         <source>(requested by “%@”)</source>
         <translation>(requested by “%@”)</translation>
     </message>
+    <message id="prompter_requester_keychain">
+        <source>%@ (Keychain)</source>
+        <translation>%@ (Keychain)</translation>
+    </message>
     <message id="librescrs.error.preRead.authFailed">
         <source>Card authentication failed before reading could begin.</source>
         <translation>Card authentication failed before reading could begin.</translation>

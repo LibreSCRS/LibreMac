@@ -85,21 +85,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
+    /// How long quitting waits for the client to close its connection. A
+    /// wedged agent connection is left to the kernel's cleanup on exit.
+    static let stopBudget: Duration = .seconds(2)
+
+    private var terminationAnswered = false
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         // Close the socket and cancel the supervisor BEFORE the process
-        // exits: this runs on the main thread and exit follows its return,
-        // so a fire-and-forget Task might never get scheduled. Block here,
-        // bounded, until stop() completes — the detached task runs the
-        // (non-main) actor hop on the cooperative pool, which the blocked
-        // main thread does not starve; the timeout is the backstop for a
-        // wedged agent connection, where kernel cleanup on exit suffices.
-        let done = DispatchSemaphore(value: 0)
+        // exits. AppKit waits for the answer with the main thread free, so
+        // stop() runs to completion; whichever of it and the budget ends
+        // first lets the app go.
         let client = self.client
-        Task.detached {
+        Task {
             await client.stop()
-            done.signal()
+            answerTermination()
         }
-        _ = done.wait(timeout: .now() + 2.0)
+        Task {
+            try? await Task.sleep(for: Self.stopBudget)
+            answerTermination()
+        }
+        return .terminateLater
+    }
+
+    private func answerTermination() {
+        guard !terminationAnswered else { return }
+        terminationAnswered = true
+        NSApp.reply(toApplicationShouldTerminate: true)
     }
 }
 

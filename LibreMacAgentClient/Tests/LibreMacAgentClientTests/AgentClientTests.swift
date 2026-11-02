@@ -37,12 +37,14 @@ struct AgentClientTests {
 
         var iterator = mock.requests.makeAsyncIterator()
         let first = try #require(await iterator.next())
-        guard case .hello(let proto, let clientName) = first.request else {
+        guard case .hello(let proto, let clientName, let wantsEvents) = first.request else {
             Issue.record("expected the first request to be Hello, got \(first.request)")
             return
         }
         #expect(proto == 1)
         #expect(clientName?.hasPrefix("LibreMac/") == true)
+        // The host shows presence, so it leaves the key off (absent = true).
+        #expect(wantsEvents == nil)
         mock.sendReply(.helloAck(agentVer: "1.0", features: []), req: first.req)
         let second = try #require(await iterator.next())
         guard case .getState = second.request else {

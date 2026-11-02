@@ -41,6 +41,19 @@ struct MessagesRequestEncodeTests {
         #expect(body == expected)
     }
 
+    @Test("Hello — wantsEvents false rides after client, canonical order proto(5) client(6) wantsEvents(11)")
+    func helloAskingForNoEvents() throws {
+        let body = AgentRequest.hello(proto: 1, client: nil, wantsEvents: false).encode(req: 1)
+        guard case .map(let pairs) = try CBORValue.decode(body) else {
+            Issue.record("Hello is not a map")
+            return
+        }
+        #expect(pairs.map { String(decoding: $0.0, as: UTF8.self) } == ["t", "req", "proto", "wantsEvents"])
+        #expect(pairs.last?.1 == .bool(false))
+        // nil leaves the key off: the agent reads its absence as true.
+        #expect(AgentRequest.hello(proto: 1, client: nil).encode(req: 1).count < body.count)
+    }
+
     @Test("GetState — {t,req} only, no extra keys")
     func getStateRequest() {
         let expected = Data([0xA2, 0x61, 0x74, 0x68, 0x47, 0x65, 0x74, 0x53, 0x74, 0x61, 0x74, 0x65, 0x63, 0x72, 0x65, 0x71, 0x02])

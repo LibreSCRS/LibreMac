@@ -48,7 +48,7 @@ cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
 cmake --build build -j4
 
 LIBRESCRS_HW=1 \
-LIBRESCRS_PLUGIN_DIR=<LibreMiddleware install prefix>/lib/librescrs/plugins \
+LIBRESCRS_TEST_PLUGIN_DIR=<LibreMiddleware install prefix>/lib/librescrs/plugins \
 LIBRESCRS_TEST_CAN=<the card's real CAN> \
 LIBRESCRS_TEST_PIN=<the card's real signing PIN> \
   ctest --test-dir build -R SignHwSmokeTest -V

@@ -115,7 +115,7 @@ public struct TokenOpEngine {
     /// agreement at all -- one without the "ec-keys" feature drops the
     /// connection on the request.
     public func performKeyExchange(certId: String, peerPoint: Data, keySizeInBits: Int) throws -> Data {
-        let hello = try transport.send(.hello(proto: UInt64(kProtocolVersion), client: nil))
+        let hello = try transport.send(.onDemandHello)
         guard case .helloAck(_, let features) = hello, features.contains("ec-keys") else {
             throw TokenOpError.mapped(.notImplemented)
         }

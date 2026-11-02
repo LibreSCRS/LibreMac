@@ -25,6 +25,14 @@ LibreMac itself is **LibreMiddleware-free**, like LibreKDE:
   The extension never drives the card — the agent does. It needs no
   Apple-gated entitlement — `app-sandbox` and `application-groups`.
 
+Keychain gets the card's ordinary signing certificate, not its qualified one:
+the certificate whose signatures carry the legal weight of a handwritten one
+is left out on purpose, so that no application reaching for an identity in
+Keychain makes a qualified signature in passing. A qualified signature is
+made where you choose it, in LibreCelik. `LIBRESCRS_ENABLE_QES_KEYCHAIN=1` in
+LibreMac's environment publishes the qualified certificate too; it is a
+switch for development and testing, not a setting.
+
 PIN consent uses the protected authentication path
 (`CKF_PROTECTED_AUTHENTICATION_PATH`).
 
@@ -45,7 +53,7 @@ App-Group socket. The agent itself is built and shipped separately.
 
 The host is pure Swift with no C/C++ build step. Requires:
 - macOS 15.0+ (Sequoia or later)
-- Xcode 27.0 (named in `.xcode-version`; `Scripts/select-xcode.sh` selects it and its SDK)
+- Xcode 27.0 (named in `.xcode-version`, which CI selects with its SDK)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 
 Quick start:

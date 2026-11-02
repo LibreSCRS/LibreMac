@@ -33,7 +33,9 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
     let request: AgentRequest
     switch t {
     case "Hello":
-        request = .hello(proto: mwUInt(pairs, "proto") ?? 0, client: mwText(pairs, "client"))
+        request = .hello(
+            proto: mwUInt(pairs, "proto") ?? 0, client: mwText(pairs, "client"),
+            wantsEvents: mwBool(pairs, "wantsEvents"))
     case "GetState":
         request = .getState
     case "ReadIdentity":
@@ -267,6 +269,11 @@ private func encodeReaderState(_ reader: ReaderState) -> CBORValue {
     ]
     if let card = reader.card {
         pairs.append(("card", .text(card)))
+    }
+    // As the agent sends a label: both keys or neither.
+    if let model = reader.model {
+        pairs.append(("model", .text(model)))
+        pairs.append(("interface", .text(reader.interface.rawValue)))
     }
     return mwMap(pairs)
 }

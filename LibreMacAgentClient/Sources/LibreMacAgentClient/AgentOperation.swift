@@ -3,6 +3,7 @@
 
 import Darwin
 import Foundation
+import Synchronization
 
 /// What an `AgentOperation` was started to do. Used internally by
 /// `AgentClient` to decide whether an `OpFinished(ok)` with no prior
@@ -24,20 +25,25 @@ public enum OperationKind: Sendable, Equatable {
 /// called exclusively from `AgentClient`'s isolated context. Consumers
 /// (any task, any thread) only ever call the public, read-only surface:
 /// `phases` (an independently thread-safe `AsyncStream`), `finished()`,
-/// the typed result accessors, and `cancel()`. A private lock guards the
-/// handful of fields those two sides share (`finished` value/waiters, the
-/// latest result and its fds) — the same "confine the writer, protect the
-/// reader" shape `SocketConnection` uses with its private queue.
-public final class AgentOperation: @unchecked Sendable {
+/// the typed result accessors, and `cancel()`. A `Mutex` guards the handful
+/// of fields those two sides share (`finished` value/waiters, the latest
+/// result and its fds) — the same "confine the writer, protect the reader"
+/// shape `SocketConnection` uses with its private queue.
+public final class AgentOperation: Sendable {
+
+    /// The terminal `(status, code, msgKey, msgFallback)` outcome.
+    public typealias Outcome = (OperationStatus, ErrorCode, String?, String)
 
     public let id: UInt64
     public let kind: OperationKind
 
-    private let lock = NSLock()
-    private var finishedValue: (OperationStatus, ErrorCode, String?, String)?
-    private var finishedWaiters: [CheckedContinuation<(OperationStatus, ErrorCode, String?, String), Never>] = []
-    private var latestResult: OpResult?
-    private var resultFds: [Int32] = []
+    private struct State {
+        var finishedValue: Outcome?
+        var finishedWaiters: [CheckedContinuation<Outcome, Never>] = []
+        var latestResult: OpResult?
+        var resultFds: [Int32] = []
+    }
+    private let state = Mutex(State())
 
     private let phaseContinuation: AsyncStream<(OperationPhase, Double?)>.Continuation
 
@@ -57,18 +63,9 @@ public final class AgentOperation: @unchecked Sendable {
     }
 
     deinit {
-        for fd in resultFds where fd >= 0 {
+        for fd in state.withLock({ $0.resultFds }) where fd >= 0 {
             Darwin.close(fd)
         }
-    }
-
-    /// `NSLock.lock()`/`unlock()` are `@available(*, noasync)` — every use
-    /// is funneled through this synchronous helper so an `async` caller
-    /// (e.g. `finished()`) never has the bare calls in its own body.
-    private func withLock<T>(_ body: () -> T) -> T {
-        lock.lock()
-        defer { lock.unlock() }
-        return body()
     }
 
     // MARK: - Mutators (AgentClient-actor-confined — see the type doc comment)
@@ -87,12 +84,14 @@ public final class AgentOperation: @unchecked Sendable {
     /// server sends a duplicate, close the previously stored (and never
     /// claimed) fds before overwriting — otherwise they leak.
     func publishResult(_ result: OpResult, fds: [Int32]) {
-        withLock {
-            for fd in resultFds where fd >= 0 {
-                Darwin.close(fd)
-            }
-            latestResult = result
-            resultFds = fds
+        let unclaimed = state.withLock { state in
+            let previous = state.resultFds
+            state.latestResult = result
+            state.resultFds = fds
+            return previous
+        }
+        for fd in unclaimed where fd >= 0 {
+            Darwin.close(fd)
         }
     }
 
@@ -103,12 +102,12 @@ public final class AgentOperation: @unchecked Sendable {
     /// effect, so a consumer draining `phases` with `for await` sees the
     /// stream end only after (or exactly when) `finished()` becomes
     /// resolvable.
-    func resolveFinished(_ value: (OperationStatus, ErrorCode, String?, String)) {
-        let waiters: [CheckedContinuation<(OperationStatus, ErrorCode, String?, String), Never>] = withLock {
-            guard finishedValue == nil else { return [] }
-            finishedValue = value
-            let pending = finishedWaiters
-            finishedWaiters.removeAll()
+    func resolveFinished(_ value: Outcome) {
+        let waiters: [CheckedContinuation<Outcome, Never>] = state.withLock { state in
+            guard state.finishedValue == nil else { return [] }
+            state.finishedValue = value
+            let pending = state.finishedWaiters
+            state.finishedWaiters.removeAll()
             return pending
         }
         for waiter in waiters {
@@ -124,17 +123,18 @@ public final class AgentOperation: @unchecked Sendable {
     /// concurrently or how many times a single caller calls it (a second
     /// `await` on an already-finished operation returns immediately with
     /// the same value).
-    public func finished() async -> (OperationStatus, ErrorCode, String?, String) {
-        if let value = withLock({ finishedValue }) {
+    public func finished() async -> Outcome {
+        if let value = state.withLock({ $0.finishedValue }) {
             return value
         }
         return await withCheckedContinuation { continuation in
-            withLock {
-                if let value = finishedValue {
-                    continuation.resume(returning: value)
-                } else {
-                    finishedWaiters.append(continuation)
-                }
+            let ready: Outcome? = state.withLock { state in
+                if let value = state.finishedValue { return value }
+                state.finishedWaiters.append(continuation)
+                return nil
+            }
+            if let ready {
+                continuation.resume(returning: ready)
             }
         }
     }
@@ -143,14 +143,14 @@ public final class AgentOperation: @unchecked Sendable {
     /// `OpResultReady` (which the wire delivers BEFORE `OpFinished`) or by
     /// a `Sign` recovery round-trip; `nil` before either has happened.
     public var result: OpResult? {
-        withLock { latestResult }
+        state.withLock { $0.latestResult }
     }
 
     /// Whether `finished()` has already resolved — a non-blocking probe,
     /// used by consumers (and the ordering tests) that need to know
     /// "has this operation terminalized YET" without suspending.
     public var isFinished: Bool {
-        withLock { finishedValue != nil }
+        state.withLock { $0.finishedValue != nil }
     }
 
     public var identityResult: IdentityResult? {
@@ -188,13 +188,15 @@ public final class AgentOperation: @unchecked Sendable {
     /// fd was delivered at that index, or it was already claimed. Any fd
     /// never claimed this way is closed defensively on `deinit`.
     public func claimResultFileHandle(fdIndex: UInt64) -> FileHandle? {
-        lock.lock()
-        defer { lock.unlock() }
-        guard let index = Int(exactly: fdIndex), resultFds.indices.contains(index) else { return nil }
-        let fd = resultFds[index]
-        guard fd >= 0 else { return nil }
-        resultFds[index] = -1
-        return FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+        let claimed: Int32? = state.withLock { state in
+            guard let index = Int(exactly: fdIndex), state.resultFds.indices.contains(index) else { return nil }
+            let fd = state.resultFds[index]
+            guard fd >= 0 else { return nil }
+            state.resultFds[index] = -1
+            return fd
+        }
+        guard let claimed else { return nil }
+        return FileHandle(fileDescriptor: claimed, closeOnDealloc: true)
     }
 
     /// Requests cancellation (`CancelOp{op}`). Does not itself wait for

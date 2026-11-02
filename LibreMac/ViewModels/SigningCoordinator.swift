@@ -492,10 +492,7 @@ public final class SigningCoordinator {
     /// both name the app's container, so a typed `~/Documents` would land in
     /// the container instead of where the user meant.
     public nonisolated static var userHomeDirectory: URL {
-        if let entry = getpwuid(getuid()), let dir = entry.pointee.pw_dir {
-            return URL(fileURLWithPath: String(cString: dir), isDirectory: true)
-        }
-        return URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        URL(fileURLWithPath: AgentSocketPath.accountHomeDirectory() ?? NSHomeDirectory(), isDirectory: true)
     }
 
     /// The real Downloads folder. Inside the sandbox the system answers with

@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Every action in .github/workflows is pinned by commit; this is what moves
-# those pins when a new release of the action appears.
+# those pins when a new release of the action appears. LibreSCRS/ci is pinned
+# the same way and moved deliberately, with every reference at one commit.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: 'LibreSCRS/ci*'

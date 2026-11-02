@@ -336,6 +336,9 @@ struct TokenOpEngineTests {
         let point = Data([0x04] + [UInt8](repeating: 0x33, count: 96))
         let z = try TokenOpEngine(transport: t).performKeyExchange(certId: "lk", peerPoint: point, keySizeInBits: 384)
         #expect(z == Data(repeating: 0x5A, count: 48))
+        // The connection asked for no presence events when it opened; a Hello
+        // without the key would ask for them again.
+        #expect(t.sent[0] == .hello(proto: UInt64(kProtocolVersion), client: nil, wantsEvents: false))
         guard case .pkDerive(_, let cert, let data) = t.sent[2] else { Issue.record("no pkDerive"); return }
         #expect(cert == "lk")
         #expect(data == point)

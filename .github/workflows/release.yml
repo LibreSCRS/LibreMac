@@ -39,7 +39,6 @@ on:
       - 'Scripts/bundle-agent.sh'
       - 'Scripts/verify-bundle.sh'
       - 'Scripts/sign-bundle.sh'
-      - 'Scripts/select-xcode.sh'
       - '.xcode-version'
       - 'Scripts/lm-soname.sh'
       - 'Packaging/**'
@@ -128,7 +127,7 @@ jobs:
           persist-credentials: false
 
       - name: Select the Xcode in .xcode-version and its SDK
-        run: ./Scripts/select-xcode.sh
+        uses: LibreSCRS/ci/actions/select-xcode@d68f5d781a665759eaba63c67ef0e6eb1f738063
 
       - name: Checkout LibreAgent, LibreDarwin and LibreCelik at this repository's lock
         id: deps
@@ -174,27 +173,33 @@ jobs:
         # The agent core links OpenSSL itself (find_package), and left alone it
         # finds Homebrew's, which on this runner is arm64 only: the x86_64
         # slice of the agent then fails to link every OpenSSL symbol it uses.
-        # LibreMiddleware at this lock carries a universal static OpenSSL for
-        # macOS (thirdparty/openssl-<version>/macosx, both slices lipo'd), the
-        # one its own libraries link; the agent links the same one.
+        # LibreDarwin's packaging/select-openssl.sh names LibreMiddleware's
+        # universal static OpenSSL, the one its own libraries link, in the same
+        # way LibreDarwin's own CI does.
+        # Warnings are errors here as in LibreDarwin's own CI: this is the
+        # compiler the shipped agent is built with, and the only place its
+        # warnings are seen. CMake only warns about a -D for an option the tree
+        # no longer declares ("not used") and builds on without it, so the
+        # cache is held to the option afterwards: declared, the entry is a
+        # BOOL; undeclared, it stays UNINITIALIZED.
         env:
           LD_SRC: ${{ steps.deps.outputs.libredarwin-path }}
           LA_SRC: ${{ steps.deps.outputs.libreagent-path }}
           LM_SRC: ${{ steps.lm.outputs.libremiddleware-path }}
         run: |
           echo "SDKROOT=$SDKROOT"
-          shopt -s nullglob
-          ossl=("$LM_SRC"/thirdparty/openssl-*/macosx)
-          [ "${#ossl[@]}" -eq 1 ] || { echo "::error::want one thirdparty/openssl-*/macosx in LibreMiddleware, found ${#ossl[@]}"; exit 1; }
-          lipo -info "${ossl[0]}/lib/libcrypto.a"
-          cmake -S "$LD_SRC" -B "$LD_SRC/build-release" -G Ninja \
+          "$LD_SRC/packaging/select-openssl.sh" "$LM_SRC" "$RUNNER_TEMP/openssl.cmake"
+          cmake -C "$RUNNER_TEMP/openssl.cmake" -S "$LD_SRC" -B "$LD_SRC/build-release" -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DLIBREDARWIN_UNIVERSAL=ON \
+            -DLIBRESCRS_WERROR=ON \
             -DCMAKE_PREFIX_PATH="$LM_PREFIX" \
-            -DOPENSSL_ROOT_DIR="${ossl[0]}" \
-            -DOPENSSL_USE_STATIC_LIBS=TRUE \
             -DLIBRESCRS_TEAM_ID="$LIBRESCRS_TEAM_ID" \
             -DFETCHCONTENT_SOURCE_DIR_LIBREAGENT="$LA_SRC"
+          if ! grep -qx 'LIBRESCRS_WERROR:BOOL=ON' "$LD_SRC/build-release/CMakeCache.txt"; then
+            echo "::error::LibreDarwin's configure did not take LIBRESCRS_WERROR=ON as a declared option: $(grep '^LIBRESCRS_WERROR:' "$LD_SRC/build-release/CMakeCache.txt" || echo 'no cache entry')"
+            exit 1
+          fi
           grep -E '^OPENSSL_CRYPTO_LIBRARY' "$LD_SRC/build-release/CMakeCache.txt"
           cmake --build "$LD_SRC/build-release" -j4
 
@@ -304,9 +309,15 @@ jobs:
 
       - name: Bill of materials for what the image bundles
         # The host is Swift with no third-party code; what the image carries
-        # beyond it is the agent, which links LibreAgent statically and ships
-        # the LibreMiddleware libraries. Both are read from the trees built
-        # above, each at the revision LibreDarwin's lock names.
+        # beyond it is the agent, which links LibreAgent statically, and the
+        # LibreMiddleware dylibs staged beside it: the bill says each the way
+        # it ships. Both are read from the trees built above, each at the
+        # revision LibreDarwin's lock names. The
+        # LibreMiddleware libraries staged here are the ones its own release
+        # builds, so the bill requires what LibreMiddleware's release bill
+        # requires (OpenSSL, curl, OpenSC, nlohmann-json, miniz: all built in
+        # from its tree on macOS too), plus QCBOR from LibreAgent. LibreCelik's
+        # application carries its own bill, built from its staged bundle.
         env:
           LD_SRC: ${{ steps.deps.outputs.libredarwin-path }}
           LA_SRC: ${{ steps.deps.outputs.libreagent-path }}
@@ -314,8 +325,9 @@ jobs:
         run: |
           "$(brew --prefix)/bin/bash" .ci/scripts/make-sbom --out out/sbom-macos.cdx.json \
             --root "$LD_SRC" --repo LibreMac \
-            --static-dep "LibreAgent=$LA_SRC" --static-dep "LibreMiddleware=$LM_SRC" \
-            --require openssl --require qcbor
+            --static-dep "LibreAgent=$LA_SRC" --dynamic-dep "LibreMiddleware=$LM_SRC" \
+            --require openssl --require curl --require opensc --require nlohmann-json --require miniz \
+            --require qcbor
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:

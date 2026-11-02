@@ -32,6 +32,14 @@ trap 'rm -rf "$work"' EXIT
 
 pass=0 fail=0 red=0
 
+# Both scripts read the App Group rule from the agent's wire contract, relative
+# to themselves; a copy runs from a tree laid out like the repository's.
+contract_rel=LibreMacAgentClient/Tests/LibreMacAgentClientTests/Contract
+contract="$here/../$contract_rel/wire-vocabulary.json"
+tree="$work/tree"
+mkdir -p "$tree/Scripts" "$tree/$contract_rel"
+cp "$contract" "$tree/$contract_rel/"
+
 cat > "$work/fix.c" <<'C'
 int librescrs_fixture(void) { return 0; }
 C
@@ -184,12 +192,24 @@ expect_group dlv FAIL 'names none' red "$verify"
 # Perturbations: each restores one defect, and the case that judges it must
 # turn green -- a group expected regardless of the team, and a group check
 # that reads only the first entry.
-if perturbed verify-anyteam.sh 's/want_group="\$team\.org/want_group="group.org/' "$verify"; then
-    verdict "perturbation: the team ignored" PASS '' green "$(group_line "$work/verify-anyteam.sh" "$work/teamgroup.app")"
+if perturbed tree/Scripts/verify-anyteam.sh 's/want_group="\${team:-\$no_team_prefix}/want_group="${no_team_prefix}/' "$verify"; then
+    verdict "perturbation: the team ignored" PASS '' green "$(group_line "$tree/Scripts/verify-anyteam.sh" "$work/teamgroup.app")"
 fi
-if perturbed verify-firstonly.sh 's/groups_key:1" "\$ents_plist"/groups_key:9" "$ents_plist"/' "$verify"; then
-    verdict "perturbation: only the first group read" PASS '' green "$(group_line "$work/verify-firstonly.sh" "$work/twogroups.app")"
+if perturbed tree/Scripts/verify-firstonly.sh 's/groups_key:1" "\$ents_plist"/groups_key:9" "$ents_plist"/' "$verify"; then
+    verdict "perturbation: only the first group read" PASS '' green "$(group_line "$tree/Scripts/verify-firstonly.sh" "$work/twogroups.app")"
 fi
+# The rule is the contract's: the same bundle, judged against a contract whose
+# suffix differs, fails and names the group that contract derives.
+other="$work/othertree"
+mkdir -p "$other/Scripts" "$other/$contract_rel"
+cp "$verify" "$other/Scripts/"
+if perturbed othertree/$contract_rel/wire-vocabulary.json 's/"appGroupSuffix": "[^"]*"/"appGroupSuffix": ".org.example.Other"/' "$contract"; then
+    verdict "the App Group follows the wire contract" FAIL 'the team names ABCDE12345\.org\.example\.Other' red \
+        "$(group_line "$other/Scripts/verify-bundle.sh" "$work/teamteam.app")"
+fi
+rm -f "$other/$contract_rel/wire-vocabulary.json"
+verdict "no wire contract, no App Group" FAIL 'names no socket-location' red \
+    "$(group_line "$other/Scripts/verify-bundle.sh" "$work/teamteam.app")"
 
 # ---------------------------------------------------------------- App Group in sign-bundle.sh
 # A bundle sign-bundle.sh accepts: host and token extension with executables
@@ -212,9 +232,10 @@ make_signable() {
 }
 # signer <name> -> $work/<name>/Scripts/sign-bundle.sh next to the real templates
 signer() {
-    mkdir -p "$work/$1/Scripts" "$work/$1/Packaging"
+    mkdir -p "$work/$1/Scripts" "$work/$1/Packaging" "$work/$1/$contract_rel"
     cp "$here/sign-bundle.sh" "$work/$1/Scripts/"
     cp -R "$here/../Packaging/entitlements" "$work/$1/Packaging/"
+    cp "$contract" "$work/$1/$contract_rel/"
 }
 ents_of() { echo "$work/$1/Packaging/entitlements"; }
 signs_out="$work/sign.out"

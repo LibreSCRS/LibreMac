@@ -275,6 +275,7 @@ private let vocabularyChecks: [String: @Sendable () throws -> Void] = [
     "key-type": { try expectTokenMirror(KeyType.self, "key-type") },
     "pk-sign-mech": { try expectTokenMirror(PkSignMech.self, "pk-sign-mech") },
     "pk-decrypt-mech": { try expectTokenMirror(PkDecryptMech.self, "pk-decrypt-mech") },
+    "reader-interface": { try expectTokenMirror(ReaderInterface.self, "reader-interface") },
     "sign-format": { try expectRequestFormMirror(SignatureFormat.self, "sign-format") },
     "sign-level": { try expectRequestFormMirror(SignatureLevel.self, "sign-level") },
     "packaging-mode": { try expectRequestFormMirror(Packaging.self, "packaging-mode") },
@@ -304,4 +305,29 @@ func mirrorMatchesTheContract(_ rule: String) throws {
             "the contract publishes vocabularies nothing here checks: \(published.subtracting(checked).sorted())")
     #expect(checked.subtracting(published).isEmpty,
             "checks here name vocabularies the contract no longer publishes: \(checked.subtracting(published).sorted())")
+}
+
+// The contract's `socket-location`: where the agent binds its socket. Nothing
+// enumerates it, so it sits beside `vocabularies` rather than in it, and the
+// App Group is checked through `appGroup(forTeam:)` -- the rule itself, not
+// the three constants it is built from.
+private struct SocketLocationManifest: Decodable {
+    struct Location: Decodable {
+        let noTeamPrefix: String
+        let appGroupSuffix: String
+        let socketName: String
+    }
+    let location: Location
+
+    private enum CodingKeys: String, CodingKey { case location = "socket-location" }
+}
+
+@Test func socketLocationMatchesTheContract() throws {
+    let url = try #require(
+        Bundle.module.url(forResource: "wire-vocabulary", withExtension: "json", subdirectory: "Contract"))
+    let contract = try JSONDecoder().decode(SocketLocationManifest.self, from: Data(contentsOf: url)).location
+
+    #expect(AgentSocketPath.socketName == contract.socketName)
+    #expect(AgentSocketPath.appGroup(forTeam: nil) == contract.noTeamPrefix + contract.appGroupSuffix)
+    #expect(AgentSocketPath.appGroup(forTeam: "ABCDE12345") == "ABCDE12345" + contract.appGroupSuffix)
 }

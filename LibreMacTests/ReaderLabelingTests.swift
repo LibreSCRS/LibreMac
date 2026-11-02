@@ -6,72 +6,54 @@ import Testing
 
 @testable import LibreMac
 
-private func reader(_ handle: String, _ name: String) -> ReaderState {
-    ReaderState(handle: handle, name: name, hasCard: true, card: nil)
-}
-
 // Plain-text formatters standing in for the localized ones (keeps assertions
 // deterministic and locale-independent).
 private let contactFmt: @Sendable (String) -> String = { "\($0) — contact" }
 private let contactlessFmt: @Sendable (String) -> String = { "\($0) — contactless" }
 
+private func label(_ reader: ReaderState) -> String {
+    readerDisplayLabel(reader, contact: contactFmt, contactless: contactlessFmt)
+}
+
+// The name each reader carries is one this host used to parse into a label.
+// Every expectation below differs from what that parse made of it, so a label
+// read from the name instead of from the agent's fields fails here.
+private let omnikeyName =
+    "HID Global OMNIKEY 5422 Smartcard Reader [OMNIKEY 5422CL Smartcard Reader] (IM0O2C00NF10456904) 00 00"
+
 @Suite("Reader labeling")
 struct ReaderLabelingTests {
 
-    @Test("parseReaderName flags contactless from picc/nfc/CL markers")
-    func contactlessDetection() {
-        #expect(parseReaderName("ACS ACR122U PICC Interface (00) 00 00").contactless == true)
-        #expect(parseReaderName("Some NFC Reader 00 00").contactless == true)
-        #expect(parseReaderName("Gemalto PC Twin Reader 00 00").contactless == false)
+    @Test("a reader with no particular interface shows the agent's model as it is")
+    func modelOnly() {
+        let r = ReaderState(
+            handle: "R1", name: "Gemalto PC Twin Reader 00 00", hasCard: true,
+            model: "Agent Model 1", interface: .unknown)
+        #expect(label(r) == "Agent Model 1")
     }
 
-    @Test("a lone reader shows a bare cleaned model")
-    func loneReader() {
-        let labels = readerDisplayLabels(
-            [reader("R1", "Gemalto PC Twin Reader 00 00")],
-            contact: contactFmt, contactless: contactlessFmt)
-        #expect(labels["R1"] == "Gemalto PC Twin")
-    }
-
-    @Test("a dual-interface device disambiguates contact vs contactless")
+    @Test("the slots of a dual-interface unit are worded by the interface the agent names")
     func dualInterface() {
-        let readers = [
-            reader("R1", "HID OMNIKEY 5422 Smartcard Reader [OMNIKEY 5422 Smartcard Reader] (0000) 00 00"),
-            reader("R2", "HID OMNIKEY 5422 CL Reader [OMNIKEY 5422CL Reader] (0000) 01 00"),
-        ]
-        let labels = readerDisplayLabels(readers, contact: contactFmt, contactless: contactlessFmt)
-        #expect(labels["R1"] == "OMNIKEY 5422 — contact")
-        #expect(labels["R2"] == "OMNIKEY 5422 — contactless")
+        let contact = ReaderState(
+            handle: "R1", name: omnikeyName, hasCard: true, model: "OMNIKEY 5422", interface: .contact)
+        let contactless = ReaderState(
+            handle: "R2", name: omnikeyName, hasCard: false, model: "OMNIKEY 5422", interface: .contactless)
+        #expect(label(contact) == "OMNIKEY 5422 — contact")
+        #expect(label(contactless) == "OMNIKEY 5422 — contactless")
     }
 
-    @Test("two identical readers are disambiguated by serial tail")
-    func identicalReaders() {
-        let readers = [
-            reader("R1", "ACME Card Reader (1234) 00 00"),
-            reader("R2", "ACME Card Reader (5678) 00 00"),
-        ]
-        let labels = readerDisplayLabels(readers, contact: contactFmt, contactless: contactlessFmt)
-        #expect(labels["R1"] == "ACME Card (1234)")
-        #expect(labels["R2"] == "ACME Card (5678)")
+    @Test("the agent's model is not reworded: a twin's tail it added stays as sent")
+    func modelIsNotReparsed() {
+        let r = ReaderState(
+            handle: "R1", name: "ACME Card Reader (1234) 00 00", hasCard: true,
+            model: "ACME Card Reader (1234)", interface: .unknown)
+        #expect(label(r) == "ACME Card Reader (1234)")
     }
 
-    @Test("an un-parseable name falls back to the raw name, never empty")
-    func rawFallback() {
-        let labels = readerDisplayLabels(
-            [reader("R1", "USB")], contact: contactFmt, contactless: contactlessFmt)
-        #expect(labels["R1"] == "USB")
-    }
-
-    @Test("a third distinct reader is labelled independently")
-    func thirdReader() {
-        let readers = [
-            reader("R1", "Gemalto PC Twin Reader 00 00"),
-            reader("R2", "ACME Card Reader (1234) 00 00"),
-            reader("R3", "Some NFC Reader 00 00"),
-        ]
-        let labels = readerDisplayLabels(readers, contact: contactFmt, contactless: contactlessFmt)
-        #expect(labels["R1"] == "Gemalto PC Twin")
-        #expect(labels["R3"]?.hasSuffix("— contactless") == true)
-        #expect(labels.count == 3)
+    @Test("an agent that sends no label leaves the PC/SC name, unparsed")
+    func noLabelShowsTheName() {
+        let r = ReaderState(handle: "R1", name: omnikeyName, hasCard: true)
+        #expect(r.model == nil)
+        #expect(label(r) == omnikeyName)
     }
 }

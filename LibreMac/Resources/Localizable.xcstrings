@@ -15204,6 +15204,23 @@
         }
       }
     },
+    "prompter_requester_keychain" : {
+      "comment" : "prompter_requester_keychain",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (Keychain)"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (Keychain)"
+          }
+        }
+      }
+    },
     "prompter_retry_generic" : {
       "comment" : "prompter_retry_generic",
       "localizations" : {

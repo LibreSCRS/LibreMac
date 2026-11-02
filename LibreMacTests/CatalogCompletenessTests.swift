@@ -162,6 +162,8 @@ struct CatalogCompletenessTests {
         "prompter_batch_more",
         // the device-owner confirmation
         "prompter_confirm_requested_by",
+        // the requester label for the token extension, which acts for Keychain
+        "prompter_requester_keychain",
         // the trust sentences the agent sends as a descriptionKey
         "prompter_trust_import",
         "prompter_trust_forget",
@@ -436,6 +438,7 @@ struct CatalogCompletenessTests {
         let formatted = [
             "prompter_reader",
             "prompter_confirm_requested_by",
+            "prompter_requester_keychain",
             "prompter_batch_more",
         ]
         for (locale, url) in [("en", Self.enCatalog), ("sr", Self.srCatalog)] {

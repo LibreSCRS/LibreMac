@@ -16,6 +16,7 @@
 
 import Foundation
 import LibreMacAgentClient
+import LibreMacShared
 import Observation
 import os
 
@@ -82,8 +83,8 @@ public final class CardMonitor {
         sortedCards(cards, readers: readers)
     }
 
-    /// Friendly, disambiguated label for a reader handle (contact/contactless,
-    /// serial-tail uniqueness). Served from a map rebuilt when the roster changes.
+    /// The label for a reader handle: the agent's model and interface for
+    /// it, worded here. Served from a map rebuilt when the roster changes.
     public func readerLabel(for readerHandle: String) -> String {
         readerLabelMap[readerHandle] ?? readerHandle
     }
@@ -123,12 +124,7 @@ public final class CardMonitor {
     /// whole publish/remove path below is then a no-op.
     private let tokenRegistrar: TokenIdentityRegistrar?
 
-    /// Non-isolated holder so `deinit` can cancel the stream-consumer tasks
-    /// without crossing the actor boundary (Swift 6 forbids synchronous access
-    /// to `@MainActor` state from `deinit`).
-    private final class TaskHolder: @unchecked Sendable {
-        var tasks: [Task<Void, Never>] = []
-    }
+    /// The stream-consumer tasks, where `deinit` can cancel them.
     private let taskHolder = TaskHolder()
 
     public init(client: AgentClient, tokenRegistrar: TokenIdentityRegistrar? = nil) {
@@ -155,7 +151,7 @@ public final class CardMonitor {
         // quiescence loops forward each event into the credentials taps
         // BEFORE applying it locally, so the taps' consumer never observes an
         // event later than this monitor did.
-        taskHolder.tasks.append(
+        taskHolder.add(
             Task { [weak self] in
                 for await snapshot in registryUpdates {
                     registryTapContinuation.yield(snapshot)
@@ -163,7 +159,7 @@ public final class CardMonitor {
                     self.apply(snapshot: snapshot)
                 }
             })
-        taskHolder.tasks.append(
+        taskHolder.add(
             Task { [weak self] in
                 for await value in availability {
                     // On connect the client has already completed its handshake
@@ -177,7 +173,7 @@ public final class CardMonitor {
                     self.apply(available: value, features: features)
                 }
             })
-        taskHolder.tasks.append(
+        taskHolder.add(
             Task { [weak self] in
                 for await reason in quiescence {
                     quiescenceTapContinuation.yield(reason)
@@ -188,9 +184,7 @@ public final class CardMonitor {
     }
 
     deinit {
-        for task in taskHolder.tasks {
-            task.cancel()
-        }
+        taskHolder.cancelAll()
         registryTapContinuation.finish()
         quiescenceTapContinuation.finish()
     }
@@ -210,11 +204,17 @@ public final class CardMonitor {
     }
 
     private func rebuildReaderLabels() {
-        readerLabelMap = readerDisplayLabels(
-            readers,
-            contact: { Self.ifaceLabel("libremac_reader_iface_contact", "{model} — contact", $0) },
-            contactless: { Self.ifaceLabel("libremac_reader_iface_contactless", "{model} — contactless", $0) }
-        )
+        var map: [String: String] = [:]
+        for reader in readers {
+            map[reader.handle] = readerDisplayLabel(
+                reader,
+                contact: { Self.ifaceLabel("libremac_reader_iface_contact", "{model} — contact", $0) },
+                contactless: {
+                    Self.ifaceLabel("libremac_reader_iface_contactless", "{model} — contactless", $0)
+                }
+            )
+        }
+        readerLabelMap = map
     }
 
     private static func ifaceLabel(_ key: String, _ fallback: String, _ model: String) -> String {

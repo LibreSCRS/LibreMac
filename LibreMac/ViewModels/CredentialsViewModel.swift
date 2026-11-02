@@ -105,11 +105,7 @@ public final class CredentialsViewModel {
     /// these it still carries, and the set resets either way.
     private var quiescedCards: Set<String> = []
 
-    /// Non-isolated holder so `deinit` can cancel the stream-consumer tasks
-    /// without crossing the actor boundary (the `CardMonitor` pattern).
-    private final class TaskHolder: @unchecked Sendable {
-        var tasks: [Task<Void, Never>] = []
-    }
+    /// The stream-consumer tasks, where `deinit` can cancel them.
     private let taskHolder = TaskHolder()
 
     public init(client: AgentCredentialsClient) {
@@ -122,13 +118,13 @@ public final class CredentialsViewModel {
         // Created in a `@MainActor` context, so both tasks inherit MainActor
         // isolation: the stream `await`s suspend without blocking the main
         // thread and the handlers are same-actor synchronous mutations.
-        taskHolder.tasks.append(Task { [weak self] in
+        taskHolder.add(Task { [weak self] in
             for await snapshot in registryUpdates {
                 guard let self else { return }
                 self.apply(snapshot: snapshot)
             }
         })
-        taskHolder.tasks.append(Task { [weak self] in
+        taskHolder.add(Task { [weak self] in
             for await _ in quiescence {
                 guard let self else { return }
                 self.clearAllSections()
@@ -137,9 +133,7 @@ public final class CredentialsViewModel {
     }
 
     deinit {
-        for task in taskHolder.tasks {
-            task.cancel()
-        }
+        taskHolder.cancelAll()
     }
 
     // MARK: - Listing
