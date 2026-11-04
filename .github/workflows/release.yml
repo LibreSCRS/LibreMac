@@ -232,11 +232,6 @@ jobs:
           modules: 'qtimageformats qtpdf'
           cache: true
 
-      - name: Install jsonschema into Qt's Python
-        # The Qt action puts its own Python first on PATH; LibreCelik's manifest
-        # code generator runs in that one.
-        run: python3 -m pip install --break-system-packages --user jsonschema
-
       - name: Build LibreCelik (Release, universal)
         # What the bundle ships, without its tests: GoogleTest comes from
         # Homebrew, built for the host alone, so a universal test binary cannot
