@@ -76,7 +76,6 @@ public actor AgentClient {
 
     public static let defaultPropTimeout: TimeInterval = 3.0
     public static let defaultDiscoveryTimeout: TimeInterval = 1.0
-    public static let defaultOpStallTimeout: TimeInterval = 35.0
     /// For requests the agent may hold while it asks a human. A configuration
     /// write can be gated on the device owner authenticating, and that dialog
     /// has no timeout of its own, so the three-second property timeout gives
@@ -611,7 +610,8 @@ public actor AgentClient {
         Array(cardsByHandle.values)
     }
 
-    public func isAvailable() -> Bool {
+    /// Test probe (`@testable`): the app follows availability through events.
+    func isAvailable() -> Bool {
         availableFlag
     }
 

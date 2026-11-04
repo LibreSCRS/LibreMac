@@ -69,18 +69,11 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
         request = .getSignResult(op: mwUInt(pairs, "op") ?? 0)
     case "Pkcs11.Login":
         request = .pkLogin(reader: mwText(pairs, "reader") ?? "")
-    case "Pkcs11.Logout":
-        request = .pkLogout(reader: mwText(pairs, "reader") ?? "")
     case "Pkcs11.PublicKey":
         request = .pkPublicKey(reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "")
     case "Pkcs11.SignRaw":
         guard let mech = PkSignMech(rawValue: mwText(pairs, "mech") ?? "") else { throw MockWireError.malformed }
         request = .pkSignRaw(
-            reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "", mech: mech,
-            data: mwBytes(pairs, "data") ?? Data())
-    case "Pkcs11.Decrypt":
-        guard let mech = PkDecryptMech(rawValue: mwText(pairs, "mech") ?? "") else { throw MockWireError.malformed }
-        request = .pkDecrypt(
             reader: mwText(pairs, "reader") ?? "", cert: mwText(pairs, "cert") ?? "", mech: mech,
             data: mwBytes(pairs, "data") ?? Data())
     case "Pkcs11.Derive":
@@ -160,7 +153,6 @@ func requestTag(_ request: AgentRequest) -> String {
     case .readIdentity: return "ReadIdentity"
     case .getPhoto: return "GetPhoto"
     case .readCertificates: return "ReadCertificates"
-    case .readTokenInfo: return "ReadTokenInfo"
     case .sign: return "Sign"
     case .getCertDer: return "GetCertDer"
     case .getConfig: return "GetConfig"
@@ -169,10 +161,8 @@ func requestTag(_ request: AgentRequest) -> String {
     case .cancelOp: return "CancelOp"
     case .getSignResult: return "GetSignResult"
     case .pkLogin: return "Pkcs11.Login"
-    case .pkLogout: return "Pkcs11.Logout"
     case .pkPublicKey: return "Pkcs11.PublicKey"
     case .pkSignRaw: return "Pkcs11.SignRaw"
-    case .pkDecrypt: return "Pkcs11.Decrypt"
     case .pkDerive: return "Pkcs11.Derive"
     case .listCredentials: return "ListCredentials"
     case .managePin: return "ManagePin"

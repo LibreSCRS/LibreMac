@@ -235,12 +235,6 @@ struct CrossImplementationFixtureTests {
 
     // ---- requests (client -> agent: Swift encode vs the C++ bytes, req id 1) ----
 
-    @Test("ReadTokenInfo.cbor — Swift encode matches the C++ bytes")
-    func readTokenInfoRequest() throws {
-        let expected = try fixture("ReadTokenInfo")
-        #expect(AgentRequest.readTokenInfo(card: "reader/0:card/0").encode(req: 1) == expected)
-    }
-
     @Test("ListCredentials.cbor — Swift encode matches the C++ bytes")
     func listCredentialsRequest() throws {
         let expected = try fixture("ListCredentials")
@@ -267,12 +261,6 @@ struct CrossImplementationFixtureTests {
         let body = AgentRequest.pkSignRaw(reader: "r", cert: "c", mech: .ecdsa, data: Data(repeating: 0xAB, count: 32))
             .encode(req: 1)
         #expect(body == (try fixture("PkSignRaw")))
-    }
-
-    @Test("PkDecrypt.cbor is what this package encodes")
-    func pkDecryptRequest() throws {
-        let body = AgentRequest.pkDecrypt(reader: "r", cert: "c", mech: .rsaPkcs, data: Data([0x01, 0x02])).encode(req: 1)
-        #expect(body == (try fixture("PkDecrypt")))
     }
 
     @Test("PkDerive.cbor is what this package encodes")
@@ -424,8 +412,8 @@ struct CrossImplementationFixtureTests {
         let names = Set(files.map { $0.deletingPathExtension().lastPathComponent })
         let covered: Set<String> = [
             "HelloAck", "OpStarted", "State", "CertList", "CertDer", "Config", "Ack", "SignRecovery", "ErrCode",
-            "ErrName", "ErrNameUnknownCredential", "ErrNameNoResult", "ReadTokenInfo", "ListCredentials", "ManagePin",
-            "ActivateSigningKey", "PublicKeyEc", "PkSignRaw", "PkDecrypt",
+            "ErrName", "ErrNameUnknownCredential", "ErrNameNoResult", "ListCredentials", "ManagePin",
+            "ActivateSigningKey", "PublicKeyEc", "PkSignRaw",
             "DerivedSecret", "PkDerive",
             "ReaderAdded", "ReaderRemoved", "CardAdded", "CardRemoved", "PropertyChanged",
             "ConfigChanged", "OpProgress", "OpResultReadyIdentity", "OpResultReadyPhoto",

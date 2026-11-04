@@ -116,12 +116,6 @@ public enum AgentRequest: Sendable, Equatable {
     case readIdentity(card: String)
     case getPhoto(card: String)
     case readCertificates(card: String)
-    /// Lightweight token-info read (PKCS#15 TokenInfo or equivalent). Result
-    /// rides the EXISTING op-result-ready kind "Identity" — a single "token"
-    /// group (label/serial_number/manufacturer) — never a new result shape.
-    /// Gated on the `"token-info"` HelloAck feature token, like the
-    /// credentials family above.
-    case readTokenInfo(card: String)
     case sign(card: String, cert: String, inFd: UInt64, opts: SignOptions)
     case getCertDer(reader: String, cert: String)
     case getConfig
@@ -138,10 +132,8 @@ public enum AgentRequest: Sendable, Equatable {
     case cancelOp(op: UInt64)
     case getSignResult(op: UInt64)
     case pkLogin(reader: String)
-    case pkLogout(reader: String)
     case pkPublicKey(reader: String, cert: String)
     case pkSignRaw(reader: String, cert: String, mech: PkSignMech, data: Data)
-    case pkDecrypt(reader: String, cert: String, mech: PkDecryptMech, data: Data)
     /// Gate on the `"ec-keys"` feature token: an agent without it drops the
     /// connection on this tag.
     case pkDerive(reader: String, cert: String, data: Data)
@@ -190,8 +182,6 @@ extension AgentRequest {
             pairs = [("t", .text("GetPhoto")), ("card", .text(card))]
         case .readCertificates(let card):
             pairs = [("t", .text("ReadCertificates")), ("card", .text(card))]
-        case .readTokenInfo(let card):
-            pairs = [("t", .text("ReadTokenInfo")), ("card", .text(card))]
         case .sign(let card, let cert, let inFd, let opts):
             pairs = [
                 ("t", .text("Sign")),
@@ -214,15 +204,10 @@ extension AgentRequest {
             pairs = [("t", .text("GetSignResult")), ("op", .int(Int64(op)))]
         case .pkLogin(let reader):
             pairs = [("t", .text("Pkcs11.Login")), ("reader", .text(reader))]
-        case .pkLogout(let reader):
-            pairs = [("t", .text("Pkcs11.Logout")), ("reader", .text(reader))]
         case .pkPublicKey(let reader, let cert):
             pairs = [("t", .text("Pkcs11.PublicKey")), ("reader", .text(reader)), ("cert", .text(cert))]
         case .pkSignRaw(let reader, let cert, let mech, let data):
             pairs = [("t", .text("Pkcs11.SignRaw")), ("reader", .text(reader)),
-                     ("cert", .text(cert)), ("mech", .text(mech.rawValue)), ("data", .bytes(data))]
-        case .pkDecrypt(let reader, let cert, let mech, let data):
-            pairs = [("t", .text("Pkcs11.Decrypt")), ("reader", .text(reader)),
                      ("cert", .text(cert)), ("mech", .text(mech.rawValue)), ("data", .bytes(data))]
         case .pkDerive(let reader, let cert, let data):
             pairs = [("t", .text("Pkcs11.Derive")), ("reader", .text(reader)),

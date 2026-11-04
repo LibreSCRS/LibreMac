@@ -146,20 +146,15 @@ public final class AgentOperation: Sendable {
         state.withLock { $0.latestResult }
     }
 
-    /// Whether `finished()` has already resolved — a non-blocking probe,
-    /// used by consumers (and the ordering tests) that need to know
+    /// Whether `finished()` has already resolved — a non-blocking probe for
+    /// the ordering tests (`@testable`), which need to know
     /// "has this operation terminalized YET" without suspending.
-    public var isFinished: Bool {
+    var isFinished: Bool {
         state.withLock { $0.finishedValue != nil }
     }
 
-    public var identityResult: IdentityResult? {
+    var identityResult: IdentityResult? {
         if case .identity(let value) = result { return value }
-        return nil
-    }
-
-    public var photoResult: PhotoResult? {
-        if case .photo(let value) = result { return value }
         return nil
     }
 

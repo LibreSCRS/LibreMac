@@ -27,10 +27,9 @@ public final class TokenAgentClient: TokenTransport {
     /// extend it: an agent that predates `Hello.wantsEvents` broadcasts them
     /// anyway, and a steady trickle would otherwise keep a stuck request
     /// waiting forever.
-    /// It is generous where `OperationDriver.opStallTimeout` is exempt: an
-    /// operator-facing wait (PIN entry happens agent-side) sends this seam
-    /// no phase events to exempt it with, so the bound must outlast a slow
-    /// operator while still surfacing a hung agent as
+    /// It is generous: an operator-facing wait (PIN entry happens
+    /// agent-side) sends this seam no phase events, so the bound must
+    /// outlast a slow operator while still surfacing a hung agent as
     /// `TokenTransportError.timedOut` instead of wedging the ctkd thread
     /// forever. Pinned to `PromptBudget.maxSequential` plus margin, not a
     /// bare literal: a request may chain more than one prompt (CAN entry

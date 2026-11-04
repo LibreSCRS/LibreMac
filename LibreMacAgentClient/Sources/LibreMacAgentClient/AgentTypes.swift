@@ -248,7 +248,9 @@ public enum PkSignMech: String, Sendable, Equatable, CaseIterable {
     case ecdsa = "ecdsa"
 }
 
-/// `pk-decrypt-mech`: the primitive a raw decryption asks for.
+/// `pk-decrypt-mech`: the primitive a raw decryption asks for. This client
+/// sends no decrypt request; the type mirrors the published vocabulary so
+/// `WireVocabularyConformanceTests` keeps checking every one of them.
 public enum PkDecryptMech: String, Sendable, Equatable, CaseIterable {
     case rsaPkcs = "rsa-pkcs"
 }
@@ -267,13 +269,10 @@ public enum PublicKey: Sendable, Equatable {
 /// Wire tolerance: like `ErrorCode` above, a value past `done` is a FUTURE
 /// phase, not a malformed one — carried through as `.unknown(UInt32)`
 /// rather than failing decode. Degradation is a STATEFUL-layer concern,
-/// never this type's or the codec's: `OperationDriver`'s `StallWatch` holds
-/// the last known-good phase for its watchdog-exemption check (never
-/// regressing to an unrecognized value), and `SigningCoordinator.applyPhase`
-/// leaves its rendered stage unchanged on `.unknown` for the identical
-/// reason (`ClientCodec.h`'s tolerance table names `AgentOperation` as the
-/// C++ analog; the CDDL `op-phase` comment names the Swift mirror's
-/// `OperationDriver`).
+/// never this type's or the codec's: `SigningCoordinator.applyPhase` leaves
+/// its rendered stage unchanged on `.unknown`, holding the last known-good
+/// phase instead of regressing to an unrecognized value (`ClientCodec.h`'s
+/// tolerance table names `AgentOperation` as the C++ analog).
 public enum OperationPhase: Sendable, Equatable {
     case created
     case connecting
@@ -348,9 +347,10 @@ extension OperationPhase {
 /// `op-status` (`librescrs-agent.cddl`).
 ///
 /// Wire tolerance: like `OperationPhase` above, a value past `error` is a
-/// FUTURE status carried through as `.unknown(UInt32)`. The stateful layer
-/// that treats an unrecognized terminal status as `Error` is
-/// `OperationDriver.driveToFinished` (`ClientCodec.h`'s tolerance table).
+/// FUTURE status carried through as `.unknown(UInt32)`. Every caller that
+/// reads `AgentOperation.finished()`'s status accepts only `.ok`, so an
+/// unrecognized terminal status is handled as a failure, the way
+/// `ClientCodec.h`'s tolerance table treats it as `Error`.
 public enum OperationStatus: Sendable, Equatable {
     case ok
     case cancelled

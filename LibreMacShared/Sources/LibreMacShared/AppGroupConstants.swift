@@ -11,7 +11,6 @@ import Foundation
 public enum AppGroupConstants {
     public enum DefaultsKeys {
         public static let preferredLocale = "org.librescrs.LibreMac.preferredLocale"
-        public static let logLevel = "org.librescrs.LibreMac.logLevel"
         /// Where signed files are offered by default. Client-local: the agent
         /// has no say in where this host puts a file it wrote.
         public static let defaultOutputFolder = "org.librescrs.LibreMac.defaultOutputFolder"
