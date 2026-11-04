@@ -55,7 +55,7 @@ struct GeneralPane: View {
                 // `String` tag compiles cleanly and then shows an empty
                 // selection at runtime.
                 Picker(
-                    localization.loc("lc-settings-language", "Language:"),
+                    localization.loc("libremac_settings_language", "Language:"),
                     selection: $localization.locale
                 ) {
                     Text(localization.loc("libremac_settings_language_system", "System"))
@@ -67,7 +67,7 @@ struct GeneralPane: View {
 
             Section {
                 LabeledContent(
-                    localization.loc("lc-settings-default-output", "Default output folder:")
+                    localization.loc("libremac_settings_default_output", "Default output folder:")
                 ) {
                     HStack(spacing: 8) {
                         TextField(

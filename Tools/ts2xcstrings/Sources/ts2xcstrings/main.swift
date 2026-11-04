@@ -20,21 +20,9 @@ let outputUrl = URL(fileURLWithPath: args[outIdx + 1])
 let inputUrls = args[(outIdx + 2)...].map { URL(fileURLWithPath: $0) }
 
 do {
-    var catalog = try Ts2Xcstrings.convert(sources: Array(inputUrls), sourceLanguage: "en")
-
-    // Merge: preserve manually-maintained entries already present in the
-    // output catalog (e.g. LibreMac-side `error.*` keys that the bridge
-    // throws — these have no `.ts` source and would otherwise be wiped on
-    // every regeneration). Imported `.ts` keys take precedence; manual
-    // keys not present in the imports are carried forward verbatim.
-    if FileManager.default.fileExists(atPath: outputUrl.path) {
-        if let existingData = try? Data(contentsOf: outputUrl),
-           let existing = try? JSONDecoder().decode(StringCatalog.self, from: existingData) {
-            for (key, entry) in existing.strings where catalog.strings[key] == nil {
-                catalog.strings[key] = entry
-            }
-        }
-    }
+    // The output is exactly what the inputs carry: an id dropped from the
+    // `.ts` files leaves the catalog on the next build.
+    let catalog = try Ts2Xcstrings.convert(sources: Array(inputUrls), sourceLanguage: "en")
 
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

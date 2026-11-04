@@ -22,7 +22,7 @@ struct AdvancedPane: View {
             case .ready:
                 Section {
                     pathRow("libremac_settings_plugin_dir", "Plugins", model.pluginDir)
-                    pathRow("lc-settings-cache-dir", "Cache", model.tslCacheDir)
+                    pathRow("libremac_settings_cache_dir", "Trusted list cache folder:", model.tslCacheDir)
                     pathRow(
                         "libremac_settings_aia_cache_dir", "Certificate cache", model.aiaCacheDir)
                 } footer: {

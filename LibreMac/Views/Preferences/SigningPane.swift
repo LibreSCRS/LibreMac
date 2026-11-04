@@ -53,7 +53,7 @@ struct SigningPane: View {
 
     @ViewBuilder
     private var levelRow: some View {
-        LabeledContent(loc("lc-settings-default-level", "Level")) {
+        LabeledContent(loc("libremac_settings_default_level", "Default signature level:")) {
             HStack(spacing: 8) {
                 Picker("", selection: levelSelection) {
                     ForEach(Self.levelOptions(), id: \.self) { level in

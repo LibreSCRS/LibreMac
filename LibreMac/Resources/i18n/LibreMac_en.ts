@@ -543,6 +543,58 @@
         <source>No timestamping authority is configured, so this level cannot be produced. Add one in the agent's configuration file.</source>
         <translation>No timestamping authority is configured, so this level cannot be produced. Add one in the agent's configuration file.</translation>
     </message>
+    <message id="libremac_settings_tab_general">
+        <source>General</source>
+        <translation>General</translation>
+    </message>
+    <message id="libremac_settings_tab_signing">
+        <source>Signing</source>
+        <translation>Signing</translation>
+    </message>
+    <message id="libremac_settings_tab_trust">
+        <source>Trust</source>
+        <translation>Trust</translation>
+    </message>
+    <message id="libremac_settings_language">
+        <source>Language:</source>
+        <translation>Language:</translation>
+    </message>
+    <message id="libremac_settings_default_output">
+        <source>Default output folder:</source>
+        <translation>Default output folder:</translation>
+    </message>
+    <message id="libremac_settings_default_level">
+        <source>Default signature level:</source>
+        <translation>Default signature level:</translation>
+    </message>
+    <message id="libremac_settings_cache_dir">
+        <source>Trusted list cache folder:</source>
+        <translation>Trusted list cache folder:</translation>
+    </message>
+    <message id="libremac_settings_tsa_servers">
+        <source>Timestamping authorities</source>
+        <translation>Timestamping authorities</translation>
+    </message>
+    <message id="libremac_settings_tl_servers">
+        <source>Trusted lists</source>
+        <translation>Trusted lists</translation>
+    </message>
+    <message id="libremac_settings_tl_add_item">
+        <source>Add a trusted list…</source>
+        <translation>Add a trusted list…</translation>
+    </message>
+    <message id="libremac_settings_tl_add_title">
+        <source>Add a trusted list</source>
+        <translation>Add a trusted list</translation>
+    </message>
+    <message id="libremac_settings_tl_type">
+        <source>List of lists</source>
+        <translation>List of lists</translation>
+    </message>
+    <message id="libremac_settings_invalid_url">
+        <source>Enter a full http or https address.</source>
+        <translation>Enter a full http or https address.</translation>
+    </message>
     <message id="libremac_settings_tab_advanced">
         <source>Advanced</source>
         <translation>Advanced</translation>

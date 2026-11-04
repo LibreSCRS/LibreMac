@@ -32,10 +32,10 @@ struct AppLocalizationTests {
         let localization = AppLocalization(defaults: isolatedDefaults(#function))
 
         localization.locale = "en"
-        #expect(localization.loc("lc-settings-tab-general", "General") == "General")
+        #expect(localization.loc("libremac_settings_tab_general", "General") == "General")
 
         localization.locale = "sr"
-        #expect(localization.loc("lc-settings-tab-general", "General") == "Опште")
+        #expect(localization.loc("libremac_settings_tab_general", "General") == "Опште")
     }
 
     @Test("resolving straight through LocalizedText ignores the preference")
@@ -43,12 +43,12 @@ struct AppLocalizationTests {
         let localization = AppLocalization(defaults: isolatedDefaults(#function))
 
         localization.locale = nil
-        let systemText = localization.loc("lc-settings-tab-general", "General")
+        let systemText = localization.loc("libremac_settings_tab_general", "General")
 
         localization.locale = "sr"
 
         #expect(
-            LocalizedText(key: "lc-settings-tab-general", defaultText: "General").resolve()
+            LocalizedText(key: "libremac_settings_tab_general", defaultText: "General").resolve()
                 == systemText,
             "the extension shares this type; resolving against .main must not follow a host-only preference"
         )
@@ -84,28 +84,12 @@ struct AppLocalizationTests {
         #expect(localization.resolve(text) == "Комуникација са читачем картица није успела.")
     }
 
-    /// These ids belong to the desktop client's catalogue, not this repo's:
-    /// the settings window reads them out of the merged catalogue, which puts
-    /// them outside LibreMac's own completeness gate. If that side ever drops
-    /// or renames one, the window quietly renders English while everything
-    /// around it is Serbian — and nothing else here would notice.
-    @Test("the borrowed settings ids really carry Serbian, not an English fallback")
-    func borrowedSettingsIdsAreTranslated() {
-        let localization = AppLocalization(defaults: isolatedDefaults(#function))
-        localization.locale = "sr"
-
-        for (key, english) in CatalogCompletenessTests.borrowedSettingsIds {
-            #expect(localization.loc(key, english) != english, "\(key) fell back to English")
-        }
-    }
-
     /// `CatalogCompletenessTests` reads the `.ts` sources; the app reads the
-    /// generated `Localizable.xcstrings`. Between them sits a pre-build step
-    /// that SILENTLY DOES NOTHING when LibreCelik is not a sibling — which is
-    /// exactly the shape of the CI checkout. So a key added to both `.ts`
-    /// files and not to the committed catalog passes every other gate here and
-    /// renders English to a Serbian user. This is the assertion that closes
-    /// that gap for the copy this release added.
+    /// generated `Localizable.xcstrings`, which is committed. A key added to
+    /// both `.ts` files and missing from the committed catalog passes every
+    /// other gate here and renders English to a Serbian user in any build
+    /// that does not run the pre-build step. This is the assertion that
+    /// closes that gap for the copy this release added.
     @Test("the cancel copy resolves in Serbian from the shipped catalog")
     func cancelCopyIsTranslated() {
         let localization = AppLocalization(defaults: isolatedDefaults(#function))
@@ -136,7 +120,7 @@ struct AppLocalizationTests {
         let toldAboutChange = ChangeFlag()
 
         withObservationTracking {
-            _ = localization.loc("lc-settings-tab-general", "General")
+            _ = localization.loc("libremac_settings_tab_general", "General")
         } onChange: {
             toldAboutChange.fired = true
         }

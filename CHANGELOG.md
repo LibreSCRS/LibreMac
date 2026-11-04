@@ -212,6 +212,12 @@ versioning follows [Semantic Versioning](https://semver.org/).
   is enabled but not running. launchd restarts them only after a crash, so
   one that had exited cleanly stayed down, and PIN prompts failed while the
   agent's socket still looked healthy to clients.
+- The Settings window shows its own labels again. Thirteen of them were
+  borrowed from LibreCelik's dialog, so a list of trusted lists was marked
+  "Type:", the list-of-lists switch was labelled the same way, and section
+  titles ended in a colon. LibreMac now carries those strings itself, in
+  English and Serbian, and its string catalog holds only what the app
+  shows (213 entries instead of 901).
 - Replacing LibreMac.app with another build of the same version now restarts
   the agent and the prompter from the new bundle. The app recycled them only
   when `CFBundleVersion` changed, so a rebuilt bundle kept the previous agent

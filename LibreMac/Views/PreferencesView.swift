@@ -43,11 +43,11 @@ struct PreferencesView: View {
     var body: some View {
         TabView {
             GeneralPane()
-                .tabItem { Text(localization.loc("lc-settings-tab-general", "General")) }
+                .tabItem { Text(localization.loc("libremac_settings_tab_general", "General")) }
             SigningPane(model: model)
-                .tabItem { Text(localization.loc("lc-settings-tab-signing", "Signing")) }
+                .tabItem { Text(localization.loc("libremac_settings_tab_signing", "Signing")) }
             TrustPane(model: model)
-                .tabItem { Text(localization.loc("lc-settings-tab-trust", "Trust")) }
+                .tabItem { Text(localization.loc("libremac_settings_tab_trust", "Trust")) }
             AdvancedPane(model: model)
                 .tabItem {
                     Text(localization.loc("libremac_settings_tab_advanced", "Advanced"))

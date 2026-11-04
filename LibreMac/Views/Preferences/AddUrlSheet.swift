@@ -38,7 +38,7 @@ struct AddUrlSheet: View {
             if !text.isEmpty && !isUsableTrustUrl(text) {
                 Label(
                     localization.loc(
-                        "lc-settings-invalid-url-msg", "Enter a full http or https address."),
+                        "libremac_settings_invalid_url", "Enter a full http or https address."),
                     systemImage: "exclamationmark.triangle.fill"
                 )
                 .font(.caption)
@@ -70,17 +70,17 @@ struct AddSourceSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(localization.loc("lc-settings-tl-add-title", "Add a trusted list")).font(.headline)
+            Text(localization.loc("libremac_settings_tl_add_title", "Add a trusted list")).font(.headline)
             TextField("https://", text: $text)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 360)
-            Toggle(localization.loc("lc-settings-tl-type", "List of lists"), isOn: $isLotl)
+            Toggle(localization.loc("libremac_settings_tl_type", "List of lists"), isOn: $isLotl)
             Toggle(
                 localization.loc("libremac_settings_trust_eager", "Fetched up front"), isOn: $eager)
             if !text.isEmpty && !isUsableTrustUrl(text) {
                 Label(
                     localization.loc(
-                        "lc-settings-invalid-url-msg", "Enter a full http or https address."),
+                        "libremac_settings_invalid_url", "Enter a full http or https address."),
                     systemImage: "exclamationmark.triangle.fill"
                 )
                 .font(.caption)

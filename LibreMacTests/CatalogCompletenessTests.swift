@@ -3,17 +3,15 @@
 //
 // Completeness gate for the LibreMac-owned `.ts` catalogs
 // (`LibreMac/Resources/i18n/LibreMac_en.ts` + `LibreMac_sr_RS.ts`) — the
-// sources `Localizable.xcstrings` is regenerated from (together with the
-// LibreCelik pair) at pre-build time. Three invariants:
+// sources `Localizable.xcstrings` is regenerated from at pre-build time.
+// Two invariants:
 //   1. en and sr carry the SAME id set (a key translated in one locale
 //      only would silently render its fallback in the other);
 //   2. every `libremac_credentials_*` id the credentials surface renders
 //      (CredentialsView + ErrorCopy) exists in BOTH, plus the agent
 //      guidance keys the flows actually emit and every `prompter_*` id the
-//      credential prompter looks up;
-//   3. no LibreMac-owned id enters the `lc-` namespace — ts2xcstrings
-//      merges per-locale values last-writer-wins, so id-set disjointness
-//      with LibreCelik is the real lossless-regeneration protection.
+//      credential prompter looks up, and every id the settings window
+//      renders.
 
 import Foundation
 import Testing
@@ -177,6 +175,19 @@ struct CatalogCompletenessTests {
     /// green if a key is dropped from BOTH catalogs — which would leave the
     /// window quietly showing its English fallback in Serbian.
     private static let settingsIds: Set<String> = [
+        "libremac_settings_tab_general",
+        "libremac_settings_tab_signing",
+        "libremac_settings_tab_trust",
+        "libremac_settings_language",
+        "libremac_settings_default_output",
+        "libremac_settings_default_level",
+        "libremac_settings_cache_dir",
+        "libremac_settings_tsa_servers",
+        "libremac_settings_tl_servers",
+        "libremac_settings_tl_add_item",
+        "libremac_settings_tl_add_title",
+        "libremac_settings_tl_type",
+        "libremac_settings_invalid_url",
         "libremac_settings_err_save_failed",
         "libremac_settings_err_not_authorized",
         "libremac_settings_err_invalid_value",
@@ -226,26 +237,6 @@ struct CatalogCompletenessTests {
         "libremac_settings_trust_anchors_signed",
     ]
 
-    /// Ids the settings window renders but does NOT own — they come from the
-    /// desktop client's catalogue through the merged one. Listed here only so
-    /// the set has a home; the assertion that they still resolve to Serbian
-    /// lives with the localization tests, since this gate reads this repo's
-    /// catalogues and cannot see them.
-    static let borrowedSettingsIds: [(String, String)] = [
-        ("lc-settings-tab-general", "General"),
-        ("lc-settings-tab-signing", "Signing"),
-        ("lc-settings-language", "Language:"),
-        ("lc-settings-default-output", "Default output folder:"),
-        ("lc-settings-default-level", "Default level:"),
-        ("lc-settings-cache-dir", "Cache folder:"),
-        ("lc-settings-tab-trust", "Trust"),
-        ("lc-settings-tsa-servers", "Timestamping authorities"),
-        ("lc-settings-tl-servers", "Trusted lists"),
-        ("lc-settings-tl-add-item", "Add…"),
-        ("lc-settings-tl-add-title", "Add a trusted list"),
-        ("lc-settings-tl-type", "List of lists"),
-        ("lc-settings-invalid-url-msg", "Enter a full http or https address."),
-    ]
 
     // MARK: - Parsing
 
@@ -582,16 +573,6 @@ struct CatalogCompletenessTests {
                         value.contains("%lld"),
                         "\(key) \(locale) \(category) has no count argument: \(value)")
                 }
-            }
-        }
-    }
-
-    @Test("no LibreMac-owned id enters the LibreCelik lc- namespace")
-    func noIdCollidesWithLibreCelik() throws {
-        for url in [Self.enCatalog, Self.srCatalog] {
-            for id in try Self.ids(of: url) where id.hasPrefix("lc-") {
-                Issue.record(
-                    "\(id) in \(url.lastPathComponent) collides with the LibreCelik namespace")
             }
         }
     }

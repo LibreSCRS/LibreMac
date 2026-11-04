@@ -544,6 +544,58 @@
         <source>No timestamping authority is configured, so this level cannot be produced. Add one in the agent's configuration file.</source>
         <translation>Ниједан ауторитет за временски жиг није подешен, па овај ниво не може да се произведе. Додајте га у конфигурационој датотеци агента.</translation>
     </message>
+    <message id="libremac_settings_tab_general">
+        <source>General</source>
+        <translation>Опште</translation>
+    </message>
+    <message id="libremac_settings_tab_signing">
+        <source>Signing</source>
+        <translation>Потписивање</translation>
+    </message>
+    <message id="libremac_settings_tab_trust">
+        <source>Trust</source>
+        <translation>Поверење</translation>
+    </message>
+    <message id="libremac_settings_language">
+        <source>Language:</source>
+        <translation>Језик:</translation>
+    </message>
+    <message id="libremac_settings_default_output">
+        <source>Default output folder:</source>
+        <translation>Подразумевана излазна фасцикла:</translation>
+    </message>
+    <message id="libremac_settings_default_level">
+        <source>Default signature level:</source>
+        <translation>Подразумевани ниво потписа:</translation>
+    </message>
+    <message id="libremac_settings_cache_dir">
+        <source>Trusted list cache folder:</source>
+        <translation>Фасцикла кеша листа поверења:</translation>
+    </message>
+    <message id="libremac_settings_tsa_servers">
+        <source>Timestamping authorities</source>
+        <translation>Ауторитети за временски жиг</translation>
+    </message>
+    <message id="libremac_settings_tl_servers">
+        <source>Trusted lists</source>
+        <translation>Листе поверења</translation>
+    </message>
+    <message id="libremac_settings_tl_add_item">
+        <source>Add a trusted list…</source>
+        <translation>Додај листу поверења…</translation>
+    </message>
+    <message id="libremac_settings_tl_add_title">
+        <source>Add a trusted list</source>
+        <translation>Додавање листе поверења</translation>
+    </message>
+    <message id="libremac_settings_tl_type">
+        <source>List of lists</source>
+        <translation>Листа листа</translation>
+    </message>
+    <message id="libremac_settings_invalid_url">
+        <source>Enter a full http or https address.</source>
+        <translation>Унесите пуну http или https адресу.</translation>
+    </message>
     <message id="libremac_settings_tab_advanced">
         <source>Advanced</source>
         <translation>Напредно</translation>

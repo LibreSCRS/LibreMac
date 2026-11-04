@@ -69,7 +69,7 @@ struct TrustPane: View {
 
     @ViewBuilder
     private var tsaSection: some View {
-        Section(loc("lc-settings-tsa-servers", "Timestamping authorities")) {
+        Section(loc("libremac_settings_tsa_servers", "Timestamping authorities")) {
             if model.tsaUrls.isEmpty {
                 Text(loc("libremac_settings_trust_no_tsa", "No authority configured — signatures are not timestamped."))
                     .font(.caption)
@@ -103,7 +103,7 @@ struct TrustPane: View {
 
     @ViewBuilder
     private var sourcesSection: some View {
-        Section(loc("lc-settings-tl-servers", "Trusted lists")) {
+        Section(loc("libremac_settings_tl_servers", "Trusted lists")) {
             if model.tslSources.isEmpty {
                 Text(
                     loc(
@@ -123,7 +123,7 @@ struct TrustPane: View {
             }
             rowNote(.tslSources)
             HStack {
-                Button(loc("lc-settings-tl-add-item", "Add…")) { addingSource = true }
+                Button(loc("libremac_settings_tl_add_item", "Add a trusted list…")) { addingSource = true }
                 Spacer()
                 if !model.tslSources.isEmpty {
                     Button(loc("libremac_settings_trust_clear", "Remove all"), role: .destructive) {
@@ -257,7 +257,7 @@ struct TrustPane: View {
 
     private func flagLabel(_ source: TslSource) -> String {
         var parts: [String] = []
-        if source.isLotl { parts.append(loc("lc-settings-tl-type", "List of lists")) }
+        if source.isLotl { parts.append(loc("libremac_settings_tl_type", "List of lists")) }
         if source.eager { parts.append(loc("libremac_settings_trust_eager", "Fetched up front")) }
         return parts.joined(separator: " · ")
     }
