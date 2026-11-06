@@ -1357,23 +1357,6 @@
         }
       }
     },
-    "libremac_quiesce_shutdown" : {
-      "comment" : "libremac_quiesce_shutdown",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "shutting down"
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "гашење у току"
-          }
-        }
-      }
-    },
     "libremac_quiesce_system_sleep" : {
       "comment" : "libremac_quiesce_system_sleep",
       "localizations" : {
@@ -1608,23 +1591,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Агент за потписивање није доступан"
-          }
-        }
-      }
-    },
-    "libremac_settings_aia_cache_dir" : {
-      "comment" : "libremac_settings_aia_cache_dir",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Certificate cache folder:"
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Фасцикла кеша сертификата:"
           }
         }
       }
@@ -2016,23 +1982,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Није подешено"
-          }
-        }
-      }
-    },
-    "libremac_settings_plugin_dir" : {
-      "comment" : "libremac_settings_plugin_dir",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Plugin folder:"
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Фасцикла додатака:"
           }
         }
       }
@@ -3563,40 +3512,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ПИН"
-          }
-        }
-      }
-    },
-    "prompter_trust_forget" : {
-      "comment" : "prompter_trust_forget",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove every country signing certificate this computer holds."
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Уклони све сертификате за потписивање земаља које овај рачунар чува."
-          }
-        }
-      }
-    },
-    "prompter_trust_generic" : {
-      "comment" : "prompter_trust_generic",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Change a trust setting on this computer."
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Промени подешавање поверења на овом рачунару."
           }
         }
       }

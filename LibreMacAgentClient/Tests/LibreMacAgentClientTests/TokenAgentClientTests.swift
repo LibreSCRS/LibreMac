@@ -41,7 +41,7 @@ struct TokenAgentClientTests {
         var requests = server.requests.makeAsyncIterator()
         _ = try TokenAgentClient(announcingOn: server.connectedFd(), ioTimeout: 5)
         let first = try #require(await requests.next())
-        #expect(first.request == .hello(proto: UInt64(kProtocolVersion), client: nil, wantsEvents: false))
+        #expect(first.request == .hello(proto: UInt64(kProtocolVersion), wantsEvents: false))
     }
 
     @Test("an agent that does not answer the Hello with HelloAck is no connection")
@@ -71,7 +71,7 @@ struct TokenAgentClientTests {
         // Counted before it returns: the constructor waits for the HelloAck.
         try #require(server.count(of: "Hello") == 1)
         let first = try #require(await requests.next())
-        #expect(first.request == .hello(proto: UInt64(kProtocolVersion), client: nil, wantsEvents: false))
+        #expect(first.request == .hello(proto: UInt64(kProtocolVersion), wantsEvents: false))
     }
 
     @Test("connecting by socket path to an agent that refuses the Hello is no connection")

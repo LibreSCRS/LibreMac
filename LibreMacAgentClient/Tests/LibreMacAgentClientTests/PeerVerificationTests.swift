@@ -103,7 +103,7 @@ struct PeerVerificationTests {
         let listener = try TestListener()
         let calls = CallCounter()
         let client = AgentClient(
-            socketPath: listener.path, clientVersion: "LibreMac/test", initialBackoff: 0.05, maxBackoff: 0.2,
+            socketPath: listener.path, initialBackoff: 0.05, maxBackoff: 0.2,
             verifier: { _ in
                 calls.increment()
                 return false

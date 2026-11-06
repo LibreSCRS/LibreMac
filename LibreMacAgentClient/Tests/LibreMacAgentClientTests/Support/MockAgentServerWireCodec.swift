@@ -34,8 +34,7 @@ func decodeAgentRequest(_ body: Data) throws -> DecodedRequest {
     switch t {
     case "Hello":
         request = .hello(
-            proto: mwUInt(pairs, "proto") ?? 0, client: mwText(pairs, "client"),
-            wantsEvents: mwBool(pairs, "wantsEvents"))
+            proto: mwUInt(pairs, "proto") ?? 0, wantsEvents: mwBool(pairs, "wantsEvents"))
     case "GetState":
         request = .getState
     case "ReadIdentity":
@@ -233,11 +232,8 @@ func encodeEvent(_ event: AgentEvent) -> Data {
         ]
     case .configChanged(let key):
         pairs = [("t", .text("ConfigChanged")), ("key", .text(key))]
-    case .opProgress(let op, let phase, let progress, let indeterminate, let watchdogSecs):
+    case .opProgress(let op, let phase):
         pairs = [("t", .text("OpProgress")), ("op", .uint(op)), ("phase", .uint(UInt64(phase.wireValue)))]
-        if let progress { pairs.append(("progress", .double(progress))) }
-        if let indeterminate { pairs.append(("indeterminate", .bool(indeterminate))) }
-        if let watchdogSecs { pairs.append(("watchdogSecs", .uint(watchdogSecs))) }
     case .opResultReady(let op, let result):
         pairs = [("t", .text("OpResultReady")), ("op", .uint(op)), ("result", encodeOpResult(result))]
     case .opFinished(let op, let status, let code, let msgKey, let msgFallback):
@@ -344,12 +340,6 @@ private func encodeCredResult(_ result: CredentialResult) -> CBORValue {
         pairs.append(("retriesLeft", .uint(UInt64(retriesLeft))))
     }
     pairs.append(("blocked", .bool(result.blocked)))
-    if let pinActivated = result.pinActivated {
-        pairs.append(("pinActivated", .bool(pinActivated)))
-    }
-    if let keyActivated = result.keyActivated {
-        pairs.append(("keyActivated", .bool(keyActivated)))
-    }
     return mwMap(pairs)
 }
 
@@ -365,17 +355,13 @@ private func encodeCredRecord(_ record: CredentialRecord) -> CBORValue {
     if let v = record.usesLeft { pairs.append(("usesLeft", .uint(UInt64(v)))) }
     if let v = record.usesMax { pairs.append(("usesMax", .uint(UInt64(v)))) }
     if let v = record.unblocksLeft { pairs.append(("unblocksLeft", .uint(UInt64(v)))) }
-    if let v = record.minLength { pairs.append(("minLength", .uint(UInt64(v)))) }
-    if let v = record.maxLength { pairs.append(("maxLength", .uint(UInt64(v)))) }
     pairs.append(contentsOf: [
         ("canChange", .bool(record.canChange)),
         ("unblockable", .bool(record.unblockable)),
-        ("unblockStyle", .text(record.unblockStyle.rawValue)),
         ("activatable", .bool(record.activatable)),
         ("keyActivationPending", .bool(record.keyActivationPending)),
         ("keyActivatable", .bool(record.keyActivatable)),
         ("recovery", .text(record.recovery.rawValue)),
-        ("probeSafe", .bool(record.probeSafe)),
     ])
     if let v = record.blockedGuidanceKey { pairs.append(("blockedGuidanceKey", .text(v))) }
     if let v = record.blockedGuidanceFallback { pairs.append(("blockedGuidanceFallback", .text(v))) }

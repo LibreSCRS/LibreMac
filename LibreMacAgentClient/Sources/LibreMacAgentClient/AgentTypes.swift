@@ -414,7 +414,6 @@ public enum QuiesceReason: Sendable, Equatable {
     case systemSleep
     case screenLocked
     case sessionInactive
-    case shutdown
     /// A reason this build does not have a name for yet — carries the raw
     /// wire value verbatim (see the type doc comment).
     case unknown(UInt32)
@@ -427,7 +426,6 @@ extension QuiesceReason {
         case 0: self = .systemSleep
         case 1: self = .screenLocked
         case 2: self = .sessionInactive
-        case 3: self = .shutdown
         default: self = .unknown(wireValue)
         }
     }
@@ -439,7 +437,6 @@ extension QuiesceReason {
         case .systemSleep: return 0
         case .screenLocked: return 1
         case .sessionInactive: return 2
-        case .shutdown: return 3
         case .unknown(let v): return v
         }
     }
@@ -457,7 +454,6 @@ extension QuiesceReason {
         case .systemSleep: return "SystemSleep"
         case .screenLocked: return "ScreenLocked"
         case .sessionInactive: return "SessionInactive"
-        case .shutdown: return "Shutdown"
         case .unknown(let raw): return "unknown(\(raw))"
         }
     }
@@ -570,63 +566,17 @@ public struct Capabilities: OptionSet, Sendable, Equatable {
 
 /// The closed set of `Config1` keys a client may WRITE — CDDL
 /// `settable-config-key`. The raw value IS the wire token. Deliberately
-/// narrower than every other config key on the wire: `TslCacheDir` /
-/// `AiaCacheDir` / `PluginDir` are file-only (a wire-settable `PluginDir`
-/// is a `dlopen` code-exec vector) and `LastTsaUrl` / `CscaAnchorState` are
-/// read-only agent state, so none of the five are constructible here — see
+/// narrower than every other config key on the wire: `TslCacheDir` is
+/// file-only and `LastTsaUrl` / `CscaAnchorState` are read-only agent
+/// state, so none of the three are constructible here — see
 /// `AgentRequest.resetConfig`'s own doc comment for the wider rule those
-/// five belong to.
+/// three belong to.
 public enum SettableConfigKey: String, Sendable, Equatable, CaseIterable {
     case defaultLevel = "DefaultLevel"
     case defaultReason = "DefaultReason"
     case defaultLocation = "DefaultLocation"
     case tsaUrls = "TsaUrls"
     case tslSources = "TslSources"
-    case cscaSources = "CscaSources"
-}
-
-/// One configured country-signing source, the element type of the `CscaSources`
-/// config value. Mirrors `LibreSCRS::Agent::Config::CscaSource`, which the
-/// agent builds from exactly these TWO map keys.
-///
-/// Two members, not three. `TslSource` below carries an `isLotl` flag because a
-/// trusted list can be a list OF lists; country-signing anchors have no such
-/// pivot, so a third field added here for symmetry would be a value with
-/// nothing to put in it and a wire key the agent never reads. The asymmetry is
-/// the decision, not an omission.
-public struct CscaSource: Sendable, Equatable {
-    public var uri: String
-    public var eager: Bool
-
-    public init(uri: String, eager: Bool = false) {
-        self.uri = uri
-        self.eager = eager
-    }
-
-    /// Decodes one wire map. A source without a `uri` is not a source, so it
-    /// yields nil rather than an entry the user cannot act on; `eager` defaults
-    /// to false exactly as the agent's own decode does.
-    public init?(cbor: CBORValue) {
-        guard case .map(let pairs) = cbor else { return nil }
-        func value(_ key: String) -> CBORValue? {
-            let wanted = Data(key.utf8)
-            for (k, v) in pairs where k == wanted { return v }
-            return nil
-        }
-        guard case .text(let uri)? = value("uri"), !uri.isEmpty else { return nil }
-        self.uri = uri
-        if case .bool(let b)? = value("eager") { self.eager = b } else { self.eager = false }
-    }
-
-    /// The wire map. `eager` is always written: absence is not distinguishable
-    /// from false by a reader, and a round-trip that silently dropped a set
-    /// flag would change when the agent reaches the network.
-    public var cbor: CBORValue {
-        .map([
-            (Data("uri".utf8), .text(uri)),
-            (Data("eager".utf8), .bool(eager)),
-        ])
-    }
 }
 
 /// One configured trusted-list source, the element type of the `TslSources`
@@ -727,15 +677,11 @@ public struct CscaAnchorState: Sendable, Equatable {
     /// sentinel, because a list signed at the epoch and a list with no date
     /// must not read alike.
     public var signedAt: Int64?
-    /// Where the anchors came from. Carried so this type mirrors the contract
-    /// group in full, but not rendered: "import" is the only value the agent
-    /// sends, so a row for it would tell a person nothing they could act on.
-    public var origin: String?
 
     public init(
         anchors: UInt64, issuers: UInt64, replayRefusalActive: Bool?,
         signer: String? = nil, signerPinned: Bool? = nil,
-        acceptedAt: Int64? = nil, signedAt: Int64? = nil, origin: String? = nil
+        acceptedAt: Int64? = nil, signedAt: Int64? = nil
     ) {
         self.anchors = anchors
         self.issuers = issuers
@@ -744,7 +690,6 @@ public struct CscaAnchorState: Sendable, Equatable {
         self.signerPinned = signerPinned
         self.acceptedAt = acceptedAt
         self.signedAt = signedAt
-        self.origin = origin
     }
 
     /// Decodes the wire map. An EMPTY map is this wire's "nothing has been
@@ -799,11 +744,6 @@ public struct CscaAnchorState: Sendable, Equatable {
         }
         self.acceptedAt = stamp("acceptedAt")
         self.signedAt = stamp("signedAt")
-        if case .text(let o)? = value("origin"), !o.isEmpty {
-            self.origin = o
-        } else {
-            self.origin = nil
-        }
     }
 }
 
@@ -890,8 +830,8 @@ public enum CredentialOutcome: String, Sendable, Equatable, CaseIterable {
 /// (`librescrs-agent.cddl`); the raw value IS the wire token.
 ///
 /// Unlike every other enum in this package (which decode fail-closed),
-/// the four record-token enums (`CredentialKind` / `CredentialState` /
-/// `CredentialUnblockStyle` / `CredentialRecovery`) DEGRADE an
+/// the three record-token enums (`CredentialKind` / `CredentialState` /
+/// `CredentialRecovery`) DEGRADE an
 /// unrecognized token to `.unknown` via `init(token:)`. The wire
 /// vocabulary itself reserves an `unknown` member as its "cannot
 /// classify" value, and a record carrying one future token is still a
@@ -921,22 +861,6 @@ public enum CredentialState: String, Sendable, Equatable, CaseIterable {
     case operational = "operational"
     case needsChange = "needsChange"
     case blocked = "blocked"
-
-    /// Tolerant wire-token decode: unrecognized -> `.unknown`.
-    public init(token: String) {
-        self = Self(rawValue: token) ?? .unknown
-    }
-}
-
-/// How an unblock behaves on this credential (`cred-record.unblockStyle`).
-/// Mirrors CDDL `unblock-style` (`librescrs-agent.cddl`); the raw
-/// value IS the wire token. Degrades unrecognized tokens to `.unknown` —
-/// see `CredentialKind` for the rationale shared by this enum family.
-public enum CredentialUnblockStyle: String, Sendable, Equatable, CaseIterable {
-    case unknown = "unknown"
-    case resetOnly = "resetOnly"
-    case setsNewPin = "setsNewPin"
-    case unblockAndChange = "unblockAndChange"
 
     /// Tolerant wire-token decode: unrecognized -> `.unknown`.
     public init(token: String) {
@@ -1304,7 +1228,7 @@ public struct PhotoResult: Sendable, Equatable {
 
 /// One credential (PIN/PUK/CAN) record from a credentials listing.
 /// Mirrors `LibreSCRS::Agent::CredentialRecord` and CDDL `cred-record`
-/// (`librescrs-agent.cddl`) — 23 camelCase wire keys: the wire's
+/// (`librescrs-agent.cddl`) — 19 camelCase wire keys: the wire's
 /// optional keys are optionals here; the always-written booleans are
 /// non-optional. `id` is the agent-synthesized handle a `ManagePin`
 /// addresses (this wire never carries a secret).
@@ -1318,16 +1242,12 @@ public struct CredentialRecord: Sendable, Equatable {
     public let usesLeft: UInt32?
     public let usesMax: UInt32?
     public let unblocksLeft: UInt32?
-    public let minLength: UInt32?
-    public let maxLength: UInt32?
     public let canChange: Bool
     public let unblockable: Bool
-    public let unblockStyle: CredentialUnblockStyle
     public let activatable: Bool
     public let keyActivationPending: Bool
     public let keyActivatable: Bool
     public let recovery: CredentialRecovery
-    public let probeSafe: Bool
     public let blockedGuidanceKey: String?
     public let blockedGuidanceFallback: String?
     public let keyActivationGuidanceKey: String?
@@ -1337,10 +1257,10 @@ public struct CredentialRecord: Sendable, Equatable {
         id: String, label: String, kind: CredentialKind, state: CredentialState,
         retriesLeft: UInt32? = nil, retriesMax: UInt32? = nil, usesLeft: UInt32? = nil,
         usesMax: UInt32? = nil,
-        unblocksLeft: UInt32? = nil, minLength: UInt32? = nil, maxLength: UInt32? = nil,
-        canChange: Bool, unblockable: Bool, unblockStyle: CredentialUnblockStyle,
+        unblocksLeft: UInt32? = nil,
+        canChange: Bool, unblockable: Bool,
         activatable: Bool, keyActivationPending: Bool, keyActivatable: Bool,
-        recovery: CredentialRecovery, probeSafe: Bool,
+        recovery: CredentialRecovery,
         blockedGuidanceKey: String? = nil, blockedGuidanceFallback: String? = nil,
         keyActivationGuidanceKey: String? = nil, keyActivationGuidanceFallback: String? = nil
     ) {
@@ -1353,16 +1273,12 @@ public struct CredentialRecord: Sendable, Equatable {
         self.usesLeft = usesLeft
         self.usesMax = usesMax
         self.unblocksLeft = unblocksLeft
-        self.minLength = minLength
-        self.maxLength = maxLength
         self.canChange = canChange
         self.unblockable = unblockable
-        self.unblockStyle = unblockStyle
         self.activatable = activatable
         self.keyActivationPending = keyActivationPending
         self.keyActivatable = keyActivatable
         self.recovery = recovery
-        self.probeSafe = probeSafe
         self.blockedGuidanceKey = blockedGuidanceKey
         self.blockedGuidanceFallback = blockedGuidanceFallback
         self.keyActivationGuidanceKey = keyActivationGuidanceKey
@@ -1372,27 +1288,18 @@ public struct CredentialRecord: Sendable, Equatable {
 
 /// Uniform result of a credential mutation (and the `Ok` result of a
 /// listing). Mirrors `LibreSCRS::Agent::CredentialOpResult` and CDDL
-/// `cred-result` (`librescrs-agent.cddl`). `pinActivated` /
-/// `keyActivated` are populated for the `activate_pin` bring-up
-/// continuation and for `ActivateSigningKey` (partial bring-up =
-/// `pinActivated == true`, `keyActivated == false`, outcome
-/// `.keyActivationFailed`).
+/// `cred-result` (`librescrs-agent.cddl`). A partial `ActivateSigningKey`
+/// bring-up (PIN activated, key not) reports outcome
+/// `.keyActivationFailed`.
 public struct CredentialResult: Sendable, Equatable {
     public let outcome: CredentialOutcome
     public let retriesLeft: UInt32?
     public let blocked: Bool
-    public let pinActivated: Bool?
-    public let keyActivated: Bool?
 
-    public init(
-        outcome: CredentialOutcome, retriesLeft: UInt32? = nil, blocked: Bool,
-        pinActivated: Bool? = nil, keyActivated: Bool? = nil
-    ) {
+    public init(outcome: CredentialOutcome, retriesLeft: UInt32? = nil, blocked: Bool) {
         self.outcome = outcome
         self.retriesLeft = retriesLeft
         self.blocked = blocked
-        self.pinActivated = pinActivated
-        self.keyActivated = keyActivated
     }
 }
 

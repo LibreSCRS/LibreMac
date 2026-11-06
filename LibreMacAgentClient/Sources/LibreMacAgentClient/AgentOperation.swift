@@ -45,11 +45,11 @@ public final class AgentOperation: Sendable {
     }
     private let state = Mutex(State())
 
-    private let phaseContinuation: AsyncStream<(OperationPhase, Double?)>.Continuation
+    private let phaseContinuation: AsyncStream<OperationPhase>.Continuation
 
     /// Progress phases in wire order, terminating (no error) once
     /// `finished()`'s value has been resolved.
-    public let phases: AsyncStream<(OperationPhase, Double?)>
+    public let phases: AsyncStream<OperationPhase>
 
     private let cancelHandler: @Sendable () async -> Void
 
@@ -57,7 +57,7 @@ public final class AgentOperation: Sendable {
         self.id = id
         self.kind = kind
         self.cancelHandler = cancelHandler
-        let (stream, continuation) = AsyncStream<(OperationPhase, Double?)>.makeStream()
+        let (stream, continuation) = AsyncStream<OperationPhase>.makeStream()
         self.phases = stream
         self.phaseContinuation = continuation
     }
@@ -70,8 +70,8 @@ public final class AgentOperation: Sendable {
 
     // MARK: - Mutators (AgentClient-actor-confined — see the type doc comment)
 
-    func publishPhase(_ phase: OperationPhase, progress: Double?) {
-        phaseContinuation.yield((phase, progress))
+    func publishPhase(_ phase: OperationPhase) {
+        phaseContinuation.yield(phase)
     }
 
     /// Records the typed payload of an `OpResultReady` (or a successful

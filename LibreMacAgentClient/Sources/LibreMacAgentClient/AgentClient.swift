@@ -106,7 +106,6 @@ public actor AgentClient {
     /// with a test-only seam.
     private let connector: @Sendable (@escaping PeerVerifier) async throws -> SocketConnection
     private let verifier: PeerVerifier
-    private let clientVersion: String
     private let propTimeout: TimeInterval
     private let discoveryTimeout: TimeInterval
     private let initialBackoff: TimeInterval
@@ -173,7 +172,6 @@ public actor AgentClient {
 
     public init(
         socketPath: String = AgentSocketPath.resolve(),
-        clientVersion: String = "LibreMac/unknown",
         propTimeout: TimeInterval = AgentClient.defaultPropTimeout,
         discoveryTimeout: TimeInterval = AgentClient.defaultDiscoveryTimeout,
         initialBackoff: TimeInterval = AgentClient.defaultInitialBackoff,
@@ -183,7 +181,6 @@ public actor AgentClient {
         self.init(
             connector: { verifier in try SocketConnection.connect(path: socketPath, verifier: verifier) },
             verifier: verifier,
-            clientVersion: clientVersion,
             propTimeout: propTimeout,
             discoveryTimeout: discoveryTimeout,
             initialBackoff: initialBackoff,
@@ -195,7 +192,6 @@ public actor AgentClient {
     init(
         connector: @escaping @Sendable (@escaping PeerVerifier) async throws -> SocketConnection,
         verifier: @escaping PeerVerifier,
-        clientVersion: String,
         propTimeout: TimeInterval,
         discoveryTimeout: TimeInterval,
         initialBackoff: TimeInterval,
@@ -203,7 +199,6 @@ public actor AgentClient {
     ) {
         self.connector = connector
         self.verifier = verifier
-        self.clientVersion = clientVersion
         self.propTimeout = propTimeout
         self.discoveryTimeout = discoveryTimeout
         self.initialBackoff = initialBackoff
@@ -321,7 +316,7 @@ public actor AgentClient {
 
     private func performHello(on connection: SocketConnection) async throws {
         let (reply, fds) = try await callExpectingSuccess(
-            .hello(proto: UInt64(kProtocolVersion), client: clientVersion), on: connection, timeout: discoveryTimeout)
+            .hello(proto: UInt64(kProtocolVersion)), on: connection, timeout: discoveryTimeout)
         closeFds(fds)
         guard case .helloAck(let version, let features) = reply else { throw AgentClientError.unexpectedReply }
         agentVersion = version
@@ -446,9 +441,9 @@ public actor AgentClient {
         case .agentQuiesced(let reason):
             closeFds(fds)
             quiescenceContinuation.yield(reason)
-        case .opProgress(let op, let phase, let progress, _, _):
+        case .opProgress(let op, let phase):
             closeFds(fds)
-            liveOperations[op]?.publishPhase(phase, progress: progress)
+            liveOperations[op]?.publishPhase(phase)
         case .opResultReady(let op, let result):
             guard let operation = liveOperations[op] else {
                 closeFds(fds)
@@ -636,7 +631,7 @@ public actor AgentClient {
             _ = try? await self?.cancel(op: op)
         }
         liveOperations[op] = operation
-        operation.publishPhase(.created, progress: nil)
+        operation.publishPhase(.created)
         return operation
     }
 

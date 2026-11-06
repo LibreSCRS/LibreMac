@@ -45,7 +45,7 @@ struct SigningCoordinatorPhaseTests {
         }
 
         #expect(await waitUntil { client.signCallCount == 1 })
-        operation.publishPhase(.awaitingConsent, progress: nil)
+        operation.publishPhase(.awaitingConsent)
         #expect(await waitUntil { coordinator.stage == .awaitingConsent })
 
         operation.resolveFinished((.error, .authFailed, nil, "auth failed"))
@@ -71,12 +71,12 @@ struct SigningCoordinatorPhaseTests {
         }
 
         #expect(await waitUntil { client.signCallCount == 1 })
-        operation.publishPhase(.awaitingConsent, progress: nil)
+        operation.publishPhase(.awaitingConsent)
         #expect(await waitUntil { coordinator.stage == .awaitingConsent })
 
         // A future agent reports a phase this build has no case for — the
         // rendered stage must hold at .awaitingConsent, not regress.
-        operation.publishPhase(.unknown(99), progress: nil)
+        operation.publishPhase(.unknown(99))
         try? await Task.sleep(nanoseconds: 20_000_000)
         #expect(coordinator.stage == .awaitingConsent)
 

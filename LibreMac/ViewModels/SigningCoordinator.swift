@@ -262,7 +262,7 @@ public final class SigningCoordinator {
         // Inherits MainActor isolation (created in a MainActor method):
         // `applyPhase` is a same-actor synchronous mutation.
         let phaseTask = Task { [weak self] in
-            for await (phase, _) in operation.phases {
+            for await phase in operation.phases {
                 self?.applyPhase(phase)
             }
         }

@@ -142,10 +142,6 @@
         <source>another user is active</source>
         <translation>други корисник је активан</translation>
     </message>
-    <message id="libremac_quiesce_shutdown">
-        <source>shutting down</source>
-        <translation>гашење у току</translation>
-    </message>
     <message id="libremac_quiesce_system_sleep">
         <source>system asleep</source>
         <translation>систем спава</translation>
@@ -600,14 +596,6 @@
         <source>Advanced</source>
         <translation>Напредно</translation>
     </message>
-    <message id="libremac_settings_plugin_dir">
-        <source>Plugin folder:</source>
-        <translation>Фасцикла додатака:</translation>
-    </message>
-    <message id="libremac_settings_aia_cache_dir">
-        <source>Certificate cache folder:</source>
-        <translation>Фасцикла кеша сертификата:</translation>
-    </message>
     <message id="libremac_settings_path_unset">
         <source>Not set</source>
         <translation>Није подешено</translation>
@@ -812,10 +800,6 @@
         <source>Install the country signing certificates from the offered file, replacing the ones this computer checks passports against.</source>
         <translation>Инсталирај сертификате за потписивање земаља из понуђене датотеке, уместо оних према којима овај рачунар проверава пасоше.</translation>
     </message>
-    <message id="prompter_trust_forget">
-        <source>Remove every country signing certificate this computer holds.</source>
-        <translation>Уклони све сертификате за потписивање земаља које овај рачунар чува.</translation>
-    </message>
     <message id="prompter_trust_tsa">
         <source>Change the timestamping authorities this computer will use.</source>
         <translation>Промени временске ауторитете које ће овај рачунар користити.</translation>
@@ -823,10 +807,6 @@
     <message id="prompter_trust_tsl">
         <source>Change the trusted lists this computer accepts signatures against.</source>
         <translation>Промени поуздане листе према којима овај рачунар прихвата потписе.</translation>
-    </message>
-    <message id="prompter_trust_generic">
-        <source>Change a trust setting on this computer.</source>
-        <translation>Промени подешавање поверења на овом рачунару.</translation>
     </message>
     <message id="prompter_reader">
         <source>Reader: %@</source>

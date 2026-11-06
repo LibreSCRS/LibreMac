@@ -36,7 +36,6 @@ final class PreferencesModel {
     var defaultLocation = ""
     var tsaUrls: [String] = []
     var tslSources: [TslSource] = []
-    var cscaSources: [CscaSource] = []
     /// The authority the agent actually used last. Read-only agent state, so
     /// it is shown rather than offered for editing.
     var lastTsaUrl = ""
@@ -46,9 +45,7 @@ final class PreferencesModel {
     /// pane must not tell a person no anchors are installed because a frame
     /// was unreadable.
     var cscaAnchors: CscaAnchorReport = .nothingImported
-    var pluginDir = ""
     var tslCacheDir = ""
-    var aiaCacheDir = ""
 
     /// Rows the user has open. A refresh skips these, so a change made
     /// elsewhere never rewrites text somebody is in the middle of typing.
@@ -186,9 +183,7 @@ final class PreferencesModel {
         put(.defaultLevel, text("DefaultLevel"), into: &defaultLevel)
         put(.defaultReason, text("DefaultReason"), into: &defaultReason)
         put(.defaultLocation, text("DefaultLocation"), into: &defaultLocation)
-        put(nil, text("PluginDir"), into: &pluginDir)
         put(nil, text("TslCacheDir"), into: &tslCacheDir)
-        put(nil, text("AiaCacheDir"), into: &aiaCacheDir)
         put(nil, text("LastTsaUrl"), into: &lastTsaUrl)
         if case .array(let items)? = entries["TsaUrls"], !skippingEdited || !editing.contains(.tsaUrls) {
             tsaUrls = items.compactMap {
@@ -200,14 +195,6 @@ final class PreferencesModel {
             // user cannot act on; the agent is the one that persisted it, so
             // the rest of the list still stands.
             tslSources = items.compactMap(TslSource.init(cbor:))
-        }
-        if case .array(let items)? = entries["CscaSources"], !skippingEdited || !editing.contains(.cscaSources) {
-            // Read even though no pane draws it. The row exists so that a
-            // refused write can restore what was there; a row that is never
-            // filled would restore emptiness over a list the agent holds, which
-            // is the rollback bug this model is built to avoid rather than a
-            // harmless gap.
-            cscaSources = items.compactMap(CscaSource.init(cbor:))
         }
         // Read-only agent state. Present-but-empty is the wire's "nothing has
         // been imported", so it clears the row; absent leaves it alone, like
@@ -226,12 +213,9 @@ final class PreferencesModel {
         defaultLocation = ""
         tsaUrls = []
         tslSources = []
-        cscaSources = []
         lastTsaUrl = ""
         cscaAnchors = .nothingImported
-        pluginDir = ""
         tslCacheDir = ""
-        aiaCacheDir = ""
     }
 
     /// What a row holds, whatever its shape. One rollback path covers them
@@ -242,7 +226,6 @@ final class PreferencesModel {
         case text(String)
         case urls([String])
         case sources([TslSource])
-        case cscaSources([CscaSource])
     }
 
     /// Exhaustive on purpose: a new settable key must be given a row here
@@ -254,7 +237,6 @@ final class PreferencesModel {
         case .defaultLocation: return .text(defaultLocation)
         case .tsaUrls: return .urls(tsaUrls)
         case .tslSources: return .sources(tslSources)
-        case .cscaSources: return .cscaSources(cscaSources)
         }
     }
 
@@ -265,7 +247,6 @@ final class PreferencesModel {
         case (.defaultLocation, .text(let v)): defaultLocation = v
         case (.tsaUrls, .urls(let v)): tsaUrls = v
         case (.tslSources, .sources(let v)): tslSources = v
-        case (.cscaSources, .cscaSources(let v)): cscaSources = v
         default:
             // A shape that does not belong to this key. Restoring anything
             // here would be inventing a value; leaving the row alone is the
@@ -281,7 +262,6 @@ final class PreferencesModel {
         case .defaultLevel, .defaultReason, .defaultLocation: return .text("")
         case .tsaUrls: return .urls([])
         case .tslSources: return .sources([])
-        case .cscaSources: return .cscaSources([])
         }
     }
 
@@ -289,13 +269,9 @@ final class PreferencesModel {
     /// shape this build has no row for, so `save` shows nothing rather than
     /// guessing.
     ///
-    /// Takes the KEY, and no longer guesses from the value alone. It used to
-    /// sniff the first array element: text meant a URL list, anything else meant
-    /// trusted-list sources. That worked while exactly one key carried maps.
-    /// With country-signing sources there are two map-shaped rows whose wire
-    /// forms differ only in their keys, so a guess would silently hand one row's
-    /// value to the other -- and both call sites already know which key they are
-    /// writing, so the guess was never necessary.
+    /// Takes the KEY rather than guessing from the value's shape: both call
+    /// sites know which key they are writing, and a guess would hand one row's
+    /// value to another as soon as two rows share a shape.
     private static func rowValue(of value: CBORValue, for key: SettableConfigKey) -> RowValue? {
         switch key {
         case .defaultLevel, .defaultReason, .defaultLocation:
@@ -307,9 +283,6 @@ final class PreferencesModel {
         case .tslSources:
             guard case .array(let items) = value else { return nil }
             return .sources(items.compactMap(TslSource.init(cbor:)))
-        case .cscaSources:
-            guard case .array(let items) = value else { return nil }
-            return .cscaSources(items.compactMap(CscaSource.init(cbor:)))
         }
     }
 

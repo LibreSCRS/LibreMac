@@ -164,10 +164,8 @@ struct CatalogCompletenessTests {
         "prompter_requester_keychain",
         // the trust sentences the agent sends as a descriptionKey
         "prompter_trust_import",
-        "prompter_trust_forget",
         "prompter_trust_tsa",
         "prompter_trust_tsl",
-        "prompter_trust_generic",
     ]
 
     /// The refusal sentences the settings window renders when the agent
@@ -203,8 +201,6 @@ struct CatalogCompletenessTests {
         "libremac_settings_advisory_timestamping_applies",
         "libremac_settings_advisory_no_tsa",
         "libremac_settings_tab_advanced",
-        "libremac_settings_plugin_dir",
-        "libremac_settings_aia_cache_dir",
         "libremac_settings_path_unset",
         "libremac_settings_agent_owned_paths",
         "libremac_settings_agent_unavailable_title",

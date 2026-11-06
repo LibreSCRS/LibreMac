@@ -153,10 +153,10 @@ private func credentialRecord(
     CredentialRecord(
         id: id, label: label, kind: kind, state: .operational,
         retriesLeft: retriesLeft, retriesMax: 3, usesLeft: usesLeft, usesMax: usesMax,
-        unblocksLeft: unblocksLeft, minLength: 4, maxLength: 8,
-        canChange: canChange, unblockable: unblockable, unblockStyle: .unblockAndChange,
+        unblocksLeft: unblocksLeft,
+        canChange: canChange, unblockable: unblockable,
         activatable: activatable, keyActivationPending: keyActivationPending,
-        keyActivatable: keyActivatable, recovery: .holderViaPuk, probeSafe: true)
+        keyActivatable: keyActivatable, recovery: .holderViaPuk)
 }
 
 /// An `AgentOperation` already carrying its credentials payload (when any)

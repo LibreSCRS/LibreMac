@@ -142,10 +142,6 @@
         <source>another user is active</source>
         <translation>another user is active</translation>
     </message>
-    <message id="libremac_quiesce_shutdown">
-        <source>shutting down</source>
-        <translation>shutting down</translation>
-    </message>
     <message id="libremac_quiesce_system_sleep">
         <source>system asleep</source>
         <translation>system asleep</translation>
@@ -599,14 +595,6 @@
         <source>Advanced</source>
         <translation>Advanced</translation>
     </message>
-    <message id="libremac_settings_plugin_dir">
-        <source>Plugin folder:</source>
-        <translation>Plugin folder:</translation>
-    </message>
-    <message id="libremac_settings_aia_cache_dir">
-        <source>Certificate cache folder:</source>
-        <translation>Certificate cache folder:</translation>
-    </message>
     <message id="libremac_settings_path_unset">
         <source>Not set</source>
         <translation>Not set</translation>
@@ -811,10 +799,6 @@
         <source>Install the country signing certificates from the offered file, replacing the ones this computer checks passports against.</source>
         <translation>Install the country signing certificates from the offered file, replacing the ones this computer checks passports against.</translation>
     </message>
-    <message id="prompter_trust_forget">
-        <source>Remove every country signing certificate this computer holds.</source>
-        <translation>Remove every country signing certificate this computer holds.</translation>
-    </message>
     <message id="prompter_trust_tsa">
         <source>Change the timestamping authorities this computer will use.</source>
         <translation>Change the timestamping authorities this computer will use.</translation>
@@ -822,10 +806,6 @@
     <message id="prompter_trust_tsl">
         <source>Change the trusted lists this computer accepts signatures against.</source>
         <translation>Change the trusted lists this computer accepts signatures against.</translation>
-    </message>
-    <message id="prompter_trust_generic">
-        <source>Change a trust setting on this computer.</source>
-        <translation>Change a trust setting on this computer.</translation>
     </message>
     <message id="prompter_reader">
         <source>Reader: %@</source>

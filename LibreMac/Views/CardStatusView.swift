@@ -70,8 +70,6 @@ struct CardStatusView: View {
             return loc("libremac_quiesce_screen_locked", "screen locked")
         case .sessionInactive:
             return loc("libremac_quiesce_session_inactive", "another user is active")
-        case .shutdown:
-            return loc("libremac_quiesce_shutdown", "shutting down")
         case .unknown:
             // Wire tolerance: nothing branches on QuiesceReason's value;
             // an unrecognized reason (wire-frozen append-only) is inertly

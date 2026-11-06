@@ -195,8 +195,8 @@ struct AgentOperationTests {
                 CredentialRecord(
                     id: "sign:0x92", label: "Signing PIN", kind: .sign, state: .operational,
                     retriesLeft: 3, retriesMax: 3, canChange: true, unblockable: true,
-                    unblockStyle: .unblockAndChange, activatable: false, keyActivationPending: false,
-                    keyActivatable: false, recovery: .holderViaPuk, probeSafe: true)
+                    activatable: false, keyActivationPending: false,
+                    keyActivatable: false, recovery: .holderViaPuk)
             ])
         mock.sendEvent(.opResultReady(op: 61, result: .credentials(listing)))
         mock.sendEvent(.opFinished(op: 61, status: .ok, code: .none, msgKey: "", msgFallback: "listed"))
@@ -264,7 +264,7 @@ struct AgentOperationTests {
         #expect(operation.kind == .activateSigningKey)
 
         let activation = CredentialsPayload(
-            result: CredentialResult(outcome: .ok, blocked: false, pinActivated: true, keyActivated: true),
+            result: CredentialResult(outcome: .ok, blocked: false),
             records: [])
         mock.sendEvent(.opResultReady(op: 63, result: .credentials(activation)))
         mock.sendEvent(.opFinished(op: 63, status: .ok, code: .none, msgKey: "", msgFallback: "activated"))

@@ -111,7 +111,7 @@ public enum AgentRequest: Sendable, Equatable {
     /// `wantsEvents: false` asks the agent to send this connection no
     /// presence events; `nil` leaves the key off, which the agent reads as
     /// `true`.
-    case hello(proto: UInt64, client: String?, wantsEvents: Bool? = nil)
+    case hello(proto: UInt64, wantsEvents: Bool? = nil)
     case getState
     case readIdentity(card: String)
     case getPhoto(card: String)
@@ -122,8 +122,8 @@ public enum AgentRequest: Sendable, Equatable {
     case setConfig(key: SettableConfigKey, value: CBORValue)
     /// `key` stays a raw wire token, not `SettableConfigKey`: `ResetConfig`
     /// addresses the WIDER CDDL `config-key` rule — `settable-config-key`
-    /// plus the read-only keys `LastTsaUrl`/`CscaAnchorState`/`TslCacheDir`/
-    /// `AiaCacheDir`/`PluginDir` — which the contract publishes as a union of
+    /// plus the read-only keys `LastTsaUrl`/`CscaAnchorState`/`TslCacheDir` —
+    /// which the contract publishes as a union of
     /// the settable set, so the wider key set is now checked against the
     /// mirror like any other vocabulary. Narrowing this to `SettableConfigKey`
     /// would make it impossible to reset a read-only key, which the wire
@@ -156,7 +156,7 @@ extension AgentRequest {
     /// it would only discard. Every `Hello` such a connection sends carries
     /// the same answer, since the key's absence means "send them".
     static var onDemandHello: AgentRequest {
-        .hello(proto: UInt64(kProtocolVersion), client: nil, wantsEvents: false)
+        .hello(proto: UInt64(kProtocolVersion), wantsEvents: false)
     }
 
     /// The canonical encoded frame body for this request, addressed by
@@ -166,11 +166,8 @@ extension AgentRequest {
     public func encode(req: UInt64) -> Data {
         var pairs: [(String, CBORValue)]
         switch self {
-        case .hello(let proto, let client, let wantsEvents):
+        case .hello(let proto, let wantsEvents):
             pairs = [("t", .text("Hello")), ("proto", .int(Int64(proto)))]
-            if let client {
-                pairs.append(("client", .text(client)))
-            }
             if let wantsEvents {
                 pairs.append(("wantsEvents", .bool(wantsEvents)))
             }
@@ -323,7 +320,7 @@ public enum AgentEvent: Sendable, Equatable {
     case cardRemoved(handle: String)
     case propertyChanged(handle: String, iface: String, props: [String: CBORValue])
     case configChanged(key: String)
-    case opProgress(op: UInt64, phase: OperationPhase, progress: Double?, indeterminate: Bool?, watchdogSecs: UInt64?)
+    case opProgress(op: UInt64, phase: OperationPhase)
     /// Fires BEFORE `opFinished` for the same `op` (the operation event
     /// ordering contract) — the distinct result-carrying event.
     case opResultReady(op: UInt64, result: OpResult)
@@ -470,11 +467,7 @@ public enum AgentMessages {
             // not a malformed one — `OperationPhase(wireValue:)` never fails
             // (see the file doc comment).
             let phase = OperationPhase(wireValue: try requireWireEnumValue32(m, "phase"))
-            let progress = try optionalDouble(m, "progress")
-            let indeterminate = try optionalBool(m, "indeterminate")
-            let watchdogSecs = try optionalUInt64(m, "watchdogSecs")
-            return .opProgress(
-                op: op, phase: phase, progress: progress, indeterminate: indeterminate, watchdogSecs: watchdogSecs)
+            return .opProgress(op: op, phase: phase)
         case "OpResultReady":
             let op = try requireUInt64(m, "op")
             guard let resultRaw = mapGet(m, "result") else { throw .missingField("result") }
@@ -715,12 +708,10 @@ private func parseCredResult(_ v: CBORValue) throws(MessageError) -> CredentialR
     return CredentialResult(
         outcome: outcome,
         retriesLeft: try optionalUInt32(m, "retriesLeft"),
-        blocked: try requireBool(m, "blocked"),
-        pinActivated: try optionalBool(m, "pinActivated"),
-        keyActivated: try optionalBool(m, "keyActivated"))
+        blocked: try requireBool(m, "blocked"))
 }
 
-/// Parses one `cred-record` (23 wire keys). The four token-valued enum
+/// Parses one `cred-record` (19 wire keys). The three token-valued enum
 /// fields decode via `init(token:)` — unrecognized tokens degrade to
 /// `.unknown` (see `CredentialKind`), the same decode-time-degrade shape
 /// `outcome` above uses (to `.unspecified` instead, since `.unknown` is
@@ -737,16 +728,12 @@ private func parseCredRecord(_ v: CBORValue) throws(MessageError) -> CredentialR
         usesLeft: try optionalUInt32(m, "usesLeft"),
         usesMax: try optionalUInt32(m, "usesMax"),
         unblocksLeft: try optionalUInt32(m, "unblocksLeft"),
-        minLength: try optionalUInt32(m, "minLength"),
-        maxLength: try optionalUInt32(m, "maxLength"),
         canChange: try requireBool(m, "canChange"),
         unblockable: try requireBool(m, "unblockable"),
-        unblockStyle: CredentialUnblockStyle(token: try requireText(m, "unblockStyle")),
         activatable: try requireBool(m, "activatable"),
         keyActivationPending: try requireBool(m, "keyActivationPending"),
         keyActivatable: try requireBool(m, "keyActivatable"),
         recovery: CredentialRecovery(token: try requireText(m, "recovery")),
-        probeSafe: try requireBool(m, "probeSafe"),
         blockedGuidanceKey: try optionalText(m, "blockedGuidanceKey"),
         blockedGuidanceFallback: try optionalText(m, "blockedGuidanceFallback"),
         keyActivationGuidanceKey: try optionalText(m, "keyActivationGuidanceKey"),
@@ -895,12 +882,6 @@ private func optionalBool(_ m: [(Data, CBORValue)], _ key: String) throws(Messag
     return b
 }
 
-private func optionalDouble(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> Double? {
-    guard let raw = mapGet(m, key) else { return nil }
-    guard case .double(let d) = raw else { throw .wrongType(key) }
-    return d
-}
-
 private func optionalUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(MessageError) -> UInt64? {
     guard let raw = mapGet(m, key) else { return nil }
     guard let u = numericUInt64(raw) else { throw .wrongType(key) }
@@ -908,7 +889,7 @@ private func optionalUInt64(_ m: [(Data, CBORValue)], _ key: String) throws(Mess
 }
 
 /// Width-bounded optional `UInt32` for the counter/length fields
-/// (`retriesLeft`, `usesLeft`, `minLength`, ...): a present value too wide
+/// (`retriesLeft`, `usesLeft`, `unblocksLeft`, ...): a present value too wide
 /// for `UInt32` to represent losslessly is a genuinely malformed frame and
 /// rejected as `.wrongType` — the same width-guard posture as
 /// `requireWireEnumValue32` above, never a silent truncation to a wrong

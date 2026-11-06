@@ -308,13 +308,10 @@ struct CrossImplementationFixtureTests {
         #expect(ev == .configChanged(key: "DefaultLevel"))
     }
 
-    @Test("OpProgress.cbor — fractional progress (0.5) round-trips as f16")
+    @Test("OpProgress.cbor")
     func opProgress() throws {
         let ev = try AgentMessages.decodeEvent(try fixture("OpProgress"))
-        #expect(ev == .opProgress(op: 9, phase: .signing, progress: 0.5, indeterminate: nil, watchdogSecs: nil))
-        if case .opProgress(_, _, let progress, _, _) = ev {
-            #expect(progress == 0.5)
-        }
+        #expect(ev == .opProgress(op: 9, phase: .signing))
     }
 
     @Test("OpResultReadyIdentity.cbor")
@@ -354,15 +351,15 @@ struct CrossImplementationFixtureTests {
                 ))
     }
 
-    @Test("OpResultReadyCredentialsList.cbor — Ok listing, one fully-populated record (all 23 cred-record keys)")
+    @Test("OpResultReadyCredentialsList.cbor — Ok listing, one fully-populated record (all 19 cred-record keys)")
     func opResultReadyCredentialsList() throws {
         let ev = try AgentMessages.decodeEvent(try fixture("OpResultReadyCredentialsList"))
         let record = CredentialRecord(
             id: "sign:0x92", label: "Signing PIN", kind: .sign, state: .operational,
-            retriesLeft: 3, retriesMax: 3, usesLeft: 5, usesMax: 20, unblocksLeft: 10, minLength: 4, maxLength: 8,
-            canChange: true, unblockable: true, unblockStyle: .unblockAndChange,
+            retriesLeft: 3, retriesMax: 3, usesLeft: 5, usesMax: 20, unblocksLeft: 10,
+            canChange: true, unblockable: true,
             activatable: true, keyActivationPending: true, keyActivatable: true,
-            recovery: .holderViaPuk, probeSafe: true,
+            recovery: .holderViaPuk,
             blockedGuidanceKey: "guidance.blocked.key",
             blockedGuidanceFallback: "Blocked; contact issuer",
             keyActivationGuidanceKey: "guidance.activate.key",

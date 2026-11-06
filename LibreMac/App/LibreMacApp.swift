@@ -41,8 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let tokenIdentityRegistrar: TokenIdentityRegistrar
 
     override init() {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-        let client = AgentClient(clientVersion: "LibreMac/\(version)")
+        let client = AgentClient()
         self.client = client
         let tokenIdentityRegistrar = TokenIdentityRegistrar(
             store: DriverConfigStore(classID: "org.librescrs.LibreMacToken"))

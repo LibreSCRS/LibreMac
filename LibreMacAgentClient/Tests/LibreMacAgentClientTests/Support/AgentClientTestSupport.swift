@@ -27,7 +27,6 @@ func makeTestClient(
     AgentClient(
         connector: { verifier in try mock.connect(verifier: verifier) },
         verifier: verifier,
-        clientVersion: "LibreMac/test",
         propTimeout: propTimeout,
         discoveryTimeout: discoveryTimeout,
         initialBackoff: initialBackoff,
@@ -51,7 +50,7 @@ func answerHandshake(
         Issue.record("expected a Hello request, got none", sourceLocation: sourceLocation)
         return
     }
-    guard case .hello(let proto, _, _) = hello.request else {
+    guard case .hello(let proto, _) = hello.request else {
         Issue.record("expected Hello first, got \(hello.request)", sourceLocation: sourceLocation)
         return
     }

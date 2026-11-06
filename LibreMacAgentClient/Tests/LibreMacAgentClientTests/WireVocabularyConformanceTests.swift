@@ -200,15 +200,15 @@ private func expectRequestFormMirror<T: CaseIterable & RawRepresentable>(
 // only ever reports. This package has no type for the wider set and needs none:
 // the only request that names a config key, `ResetConfig`, is reached through
 // `AgentClient.resetConfig`, which takes a `SettableConfigKey` -- so no typed
-// path in this package sends one of these five (the raw `send(_:)` of the token
+// path in this package sends one of these three (the raw `send(_:)` of the token
 // client accepts any request, which is what the wire intends). They are
 // therefore spelled out, in the one
 // place they are spelled at all, rather than mirrored by an enum no caller
-// would have a use for. A sixth key appended on the agent side lands here as a
+// would have a use for. A fourth key appended on the agent side lands here as a
 // failure to read and decide about, which is the whole point of publishing the
 // wider rule.
 private let readOnlyConfigKeys: Set<String> = [
-    "LastTsaUrl", "CscaAnchorState", "TslCacheDir", "AiaCacheDir", "PluginDir",
+    "LastTsaUrl", "CscaAnchorState", "TslCacheDir",
 ]
 
 private func expectConfigKeyMirror(sourceLocation: SourceLocation = #_sourceLocation) throws {
@@ -269,7 +269,6 @@ private let vocabularyChecks: [String: @Sendable () throws -> Void] = [
     "cred-kind": { try expectTokenMirror(CredentialKind.self, "cred-kind") },
     "cred-state": { try expectTokenMirror(CredentialState.self, "cred-state") },
     "cred-recovery": { try expectTokenMirror(CredentialRecovery.self, "cred-recovery") },
-    "unblock-style": { try expectTokenMirror(CredentialUnblockStyle.self, "unblock-style") },
     "sync-error": { try expectTokenMirror(SyncError.self, "sync-error") },
     "settable-config-key": { try expectTokenMirror(SettableConfigKey.self, "settable-config-key") },
     "key-type": { try expectTokenMirror(KeyType.self, "key-type") },

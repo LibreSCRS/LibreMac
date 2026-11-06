@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // SPDX-FileCopyrightText: 2026 hirashix0
 //
-// Paths the agent owns and this window cannot change. Shown because "where
-// is it reading plugins from" is the first question when a card is not
-// recognised, and answering it here beats reading a configuration file.
+// Paths the agent owns and this window cannot change. Shown because the
+// path is the first thing a bug report about trusted lists needs, and
+// answering it here beats reading a configuration file.
 
 import LibreMacAgentClient
 import SwiftUI
@@ -21,10 +21,7 @@ struct AdvancedPane: View {
                 Section { AgentUnavailableNotice() }
             case .ready:
                 Section {
-                    pathRow("libremac_settings_plugin_dir", "Plugins", model.pluginDir)
                     pathRow("libremac_settings_cache_dir", "Trusted list cache folder:", model.tslCacheDir)
-                    pathRow(
-                        "libremac_settings_aia_cache_dir", "Certificate cache", model.aiaCacheDir)
                 } footer: {
                     Text(
                         loc(

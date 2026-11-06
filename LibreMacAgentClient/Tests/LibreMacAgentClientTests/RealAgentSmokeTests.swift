@@ -77,7 +77,7 @@ struct RealAgentSmokeTests {
     /// sleep as synchronization.
     private func connectedClient(timeout: TimeInterval = 5.0) async throws -> AgentClient {
         let socketPath = try #require(liveAgentSocketPath())
-        let client = AgentClient(socketPath: socketPath, clientVersion: "LibreMac/RealAgentSmoke")
+        let client = AgentClient(socketPath: socketPath)
         await client.start()
 
         let deadline = Date().addingTimeInterval(timeout)

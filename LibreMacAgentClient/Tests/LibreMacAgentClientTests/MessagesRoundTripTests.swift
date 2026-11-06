@@ -30,20 +30,19 @@ import Foundation
 @Suite("Messages request encode — byte-exact, no extra keys")
 struct MessagesRequestEncodeTests {
 
-    @Test("Hello — {t,req,proto,client}, canonical key order t(1) req(3) proto(5) client(6)")
+    @Test("Hello — {t,req,proto}, canonical key order t(1) req(3) proto(5)")
     func helloRequest() {
         let expected = Data([
-            0xA4, 0x61, 0x74, 0x65, 0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x63, 0x72, 0x65, 0x71, 0x01, 0x65, 0x70, 0x72,
-            0x6F, 0x74, 0x6F, 0x01, 0x66, 0x63, 0x6C, 0x69, 0x65, 0x6E, 0x74, 0x6C, 0x4C, 0x69, 0x62, 0x72, 0x65,
-            0x4D, 0x61, 0x63, 0x2F, 0x30, 0x2E, 0x31,
+            0xA3, 0x61, 0x74, 0x65, 0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x63, 0x72, 0x65, 0x71, 0x01, 0x65, 0x70, 0x72,
+            0x6F, 0x74, 0x6F, 0x01,
         ])
-        let body = AgentRequest.hello(proto: 1, client: "LibreMac/0.1").encode(req: 1)
+        let body = AgentRequest.hello(proto: 1).encode(req: 1)
         #expect(body == expected)
     }
 
-    @Test("Hello — wantsEvents false rides after client, canonical order proto(5) client(6) wantsEvents(11)")
+    @Test("Hello — wantsEvents false rides after proto, canonical order proto(5) wantsEvents(11)")
     func helloAskingForNoEvents() throws {
-        let body = AgentRequest.hello(proto: 1, client: nil, wantsEvents: false).encode(req: 1)
+        let body = AgentRequest.hello(proto: 1, wantsEvents: false).encode(req: 1)
         guard case .map(let pairs) = try CBORValue.decode(body) else {
             Issue.record("Hello is not a map")
             return
@@ -51,7 +50,7 @@ struct MessagesRequestEncodeTests {
         #expect(pairs.map { String(decoding: $0.0, as: UTF8.self) } == ["t", "req", "proto", "wantsEvents"])
         #expect(pairs.last?.1 == .bool(false))
         // nil leaves the key off: the agent reads its absence as true.
-        #expect(AgentRequest.hello(proto: 1, client: nil).encode(req: 1).count < body.count)
+        #expect(AgentRequest.hello(proto: 1).encode(req: 1).count < body.count)
     }
 
     @Test("GetState — {t,req} only, no extra keys")
@@ -431,7 +430,9 @@ struct MessagesReplyDecodeTests {
 @Suite("Messages event decode — hand-written canonical fixtures")
 struct MessagesEventDecodeTests {
 
-    @Test("OpProgress — fractional progress lands as f16 on the wire")
+    /// The frame carries an f16 `progress`, which an older agent still sends:
+    /// a key this build does not read must not fail the frame.
+    @Test("OpProgress — an older agent's progress key is ignored")
     func opProgress() throws {
         let bytes = Data([
             0xA4, 0x61, 0x74, 0x6A, 0x4F, 0x70, 0x50, 0x72, 0x6F, 0x67, 0x72, 0x65, 0x73, 0x73, 0x62, 0x6F, 0x70,
@@ -439,7 +440,7 @@ struct MessagesEventDecodeTests {
             0xF9, 0x38, 0x00,
         ])
         let ev = try AgentMessages.decodeEvent(bytes)
-        #expect(ev == .opProgress(op: 9, phase: .signing, progress: 0.5, indeterminate: nil, watchdogSecs: nil))
+        #expect(ev == .opProgress(op: 9, phase: .signing))
     }
 
     @Test("OpResultReady/Certificates — certs nested under result (known past decode bug: do not repeat)")
@@ -680,17 +681,16 @@ struct MessagesEventDecodeTests {
         let full = CredentialRecord(
             id: "user:0x01", label: "PIN", kind: .user, state: .operational,
             retriesLeft: 3, retriesMax: 3, usesLeft: 10, usesMax: nil, unblocksLeft: 7,
-            minLength: 4, maxLength: 8,
-            canChange: true, unblockable: true, unblockStyle: .setsNewPin,
+            canChange: true, unblockable: true,
             activatable: false, keyActivationPending: false, keyActivatable: false,
-            recovery: .holderViaPuk, probeSafe: true,
+            recovery: .holderViaPuk,
             blockedGuidanceKey: "gk", blockedGuidanceFallback: "gf",
             keyActivationGuidanceKey: "ak", keyActivationGuidanceFallback: "af")
         let minimal = CredentialRecord(
             id: "puk:0x02", label: "PUK", kind: .puk, state: .unknown,
-            canChange: false, unblockable: false, unblockStyle: .unknown,
+            canChange: false, unblockable: false,
             activatable: false, keyActivationPending: false, keyActivatable: false,
-            recovery: .none, probeSafe: false)
+            recovery: .none)
         let ev = try AgentMessages.decodeEvent(bytes)
         #expect(
             ev
@@ -775,7 +775,9 @@ struct MessagesEventDecodeTests {
                 ))
     }
 
-    @Test("OpResultReady/Credentials — partial bring-up: pinActivated=true, keyActivated=false, keyActivationFailed")
+    /// The frame carries `pinActivated`/`keyActivated`, which an older agent
+    /// still sends: keys this build does not read must not fail the result.
+    @Test("OpResultReady/Credentials — partial bring-up from an older agent: extra keys ignored, keyActivationFailed")
     func opResultReadyCredentialsPartialBringUp() throws {
         let bytes = Data([
             0xA3, 0x61, 0x74, 0x6D, 0x4F, 0x70, 0x52, 0x65, 0x73, 0x75, 0x6C, 0x74, 0x52, 0x65, 0x61, 0x64, 0x79,
@@ -794,14 +796,14 @@ struct MessagesEventDecodeTests {
                     op: 15,
                     result: .credentials(
                         CredentialsPayload(
-                            result: CredentialResult(
-                                outcome: .keyActivationFailed, blocked: false,
-                                pinActivated: true, keyActivated: false),
+                            result: CredentialResult(outcome: .keyActivationFailed, blocked: false),
                             records: []))
                 ))
     }
 
-    @Test("OpResultReady/Credentials — unrecognized record tokens degrade to .unknown (kind/state/unblockStyle/recovery)")
+    /// The record also carries `unblockStyle`/`probeSafe`, which an older
+    /// agent still sends and this build no longer reads.
+    @Test("OpResultReady/Credentials — unrecognized record tokens degrade to .unknown (kind/state/recovery)")
     func credentialRecordTokenDegrade() throws {
         let bytes = Data([
             0xA3, 0x61, 0x74, 0x6D, 0x4F, 0x70, 0x52, 0x65, 0x73, 0x75, 0x6C, 0x74, 0x52, 0x65, 0x61, 0x64, 0x79,
@@ -832,7 +834,6 @@ struct MessagesEventDecodeTests {
         let record = payload.records[0]
         #expect(record.kind == .unknown)
         #expect(record.state == .unknown)
-        #expect(record.unblockStyle == .unknown)
         #expect(record.recovery == .unknown)
     }
 
@@ -883,9 +884,9 @@ struct MessagesEventDecodeTests {
         ])
         let minimal = CredentialRecord(
             id: "puk:0x02", label: "PUK", kind: .puk, state: .unknown,
-            canChange: false, unblockable: false, unblockStyle: .unknown,
+            canChange: false, unblockable: false,
             activatable: false, keyActivationPending: false, keyActivatable: false,
-            recovery: .none, probeSafe: false)
+            recovery: .none)
         let ev = try AgentMessages.decodeEvent(bytes)
         #expect(
             ev
@@ -912,7 +913,7 @@ struct MessagesEventDecodeTests {
             0xF9, 0x38, 0x00,
         ])
         let ev = try AgentMessages.decodeEvent(bytes)
-        #expect(ev == .opProgress(op: 9, phase: .unknown(99), progress: 0.5, indeterminate: nil, watchdogSecs: nil))
+        #expect(ev == .opProgress(op: 9, phase: .unknown(99)))
     }
 
     @Test("OpProgress — a phase value too wide for UInt32 fails closed (genuinely malformed, not merely unrecognized)")

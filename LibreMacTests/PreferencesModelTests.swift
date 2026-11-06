@@ -60,7 +60,7 @@ struct PreferencesModelTests {
             client: FakeConfigClient(entries: [
                 "DefaultLevel": .text("b-t"),
                 "DefaultReason": .text("Approval"),
-                "PluginDir": .text("/opt/plugins"),
+                "TslCacheDir": .text("/var/cache/tsl"),
                 "SomethingFromTheFuture": .text("ignored"),
             ]))
 
@@ -68,7 +68,7 @@ struct PreferencesModelTests {
 
         #expect(model.availability == .ready)
         #expect(model.defaultLevel == "b-t")
-        #expect(model.pluginDir == "/opt/plugins")
+        #expect(model.tslCacheDir == "/var/cache/tsl")
     }
 
     @Test("an unreachable agent reports unavailable and shows no value at all")
@@ -421,7 +421,6 @@ struct PreferencesModelTests {
                     ("signer", .text("a1b2c3")),
                     ("signerPinned", .bool(true)),
                     ("acceptedAt", .int(1_764_000_000)),
-                    ("origin", .text("import")),
                 ])
             ]))
 
@@ -433,7 +432,6 @@ struct PreferencesModelTests {
         #expect(model.cscaAnchors.state?.signer == "a1b2c3")
         #expect(model.cscaAnchors.state?.signerPinned == true)
         #expect(model.cscaAnchors.state?.acceptedAt == 1_764_000_000)
-        #expect(model.cscaAnchors.state?.origin == "import")
     }
 
     /// An empty map is this wire's "nothing has been imported". It must not

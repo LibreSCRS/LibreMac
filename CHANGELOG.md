@@ -205,6 +205,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
   prompt is still open. The token extension's wait now covers the whole
   request: events the agent sends in the meantime no longer extend it, so an
   agent that stops answering is reported after one wait instead of never.
+- Settings › Advanced shows only the trusted-list cache folder. The agent no
+  longer publishes its plugin folder or certificate cache folder, so the two
+  rows that showed them are gone.
 
 ### Fixed
 
