@@ -46,7 +46,7 @@ jobs:
       # the vendored agent contract is byte-for-byte the one at the LibreAgent
       # lock); and CHANGELOG against VERSION.
       - name: Shared gates
-        uses: LibreSCRS/ci/actions/gates@d68f5d781a665759eaba63c67ef0e6eb1f738063
+        uses: LibreSCRS/ci/actions/gates@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
         with:
           gates: check-workflows selftests deps-lock check-version-lockstep
 
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Select the Xcode in .xcode-version and its SDK
-        uses: LibreSCRS/ci/actions/select-xcode@d68f5d781a665759eaba63c67ef0e6eb1f738063
+        uses: LibreSCRS/ci/actions/select-xcode@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
 
       - name: swift test (LibreMacAgentClient)
         # LibreMacAgentClient includes an env-gated live-agent smoke test that
@@ -102,12 +102,12 @@ jobs:
           fetch-depth: 0
 
       - name: Select the Xcode in .xcode-version and its SDK
-        uses: LibreSCRS/ci/actions/select-xcode@d68f5d781a665759eaba63c67ef0e6eb1f738063
+        uses: LibreSCRS/ci/actions/select-xcode@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
 
       - name: Self-tests that need macOS
         # verify-bundle.selftest.sh declares darwin: the ubuntu lint job lists
         # it as not for linux, and this is the leg that runs it.
-        uses: LibreSCRS/ci/actions/gates@d68f5d781a665759eaba63c67ef0e6eb1f738063
+        uses: LibreSCRS/ci/actions/gates@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
         with:
           gates: selftests
 
