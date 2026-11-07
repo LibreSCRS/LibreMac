@@ -80,7 +80,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: pre
-        uses: LibreSCRS/ci/actions/release-preflight@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
+        uses: LibreSCRS/ci/actions/release-preflight@298d83a67de5e7349aad840ad9f8d972bb9168fb
         with:
           mode: ${{ inputs.mode || (github.ref_type == 'tag' && 'publish' || 'rehearse') }}
           # Every version surface here is derived from VERSION at generate
@@ -127,11 +127,11 @@ jobs:
           persist-credentials: false
 
       - name: Select the Xcode in .xcode-version and its SDK
-        uses: LibreSCRS/ci/actions/select-xcode@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
+        uses: LibreSCRS/ci/actions/select-xcode@298d83a67de5e7349aad840ad9f8d972bb9168fb
 
       - name: Checkout LibreAgent, LibreDarwin and LibreCelik at this repository's lock
         id: deps
-        uses: LibreSCRS/ci/actions/checkout-deps@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
+        uses: LibreSCRS/ci/actions/checkout-deps@298d83a67de5e7349aad840ad9f8d972bb9168fb
         with:
           names: LibreAgent LibreDarwin LibreCelik
           fetch-depth: '0'
@@ -140,7 +140,7 @@ jobs:
         # deps-lock holds LibreDarwin's LibreAgent to this repository's, so
         # the one LibreAgent checkout above is the one LibreDarwin builds.
         id: lm
-        uses: LibreSCRS/ci/actions/checkout-deps@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
+        uses: LibreSCRS/ci/actions/checkout-deps@298d83a67de5e7349aad840ad9f8d972bb9168fb
         with:
           root: .deps/LibreDarwin
           consumer: LibreDarwin
@@ -300,7 +300,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/ci
-          ref: 2d5d8c63e77bf90a9ca5b0354028b9396093bd79
+          ref: 298d83a67de5e7349aad840ad9f8d972bb9168fb
           path: .ci
           persist-credentials: false
 
@@ -350,7 +350,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/ci
-          ref: 2d5d8c63e77bf90a9ca5b0354028b9396093bd79
+          ref: 298d83a67de5e7349aad840ad9f8d972bb9168fb
           path: .ci
           persist-credentials: false
 
@@ -359,7 +359,7 @@ jobs:
         # about to reject is worth not creating.
         run: python3 .ci/scripts/check-sbom artifacts/sbom-macos.cdx.json artifacts/sbom-librecelik-macos.cdx.json
 
-      - uses: LibreSCRS/ci/actions/release-seal@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
+      - uses: LibreSCRS/ci/actions/release-seal@298d83a67de5e7349aad840ad9f8d972bb9168fb
         with:
           mode: ${{ needs.preflight.outputs.mode }}
           version: ${{ needs.preflight.outputs.version }}
@@ -385,7 +385,7 @@ jobs:
         with:
           name: sealed
           path: artifacts
-      - uses: LibreSCRS/ci/actions/release-publish@2d5d8c63e77bf90a9ca5b0354028b9396093bd79
+      - uses: LibreSCRS/ci/actions/release-publish@298d83a67de5e7349aad840ad9f8d972bb9168fb
         with:
           mode: ${{ needs.preflight.outputs.mode }}
           version: ${{ needs.preflight.outputs.version }}
