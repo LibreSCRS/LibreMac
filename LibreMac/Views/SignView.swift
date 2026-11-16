@@ -190,8 +190,8 @@ struct SignView: View {
         else { return }
         guard destinationPath.isEmpty || destinationPath == proposedPath else { return }
         let proposal = coordinator.proposedDestination(forInput: input)
-        proposedPath = proposal.url.path
-        destinationPath = proposal.url.path
+        proposedPath = proposal.url?.path ?? ""
+        destinationPath = proposedPath
         fellBackToDownloads = proposal.fellBackToDownloads
     }
 

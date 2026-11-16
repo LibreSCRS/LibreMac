@@ -66,7 +66,7 @@ versioning follows [Semantic Versioning](https://semver.org/).
   unreadable-file error. Both files are opened before the card is asked, so a
   destination that cannot be written is reported before you confirm a
   signature, not after. An existing file is never overwritten silently: the
-  suggested name skips names already taken (`name 2.p7s`, …), a typed name
+  suggested name skips names already taken (`name.pdf.p7s`, `name.pdf (2).p7s`, …), a typed name
   that exists asks to be replaced first, and the file being signed can never
   be the destination. The signed file is written beside the destination and
   moved into place only when complete, so a failed sign leaves an existing
@@ -129,7 +129,7 @@ versioning follows [Semantic Versioning](https://semver.org/).
 - The "Default output folder" setting now takes effect. It used to be stored
   and never read. A folder chosen with Browse… is remembered as a
   security-scoped bookmark, so it stays writable after LibreMac restarts, and
-  the sign window offers `<folder>/<name>.p7s` there. When no folder is set, or
+  the sign window offers `<folder>/<name>.p7s` there (the whole input name, then `.p7s`, as LibreCelik does). When no folder is set, or
   the one set cannot be written (typed outside Downloads, moved, or its
   bookmark no longer resolves), the signed file is offered in Downloads and the
   window says so. An empty setting now means Downloads, not "beside the input

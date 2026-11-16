@@ -356,16 +356,18 @@ public final class SigningCoordinator {
         expand(path)
     }
 
-    /// Where the signed copy of `input` is offered: `<folder>/<name>.p7s` in
-    /// the default output folder when that folder can be written right now,
-    /// otherwise in Downloads. `fellBackToDownloads` is true only when a folder
-    /// WAS configured and could not be used, so the UI can say so; an empty
-    /// setting means Downloads and needs no apology.
-    public func proposedDestination(forInput input: URL) -> (url: URL, fellBackToDownloads: Bool) {
-        let stem = input.deletingPathExtension().lastPathComponent
+    /// Where the signed copy of `input` is offered, by the naming rule every
+    /// client of the agent follows (`SignedOutputName`): in the default output
+    /// folder when that folder can be written right now, otherwise in
+    /// Downloads. `url` is `nil` when no free name exists. `fellBackToDownloads`
+    /// is true only when a folder WAS configured and could not be used, so the
+    /// UI can say so; an empty setting means Downloads and needs no apology.
+    public func proposedDestination(
+        forInput input: URL, options: SignOptions = SigningCoordinator.defaultOptions
+    ) -> (url: URL?, fellBackToDownloads: Bool) {
         let configured = (defaults.string(forKey: AppGroupConstants.DefaultsKeys.defaultOutputFolder) ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let downloads = uniqueDestination(in: downloadsDirectory, stem: stem)
+        let downloads = uniqueDestination(for: input, options: options, in: downloadsDirectory)
         guard !configured.isEmpty else { return (downloads, false) }
         guard let folder = expand(configured) else { return (downloads, true) }
         guard canWrite(into: folder) else { return (downloads, true) }
@@ -374,7 +376,7 @@ public final class SigningCoordinator {
         let scope = scopedFolder(containing: folder.appendingPathComponent("probe"))
         let started = scope.map(startAccessing) ?? false
         defer { if started, let scope { stopAccessing(scope) } }
-        return (uniqueDestination(in: folder, stem: stem), false)
+        return (uniqueDestination(for: input, options: options, in: folder), false)
     }
 
     private func expand(_ typed: String) -> URL? {
@@ -405,18 +407,15 @@ public final class SigningCoordinator {
         return true
     }
 
-    /// `name.p7s` in `folder`, or the first of `name 2.p7s`, `name 3.p7s`, …
-    /// that does not exist yet, so a proposal never names an existing file —
-    /// the input included, when the input is itself a `.p7s`.
-    private func uniqueDestination(in folder: URL, stem: String) -> URL {
-        var candidate = folder.appendingPathComponent(stem + ".p7s")
-        var number = 2
-        var info = stat()
-        while lstat(candidate.path, &info) == 0 {
-            candidate = folder.appendingPathComponent("\(stem) \(number).p7s")
-            number += 1
-        }
-        return candidate
+    /// The first name the rule gives in `folder` that does not exist yet, so a
+    /// proposal never names an existing file — the input included.
+    private func uniqueDestination(for input: URL, options: SignOptions, in folder: URL) -> URL? {
+        SignedOutputName.url(
+            forInput: input, format: options.format, packaging: options.packaging, in: folder,
+            isTaken: { candidate in
+                var info = stat()
+                return lstat(candidate.path, &info) == 0
+            })
     }
 
     // MARK: - Default output folder bookmark

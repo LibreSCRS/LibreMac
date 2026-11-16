@@ -371,25 +371,25 @@ struct SigningCoordinatorTypedPathTests {
         let sandbox = FakeSandbox(granting: [env.downloads])
         let coordinator = env.coordinator(sandbox: sandbox)
         let input = env.documents.appendingPathComponent("contract.pdf")
-        let expected = env.downloads.appendingPathComponent("contract.p7s").path
+        let expected = env.downloads.appendingPathComponent("contract.pdf.p7s").path
 
         // Nothing configured: Downloads, and nothing to apologise for.
         let plain = coordinator.proposedDestination(forInput: input)
-        #expect(plain.url.path == expected)
+        #expect(plain.url?.path == expected)
         #expect(!plain.fellBackToDownloads)
 
         // A folder configured by typing, with no bookmark, outside the scope.
         env.defaults.set(env.documents.path,
                          forKey: AppGroupConstants.DefaultsKeys.defaultOutputFolder)
         let typed = coordinator.proposedDestination(forInput: input)
-        #expect(typed.url.path == expected)
+        #expect(typed.url?.path == expected)
         #expect(typed.fellBackToDownloads)
 
         // A bookmark that no longer resolves.
         env.defaults.set(Data("not a bookmark".utf8),
                          forKey: AppGroupConstants.DefaultsKeys.defaultOutputFolderBookmark)
         let broken = coordinator.proposedDestination(forInput: input)
-        #expect(broken.url.path == expected)
+        #expect(broken.url?.path == expected)
         #expect(broken.fellBackToDownloads)
         #expect(sandbox.starts == sandbox.stops)
     }
@@ -417,15 +417,15 @@ struct SigningCoordinatorTypedPathTests {
 
         let proposal = coordinator.proposedDestination(
             forInput: env.downloads.appendingPathComponent("contract.txt"))
-        #expect(FakeSandbox.canonical(proposal.url.path)
-                == FakeSandbox.canonical(chosen.appendingPathComponent("contract.p7s").path))
+        #expect(proposal.url.map { FakeSandbox.canonical($0.path) }
+                == FakeSandbox.canonical(chosen.appendingPathComponent("contract.txt.p7s").path))
         #expect(!proposal.fellBackToDownloads)
         #expect(sandbox.startResults.first == true)
 
         await coordinator.sign(
             card: "c", certId: "id",
             inputPath: "~/Downloads/contract.txt",
-            destinationPath: proposal.url.path)
+            destinationPath: proposal.url?.path ?? "")
         guard case let .done(destination, _) = coordinator.stage else {
             Issue.record("expected .done, got \(coordinator.stage)"); return
         }
@@ -531,17 +531,25 @@ struct SigningCoordinatorTypedPathTests {
         let env = SandboxedHome()
         let sandbox = FakeSandbox(granting: [env.downloads])
         let coordinator = env.coordinator(sandbox: sandbox)
-        _ = env.file("Downloads/contract.p7s")
-        _ = env.file("Downloads/contract 2.p7s")
+        _ = env.file("Downloads/contract.pdf.p7s")
+        _ = env.file("Downloads/contract.pdf (2).p7s")
 
         let next = coordinator.proposedDestination(
             forInput: env.documents.appendingPathComponent("contract.pdf"))
-        #expect(next.url.lastPathComponent == "contract 3.p7s")
+        #expect(next.url?.lastPathComponent == "contract.pdf (3).p7s")
 
-        // Signing a .p7s: the plain proposal would be the input itself.
+        // Signing a .p7s: the name keeps the whole input name, so it is never
+        // the input itself.
         let input = env.file("Downloads/x.p7s")
         let own = coordinator.proposedDestination(forInput: input)
-        #expect(own.url.lastPathComponent == "x 2.p7s")
+        #expect(own.url?.lastPathComponent == "x.p7s.p7s")
+
+        // The rule's other formats, numbered the same way.
+        _ = env.file("Downloads/report-signed.pdf")
+        let pades = coordinator.proposedDestination(
+            forInput: env.documents.appendingPathComponent("report.pdf"),
+            options: SignOptions(format: .pades, level: .auto, packaging: .enveloped))
+        #expect(pades.url?.lastPathComponent == "report-signed (2).pdf")
     }
 
     @Test("a failed sign leaves no temporary file and an existing file intact")
