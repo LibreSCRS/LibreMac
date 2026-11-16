@@ -176,6 +176,27 @@ struct SigningCoordinatorTests {
             "libremac_sign_cancelled", "The signature was cancelled."))
     }
 
+    @Test("a lost agent connection is a communication error, not a cancelled prompt")
+    func lostConnectionIsNotACancel() async {
+        let operation = AgentOperation(id: 0, kind: .sign, cancelHandler: {})
+        // What the client's death sweep resolves every pending operation with.
+        operation.resolveFinished((
+            .cancelled, .communicationError, AgentClient.vanishedMsgKey,
+            "the agent connection was lost"))
+        let coordinator = SigningCoordinator(client: MockSigningClient(.returnOperation(operation)))
+        let fresh = FileManager.default.temporaryDirectory
+            .appendingPathComponent("out-\(UUID().uuidString)")
+        await coordinator.sign(card: "c", certId: "id",
+                               inputURL: makeTempFile(), destinationURL: fresh)
+        guard case let .failed(message) = coordinator.stage else {
+            Issue.record("expected .failed, got \(coordinator.stage)"); return
+        }
+        #expect(message != AppLocalization.shared.loc(
+            "libremac_sign_cancelled", "The signature was cancelled."))
+        #expect(message == ErrorCopy.message(
+            for: .communicationError, msgFallback: "the agent connection was lost"))
+    }
+
     @Test @MainActor func theDoneStageCarriesWhatTheAgentActuallyProduced() async {
         let operation = makeCompletedSignOperation(
             meta: SignMeta(format: "cades", level: "b-t", tsaUsed: true, chainComplete: true))

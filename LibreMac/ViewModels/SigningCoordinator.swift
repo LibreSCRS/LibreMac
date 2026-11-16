@@ -272,8 +272,10 @@ public final class SigningCoordinator {
 
         guard status == .ok else {
             // The person closed the prompt: the agent's English fallback is
-            // not copy for them, in any language.
-            if status == .cancelled {
+            // not copy for them, in any language. A lost connection also ends
+            // as `.cancelled`, but carries `.communicationError`; the agent
+            // reports a real cancel with no error code.
+            if status == .cancelled && code == .none {
                 stage = .failed(message: Self.localized(
                     "libremac_sign_cancelled", "The signature was cancelled."))
                 return
