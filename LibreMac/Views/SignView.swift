@@ -74,9 +74,7 @@ struct SignView: View {
         // chose instead makes it untrue.
         .onChange(of: destinationPath) {
             if destinationPath != proposedPath { fellBackToDownloads = false }
-            withdrawReplaceQuestion()
         }
-        .onChange(of: inputPath) { withdrawReplaceQuestion() }
         .task(id: inputPath) {
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
@@ -134,35 +132,12 @@ struct SignView: View {
             Button(loc("libremac_sign_retry", "Try again")) {
                 coordinator.reset()
             }
-        case let .confirmReplace(destination, signatureDiscarded):
-            // Inline, not a system sheet: the panel service is what crashes.
-            Label(
-                signatureDiscarded
-                    ? localization.loc(
-                        "libremac_sign_replace_after_discard",
-                        "{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again.",
-                        placeholders: ["name": destination.lastPathComponent])
-                    : localization.loc(
-                        "libremac_sign_replace_prompt", "{name} already exists. Replace it?",
-                        placeholders: ["name": destination.lastPathComponent]),
-                systemImage: "exclamationmark.triangle.fill"
-            )
-            .foregroundStyle(.orange)
-            HStack {
-                Button(loc("libremac_settings_action_cancel", "Cancel")) {
-                    coordinator.reset()
-                }
-                Button(loc("libremac_sign_replace", "Replace"), role: .destructive) {
-                    startSign(replacing: destination)
-                }
-                .disabled(!monitor.canSign)
-            }
         }
     }
 
     // MARK: - Actions
 
-    private func startSign(replacing confirmed: URL? = nil) {
+    private func startSign() {
         guard monitor.canSign,
               let card = monitor.signingCard?.handle,
               let certId = monitor.signingCertId
@@ -171,16 +146,8 @@ struct SignView: View {
         let destination = destinationPath
         Task { @MainActor in
             await coordinator.sign(
-                card: card, certId: certId, inputPath: input, destinationPath: destination,
-                replacing: confirmed)
+                card: card, certId: certId, inputPath: input, destinationPath: destination)
         }
-    }
-
-    /// A replace question is about the paths it was asked for; once either
-    /// changes it is withdrawn. (The coordinator also honours a confirmation
-    /// only for the file it named.)
-    private func withdrawReplaceQuestion() {
-        if case .confirmReplace = coordinator.stage { coordinator.reset() }
     }
 
     /// Fills the destination from the input, unless the user has set one.

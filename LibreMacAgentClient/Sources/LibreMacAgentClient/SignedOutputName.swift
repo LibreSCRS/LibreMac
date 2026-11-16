@@ -71,6 +71,15 @@ public enum SignedOutputName {
     ) -> URL? {
         guard let name = name(forInputName: input.lastPathComponent, format: format, packaging: packaging)
         else { return nil }
+        return firstFree(named: name, in: folder, isTaken: isTaken)
+    }
+
+    /// `name` in `folder` when it is free, else the first free numbered
+    /// sibling (`base (2).ext`, ...): the rule for any name, typed or derived.
+    /// `nil` when `maxSiblings` of them are taken.
+    public static func firstFree(
+        named name: String, in folder: URL, isTaken: (URL) -> Bool
+    ) -> URL? {
         let first = folder.appendingPathComponent(name)
         if !isTaken(first) { return first }
         let (base, suffix) = split(name)

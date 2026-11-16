@@ -164,10 +164,10 @@ struct SigningCoordinatorTests {
         let operation = AgentOperation(id: 0, kind: .sign, cancelHandler: {})
         operation.resolveFinished((.cancelled, .none, "op.cancelled", "Operation cancelled"))
         let coordinator = SigningCoordinator(client: MockSigningClient(.returnOperation(operation)))
-        let destination = makeTempFile()
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent("out-\(UUID().uuidString)")
         await coordinator.sign(card: "c", certId: "id",
-                               inputURL: makeTempFile(), destinationURL: destination,
-                               replacing: destination)
+                               inputURL: makeTempFile(), destinationURL: destination)
         guard case let .failed(message) = coordinator.stage else {
             Issue.record("expected .failed, got \(coordinator.stage)"); return
         }
@@ -201,10 +201,10 @@ struct SigningCoordinatorTests {
         let operation = makeCompletedSignOperation(
             meta: SignMeta(format: "cades", level: "b-t", tsaUsed: true, chainComplete: true))
         let coordinator = SigningCoordinator(client: MockSigningClient(.returnOperation(operation)))
-        let destination = makeTempFile()
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent("out-\(UUID().uuidString)")
         await coordinator.sign(card: "c", certId: "id",
-                               inputURL: makeTempFile(), destinationURL: destination,
-                               replacing: destination)
+                               inputURL: makeTempFile(), destinationURL: destination)
         guard case let .done(_, meta) = coordinator.stage else {
             Issue.record("expected .done, got \(coordinator.stage)"); return
         }
@@ -305,14 +305,15 @@ struct SandboxedHome {
         resolveBookmark: @escaping (Data) throws -> (url: URL, isStale: Bool) =
             SigningCoordinator.resolveFolderBookmark,
         makeBookmark: @escaping (URL) throws -> Data = SigningCoordinator.makeFolderBookmark,
-        moveItem: @escaping (URL, URL, Bool) throws -> Void = SigningCoordinator.posixRename
+        openFile: ((String, Int32) throws -> Int32)? = nil,
+        moveItem: @escaping (URL, URL) throws -> Void = SigningCoordinator.posixRename
     ) -> SigningCoordinator {
         SigningCoordinator(
             client: client,
             defaults: defaults,
             homeDirectory: home,
             downloadsDirectory: downloads,
-            openFile: { try sandbox.open($0, $1) },
+            openFile: openFile ?? { try sandbox.open($0, $1) },
             startAccessing: { sandbox.start($0) },
             stopAccessing: { sandbox.stop($0) },
             resolveBookmark: resolveBookmark,
@@ -486,42 +487,36 @@ struct SigningCoordinatorTypedPathTests {
 
     // MARK: Never overwrite silently
 
-    @Test("the destination may not be the input, by path or by identity")
-    func sameFileAsInputIsRefused() async throws {
+    @Test("a destination that is the input, by path or by identity, is never written over")
+    func sameFileAsInputIsNeverWrittenOver() async throws {
         let env = SandboxedHome()
         let sandbox = FakeSandbox(granting: [env.downloads])
         let input = env.file("Downloads/x.p7s", "ORIGINAL")
-        let client = MockSigningClient(.throwError(.notConnected))
-        let coordinator = env.coordinator(client: client, sandbox: sandbox)
-        let refusal = AppLocalization.shared.loc(
-            "libremac_sign_dest_is_input",
-            "The signed file cannot replace the file being signed. Choose another name.")
-
-        // The same path under another spelling, even with replace allowed.
-        await coordinator.sign(
-            card: "c", certId: "id", inputPath: "~/Downloads/x.p7s",
-            destinationPath: "~/Downloads/../Downloads/x.p7s", replacing: input)
-        #expect(coordinator.stage == .failed(message: refusal))
-
-        // A hard link: another path, the same file.
         let link = env.downloads.appendingPathComponent("link.p7s")
         try FileManager.default.linkItem(at: input, to: link)
-        coordinator.reset()
-        await coordinator.sign(
-            card: "c", certId: "id", inputPath: "~/Downloads/x.p7s",
-            destinationPath: "~/Downloads/link.p7s", replacing: link)
-        #expect(coordinator.stage == .failed(message: refusal))
 
-        #expect(client.signCallCount == 0)
-        #expect(try String(contentsOf: input, encoding: .utf8) == "ORIGINAL")
+        for typed in ["~/Downloads/../Downloads/x.p7s", "~/Downloads/link.p7s"] {
+            let operation = makeCompletedSignOperation(
+                meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true))
+            let coordinator = env.coordinator(
+                client: MockSigningClient(.returnOperation(operation)), sandbox: sandbox)
+            await coordinator.sign(
+                card: "c", certId: "id", inputPath: "~/Downloads/x.p7s", destinationPath: typed)
+            guard case let .done(destination, _) = coordinator.stage else {
+                Issue.record("expected .done, got \(coordinator.stage)"); return
+            }
+            #expect(destination.path != input.path && destination.path != link.path)
+            #expect(try String(contentsOf: input, encoding: .utf8) == "ORIGINAL")
+        }
     }
 
-    @Test("an existing destination is replaced only after confirmation")
-    func existingDestinationNeedsConfirmation() async throws {
+    @Test("a typed name that exists is never replaced: the first free numbered sibling is written")
+    func typedExistingNameGetsANumberedSibling() async throws {
         let env = SandboxedHome()
         let sandbox = FakeSandbox(granting: [env.downloads])
         _ = env.file("Downloads/contract.txt")
         let existing = env.file("Downloads/contract.p7s", "OLD")
+        let taken = env.file("Downloads/contract (2).p7s", "OLDER")
         let operation = makeCompletedSignOperation(
             meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true))
         let client = MockSigningClient(.returnOperation(operation))
@@ -530,21 +525,16 @@ struct SigningCoordinatorTypedPathTests {
         await coordinator.sign(
             card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
             destinationPath: "~/Downloads/contract.p7s")
-        guard case let .confirmReplace(destination, _) = coordinator.stage else {
-            Issue.record("expected .confirmReplace, got \(coordinator.stage)"); return
-        }
-        #expect(destination.path == existing.path)
-        #expect(client.signCallCount == 0)
-        #expect(try String(contentsOf: existing, encoding: .utf8) == "OLD")
 
-        await coordinator.sign(
-            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
-            destinationPath: "~/Downloads/contract.p7s", replacing: destination)
-        guard case .done = coordinator.stage else {
+        guard case let .done(destination, _) = coordinator.stage else {
             Issue.record("expected .done, got \(coordinator.stage)"); return
         }
-        #expect(try String(contentsOf: existing, encoding: .utf8) == "SIGNED-ARTIFACT-BYTES")
-        #expect(env.contents(of: env.downloads) == ["contract.txt", "contract.p7s"])
+        #expect(destination.lastPathComponent == "contract (3).p7s")
+        #expect(try String(contentsOf: destination, encoding: .utf8) == "SIGNED-ARTIFACT-BYTES")
+        #expect(try String(contentsOf: existing, encoding: .utf8) == "OLD")
+        #expect(try String(contentsOf: taken, encoding: .utf8) == "OLDER")
+        #expect(env.contents(of: env.downloads)
+                == ["contract.txt", "contract.p7s", "contract (2).p7s", "contract (3).p7s"])
     }
 
     @Test("the proposal never names an existing file")
@@ -590,16 +580,17 @@ struct SigningCoordinatorTypedPathTests {
         }
         #expect(env.contents(of: env.downloads) == ["contract.txt"])
 
-        // The final rename fails while replacing an existing file.
+        // The final rename fails with an existing file at the name: the file
+        // stays, and the claimed sibling is removed again.
         let existing = env.file("Downloads/contract.p7s", "OLD")
         let operation = makeCompletedSignOperation(
             meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true))
         let renameFails = env.coordinator(
             client: MockSigningClient(.returnOperation(operation)), sandbox: sandbox,
-            moveItem: { _, _, _ in throw POSIXError(.EIO) })
+            moveItem: { _, _ in throw POSIXError(.EIO) })
         await renameFails.sign(
             card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
-            destinationPath: "~/Downloads/contract.p7s", replacing: existing)
+            destinationPath: "~/Downloads/contract.p7s")
         guard case .failed = renameFails.stage else {
             Issue.record("expected .failed, got \(renameFails.stage)"); return
         }
@@ -608,149 +599,108 @@ struct SigningCoordinatorTypedPathTests {
         #expect(sandbox.starts == sandbox.stops)
     }
 
-    @Test("a confirmation replaces only the file it asked about")
-    func confirmationIsBoundToTheFileItNamed() async throws {
-        let env = SandboxedHome()
-        let sandbox = FakeSandbox(granting: [env.downloads])
-        _ = env.file("Downloads/contract.txt")
-        let first = env.file("Downloads/a.p7s", "A")
-        let second = env.file("Downloads/b.p7s", "B")
-        let client = MockSigningClient(.throwError(.notConnected))
-        let coordinator = env.coordinator(client: client, sandbox: sandbox)
-
-        await coordinator.sign(
-            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
-            destinationPath: "~/Downloads/a.p7s")
-        guard case let .confirmReplace(asked, _) = coordinator.stage else {
-            Issue.record("expected .confirmReplace, got \(coordinator.stage)"); return
-        }
-        #expect(asked.path == first.path)
-
-        // The field now says b.p7s; Replace carries the confirmation for a.p7s.
-        await coordinator.sign(
-            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
-            destinationPath: "~/Downloads/b.p7s", replacing: asked)
-        #expect(coordinator.stage == .confirmReplace(destination: second))
-        #expect(client.signCallCount == 0)
-        #expect(try String(contentsOf: second, encoding: .utf8) == "B")
-        #expect(try String(contentsOf: first, encoding: .utf8) == "A")
-    }
-
-    @Test("a file that appears during the card wait is not replaced without asking")
+    @Test("a file that appears during the card wait is not replaced; the signature is saved beside it")
     func fileAppearingDuringConsentIsNotReplaced() async throws {
         let env = SandboxedHome()
         let sandbox = FakeSandbox(granting: [env.downloads])
         _ = env.file("Downloads/contract.txt")
-        let destination = env.downloads.appendingPathComponent("contract.p7s")
+        let taken = env.downloads.appendingPathComponent("contract.p7s")
         let operation = makeCompletedSignOperation(
             meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true))
         let coordinator = env.coordinator(
-            client: MockSigningClient(.returnOperation(operation)), sandbox: sandbox,
-            moveItem: { from, to, exclusive in
-                // Another process takes the name just before the rename.
-                try Data("APPEARED".utf8).write(to: to)
-                try SigningCoordinator.posixRename(from, to, exclusive)
-            })
+            client: TakesTheNameWhileSigning(operation: operation, name: taken), sandbox: sandbox)
 
         await coordinator.sign(
             card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
             destinationPath: "~/Downloads/contract.p7s")
 
-        #expect(coordinator.stage == .confirmReplace(destination: destination, signatureDiscarded: true))
-        #expect(try String(contentsOf: destination, encoding: .utf8) == "APPEARED")
-        #expect(env.contents(of: env.downloads) == ["contract.txt", "contract.p7s"])
-    }
-
-    @Test("a folder at the destination is refused before the card is asked")
-    func directoryAtDestinationIsRefused() async {
-        let env = SandboxedHome()
-        let sandbox = FakeSandbox(granting: [env.downloads])
-        _ = env.file("Downloads/contract.txt")
-        let folder = env.downloads.appendingPathComponent("contract.p7s")
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let client = MockSigningClient(.throwError(.notConnected))
-        let coordinator = env.coordinator(client: client, sandbox: sandbox)
-
-        // Even with the folder itself "confirmed".
-        await coordinator.sign(
-            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
-            destinationPath: "~/Downloads/contract.p7s", replacing: folder)
-
-        #expect(coordinator.stage == .failed(message: AppLocalization.shared.loc(
-            "libremac_sign_dest_not_a_file",
-            "Something other than a file already has that name. Choose another name.")))
-        #expect(client.signCallCount == 0)
-        var isDirectory: ObjCBool = false
-        #expect(FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory)
-                && isDirectory.boolValue)
-        #expect(env.contents(of: env.downloads) == ["contract.txt", "contract.p7s"])
-    }
-
-    @Test("a volume without exclusive rename still takes a new file, and asks about an existing one")
-    func exclusiveRenameUnsupportedFallsBack() async throws {
-        let env = SandboxedHome()
-        let sandbox = FakeSandbox(granting: [env.downloads])
-        _ = env.file("Downloads/contract.txt")
-        let destination = env.downloads.appendingPathComponent("contract.p7s")
-
-        // exFAT: RENAME_EXCL is ENOTSUP for every name.
-        let fresh = env.coordinator(
-            client: MockSigningClient(.returnOperation(makeCompletedSignOperation(
-                meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true)))),
-            sandbox: sandbox,
-            moveItem: { from, to, exclusive in
-                if exclusive { throw POSIXError(.ENOTSUP) }
-                try SigningCoordinator.posixRename(from, to, false)
-            })
-        await fresh.sign(
-            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
-            destinationPath: "~/Downloads/contract.p7s")
-        guard case .done = fresh.stage else {
-            Issue.record("expected .done, got \(fresh.stage)"); return
+        guard case let .done(destination, _) = coordinator.stage else {
+            Issue.record("expected .done, got \(coordinator.stage)"); return
         }
+        #expect(destination.lastPathComponent == "contract (2).p7s")
+        #expect(try String(contentsOf: taken, encoding: .utf8) == "APPEARED")
         #expect(try String(contentsOf: destination, encoding: .utf8) == "SIGNED-ARTIFACT-BYTES")
+    }
 
-        // Same volume, and a file takes the name while the card is busy.
-        try FileManager.default.removeItem(at: destination)
-        let raced = env.coordinator(
+    @Test("a name taken between the look and the create is never shared")
+    func nameTakenBetweenLookAndCreateIsNotReplaced() async throws {
+        let env = SandboxedHome()
+        let sandbox = FakeSandbox(granting: [env.downloads])
+        _ = env.file("Downloads/contract.txt")
+        let taken = env.downloads.appendingPathComponent("contract.p7s")
+        var raced = false
+        let coordinator = env.coordinator(
             client: MockSigningClient(.returnOperation(makeCompletedSignOperation(
                 meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true)))),
             sandbox: sandbox,
-            moveItem: { from, to, exclusive in
-                if exclusive {
-                    try Data("APPEARED".utf8).write(to: to)
-                    throw POSIXError(.ENOTSUP)
+            openFile: { path, flags in
+                // Another process takes the free name just before the claim.
+                if flags & O_EXCL != 0, path == taken.path, !raced {
+                    raced = true
+                    try Data("APPEARED".utf8).write(to: taken)
                 }
-                try SigningCoordinator.posixRename(from, to, false)
+                return try sandbox.open(path, flags)
             })
-        await raced.sign(
+
+        await coordinator.sign(
             card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
             destinationPath: "~/Downloads/contract.p7s")
-        #expect(raced.stage == .confirmReplace(destination: destination, signatureDiscarded: true))
-        #expect(try String(contentsOf: destination, encoding: .utf8) == "APPEARED")
-        #expect(env.contents(of: env.downloads) == ["contract.txt", "contract.p7s"])
+
+        #expect(raced)
+        guard case let .done(destination, _) = coordinator.stage else {
+            Issue.record("expected .done, got \(coordinator.stage)"); return
+        }
+        #expect(destination.lastPathComponent == "contract (2).p7s")
+        #expect(try String(contentsOf: taken, encoding: .utf8) == "APPEARED")
+        #expect(try String(contentsOf: destination, encoding: .utf8) == "SIGNED-ARTIFACT-BYTES")
+        #expect(env.contents(of: env.downloads)
+                == ["contract.txt", "contract.p7s", "contract (2).p7s"])
     }
 
-    @Test("a symlink at the destination is refused before the card, even to a regular file")
-    func symlinkAtDestinationIsRefused() async throws {
+    @Test("a folder or a symlink at the name is left alone; the signature goes to a sibling")
+    func folderOrSymlinkAtTheNameIsNotReplaced() async throws {
         let env = SandboxedHome()
         let sandbox = FakeSandbox(granting: [env.downloads])
         _ = env.file("Downloads/contract.txt")
         let target = env.file("Downloads/real.p7s", "REAL")
-        let link = env.downloads.appendingPathComponent("contract.p7s")
+        let folder = env.downloads.appendingPathComponent("a.p7s")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let link = env.downloads.appendingPathComponent("b.p7s")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
-        let client = MockSigningClient(.throwError(.notConnected))
-        let coordinator = env.coordinator(client: client, sandbox: sandbox)
 
-        await coordinator.sign(
-            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
-            destinationPath: "~/Downloads/contract.p7s", replacing: link)
-
-        #expect(coordinator.stage == .failed(message: AppLocalization.shared.loc(
-            "libremac_sign_dest_not_a_file",
-            "Something other than a file already has that name. Choose another name.")))
-        #expect(client.signCallCount == 0)
+        for (typed, sibling) in [("a.p7s", "a (2).p7s"), ("b.p7s", "b (2).p7s")] {
+            let operation = makeCompletedSignOperation(
+                meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true))
+            let coordinator = env.coordinator(
+                client: MockSigningClient(.returnOperation(operation)), sandbox: sandbox)
+            await coordinator.sign(
+                card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
+                destinationPath: "~/Downloads/\(typed)")
+            guard case let .done(destination, _) = coordinator.stage else {
+                Issue.record("expected .done, got \(coordinator.stage)"); return
+            }
+            #expect(destination.lastPathComponent == sibling)
+        }
+        var isDirectory: ObjCBool = false
+        #expect(FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory)
+                && isDirectory.boolValue)
         #expect(try String(contentsOf: target, encoding: .utf8) == "REAL")
         #expect((try? FileManager.default.destinationOfSymbolicLink(atPath: link.path)) != nil)
+    }
+}
+
+/// An agent client that lets another process take `name` while the card is busy.
+final class TakesTheNameWhileSigning: AgentSigningClient, @unchecked Sendable {
+    private let operation: AgentOperation
+    private let name: URL
+    init(operation: AgentOperation, name: URL) {
+        self.operation = operation
+        self.name = name
+    }
+    func sign(
+        card: String, certId: String, input: FileHandle, options: SignOptions
+    ) async throws -> AgentOperation {
+        try Data("APPEARED".utf8).write(to: name)
+        return operation
     }
 }

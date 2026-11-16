@@ -2649,40 +2649,6 @@
         }
       }
     },
-    "libremac_sign_dest_is_input" : {
-      "comment" : "libremac_sign_dest_is_input",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The signed file cannot replace the file being signed. Choose another name."
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Потписана датотека не може да замени датотеку која се потписује. Изаберите друго име."
-          }
-        }
-      }
-    },
-    "libremac_sign_dest_not_a_file" : {
-      "comment" : "libremac_sign_dest_not_a_file",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Something other than a file already has that name. Choose another name."
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Нешто што није датотека већ има то име. Изаберите друго име."
-          }
-        }
-      }
-    },
     "libremac_sign_done" : {
       "comment" : "libremac_sign_done",
       "localizations" : {
@@ -2883,57 +2849,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Припрема…"
-          }
-        }
-      }
-    },
-    "libremac_sign_replace" : {
-      "comment" : "libremac_sign_replace",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Replace"
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Замени"
-          }
-        }
-      }
-    },
-    "libremac_sign_replace_after_discard" : {
-      "comment" : "libremac_sign_replace_after_discard",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again."
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Датотека {name} се појавила током потписивања, па потпис није сачуван. Да ли да је замените? Картица ће поново бити затражена."
-          }
-        }
-      }
-    },
-    "libremac_sign_replace_prompt" : {
-      "comment" : "libremac_sign_replace_prompt",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "{name} already exists. Replace it?"
-          }
-        },
-        "sr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Датотека {name} већ постоји. Да ли да је замените?"
           }
         }
       }

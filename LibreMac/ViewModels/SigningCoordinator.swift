@@ -55,13 +55,6 @@ public final class SigningCoordinator {
         case done(destination: URL, meta: SignMeta)
         /// Failed; payload is the resolved, user-facing message.
         case failed(message: String)
-        /// The destination already exists. Nothing was signed; signing again
-        /// with `replacing:` set to exactly this URL replaces it — and only
-        /// it. Asked before the card is, the way the save panel this replaces
-        /// asked. `signatureDiscarded` is true when the file appeared while the
-        /// card was signing: that signature was not saved, and the question
-        /// has to say so.
-        case confirmReplace(destination: URL, signatureDiscarded: Bool = false)
     }
 
     public private(set) var stage: Stage = .idle
@@ -77,8 +70,8 @@ public final class SigningCoordinator {
     private let stopAccessing: (URL) -> Void
     private let resolveBookmark: (Data) throws -> (url: URL, isStale: Bool)
     private let makeBookmark: (URL) throws -> Data
-    /// `rename(2)` of the finished temporary file over the destination.
-    private let moveItem: (URL, URL, Bool) throws -> Void
+    /// `rename(2)` of the finished temporary file over the claimed destination.
+    private let moveItem: (URL, URL) throws -> Void
 
     /// The file-system and bookmark calls are parameters so the scope logic
     /// is testable where the sandbox is not enforced (an unsigned test host);
@@ -94,7 +87,7 @@ public final class SigningCoordinator {
         resolveBookmark: @escaping (Data) throws -> (url: URL, isStale: Bool) =
             SigningCoordinator.resolveFolderBookmark,
         makeBookmark: @escaping (URL) throws -> Data = SigningCoordinator.makeFolderBookmark,
-        moveItem: @escaping (URL, URL, Bool) throws -> Void = SigningCoordinator.posixRename
+        moveItem: @escaping (URL, URL) throws -> Void = SigningCoordinator.posixRename
     ) {
         self.client = client
         self.defaults = defaults
@@ -120,7 +113,6 @@ public final class SigningCoordinator {
     public func reset() {
         if case .done = stage { stage = .idle }
         if case .failed = stage { stage = .idle }
-        if case .confirmReplace = stage { stage = .idle }
     }
 
     /// Signs the file at the typed `inputPath`, writing the signed artifact to
@@ -131,7 +123,6 @@ public final class SigningCoordinator {
         certId: String,
         inputPath: String,
         destinationPath: String,
-        replacing confirmed: URL? = nil,
         options: SignOptions = SigningCoordinator.defaultOptions
     ) async {
         if isInFlight { return }
@@ -145,27 +136,25 @@ public final class SigningCoordinator {
         }
         await sign(
             card: card, certId: certId, inputURL: inputURL,
-            destinationURL: destinationURL, replacing: confirmed, options: options)
+            destinationURL: destinationURL, options: options)
     }
 
-    /// Signs `inputURL` with `certId` on `card`, writing the signed artifact to
-    /// `destinationURL`. A no-op if a sign is already in flight.
+    /// Signs `inputURL` with `certId` on `card`, writing the signed artifact
+    /// beside `destinationURL`. A no-op if a sign is already in flight.
     ///
     /// Both files are opened BEFORE the card is asked: a destination the
     /// sandbox refuses must not surface after the user has confirmed a
-    /// signature that then has nowhere to go. An existing destination is
-    /// replaced only when `replacing` names that very file (a confirmation is
-    /// for the file it asked about, not for whatever the field says later),
-    /// never when it is anything but a regular file, and never when it is
-    /// the input itself. The artifact is written to a temporary file
-    /// beside the destination and renamed over it, so a failed sign leaves an
-    /// existing file exactly as it was.
+    /// signature that then has nowhere to go. A file is never replaced: the
+    /// artifact is written to a temporary file beside the destination, the
+    /// name is claimed by an exclusive create (the first free numbered sibling
+    /// when `destinationURL` is taken, whenever that is found out) and the
+    /// finished file is renamed over that claim. The stage's destination is the
+    /// name actually written.
     public func sign(
         card: String,
         certId: String,
         inputURL: URL,
         destinationURL: URL,
-        replacing confirmed: URL? = nil,
         options: SignOptions = SigningCoordinator.defaultOptions
     ) async {
         if isInFlight { return }
@@ -193,42 +182,8 @@ public final class SigningCoordinator {
         }
         defer { try? input.close() }
 
-        // The destination must not be the input: by path (it may not exist
-        // yet under another spelling), and by identity (a hard link, a
-        // symlink, or a spelling that differs only in case on APFS).
-        // `destinationInfo` is the destination itself (`lstat`, a link stays a
-        // link); `targetInfo` is what it leads to, for the identity check.
-        var inputInfo = stat()
-        var destinationInfo = stat()
-        var targetInfo = stat()
-        let destinationExists = lstat(destinationURL.path, &destinationInfo) == 0
-        if Self.canonical(inputURL) == Self.canonical(destinationURL)
-            || (fstat(input.fileDescriptor, &inputInfo) == 0
-                && stat(destinationURL.path, &targetInfo) == 0
-                && inputInfo.st_dev == targetInfo.st_dev
-                && inputInfo.st_ino == targetInfo.st_ino)
-        {
-            stage = .failed(message: Self.localized(
-                "libremac_sign_dest_is_input",
-                "The signed file cannot replace the file being signed. Choose another name."))
-            return
-        }
-        // A folder, link or device is not something a signed file replaces;
-        // said now, not after the user has confirmed a signature.
-        if destinationExists && (destinationInfo.st_mode & S_IFMT) != S_IFREG {
-            stage = .failed(message: Self.localized(
-                "libremac_sign_dest_not_a_file",
-                "Something other than a file already has that name. Choose another name."))
-            return
-        }
-        let replaceConfirmed = confirmed.map { Self.canonical($0) == Self.canonical(destinationURL) } ?? false
-        if destinationExists && !replaceConfirmed {
-            stage = .confirmReplace(destination: destinationURL)
-            return
-        }
-
         // Written beside the destination, inside the same scope, and renamed
-        // over it only once complete; removed on every failure below.
+        // onto its claimed name only once complete; removed on every failure.
         let temporaryURL = destinationURL.deletingLastPathComponent().appendingPathComponent(
             ".\(destinationURL.lastPathComponent).\(UUID().uuidString).librescrs-partial")
         let output: FileHandle
@@ -297,48 +252,61 @@ public final class SigningCoordinator {
         let meta = signResult.meta
         defer { try? artifact.close() }
 
+        guard let claim = claimFreeName(for: destinationURL) else {
+            stage = .failed(message: Self.writeFailedMessage)
+            return
+        }
+        defer { if !renamed { unlink(claim.path) } }
         do {
             try Self.copyArtifact(from: artifact, to: output)
             try output.synchronize()
-            // Unconfirmed: exclusive, so a file that appeared at that name
-            // while the card was busy is never replaced without asking.
-            do {
-                try moveItem(temporaryURL, destinationURL, !replaceConfirmed)
-            } catch let error as POSIXError
-                where !replaceConfirmed && (error.code == .ENOTSUP || error.code == .EINVAL)
-            {
-                // The volume has no exclusive rename (exFAT, measured: ENOTSUP
-                // for every name). Look, then rename plainly if nothing is
-                // there. That leaves a window between the look and the rename
-                // in which a new file could be replaced; it is accepted,
-                // because refusing would make every new file on such a volume
-                // fail after the user has already confirmed the signature.
-                var present = stat()
-                guard lstat(destinationURL.path, &present) != 0 else {
-                    throw POSIXError(.EEXIST)
-                }
-                try moveItem(temporaryURL, destinationURL, false)
-            }
-        } catch let error as POSIXError where error.code == .EEXIST && !replaceConfirmed {
-            stage = .confirmReplace(destination: destinationURL, signatureDiscarded: true)
-            return
+            try moveItem(temporaryURL, claim)
         } catch {
             stage = .failed(message: Self.writeFailedMessage)
             return
         }
         renamed = true
 
-        stage = .done(destination: destinationURL, meta: meta)
+        stage = .done(destination: claim, meta: meta)
         // User-chosen document names are PII — .private per the logging
         // privacy convention (LibreMacShared/Logger+Categories.swift).
         Logger.signing.info(
-            "Signed \(inputURL.lastPathComponent, privacy: .private) -> \(destinationURL.lastPathComponent, privacy: .private)")
+            "Signed \(inputURL.lastPathComponent, privacy: .private) -> \(claim.lastPathComponent, privacy: .private)")
     }
+
+    /// Claims the first free name the rule gives for `wanted` by creating it
+    /// exclusively, as an empty file the finished artifact is renamed over. The
+    /// create is what refuses to share a name, on every volume (a rename flag
+    /// for it is missing on exFAT); a name taken between the look and the
+    /// create is looked at again.
+    private func claimFreeName(for wanted: URL) -> URL? {
+        let folder = wanted.deletingLastPathComponent()
+        for _ in 0..<Self.maxClaimAttempts {
+            guard let candidate = SignedOutputName.firstFree(
+                named: wanted.lastPathComponent, in: folder,
+                isTaken: { url in
+                    var info = stat()
+                    return lstat(url.path, &info) == 0
+                })
+            else { return nil }
+            do {
+                close(try openFile(candidate.path, O_WRONLY | O_CREAT | O_EXCL))
+                return candidate
+            } catch let error as POSIXError where error.code == .EEXIST {
+                continue
+            } catch {
+                return nil
+            }
+        }
+        return nil
+    }
+
+    private static let maxClaimAttempts = 16
 
     private var isInFlight: Bool {
         switch stage {
         case .preparing, .awaitingConsent, .working: return true
-        case .idle, .done, .failed, .confirmReplace: return false
+        case .idle, .done, .failed: return false
         }
     }
 
@@ -485,13 +453,9 @@ public final class SigningCoordinator {
         return fd
     }
 
-    /// `rename(2)`, or `renamex_np(…, RENAME_EXCL)` when `exclusive`: then an
-    /// existing `to` fails with EEXIST instead of being replaced.
-    public nonisolated static func posixRename(_ from: URL, _ to: URL, _ exclusive: Bool) throws {
-        let result = exclusive
-            ? renamex_np(from.path, to.path, UInt32(RENAME_EXCL))
-            : Darwin.rename(from.path, to.path)
-        guard result == 0 else {
+    /// `rename(2)`. Only ever over a name this process just created.
+    public nonisolated static func posixRename(_ from: URL, _ to: URL) throws {
+        guard Darwin.rename(from.path, to.path) == 0 else {
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
     }
@@ -538,7 +502,7 @@ public final class SigningCoordinator {
         // terminal transition and cancels the phase task, but a buffered phase
         // may still be in flight.
         switch stage {
-        case .done, .failed, .idle, .confirmReplace:
+        case .done, .failed, .idle:
             return
         case .preparing, .awaitingConsent, .working:
             break

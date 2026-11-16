@@ -218,26 +218,6 @@
         <source>Insert a card with a signing certificate to sign.</source>
         <translation>Insert a card with a signing certificate to sign.</translation>
     </message>
-    <message id="libremac_sign_dest_is_input">
-        <source>The signed file cannot replace the file being signed. Choose another name.</source>
-        <translation>The signed file cannot replace the file being signed. Choose another name.</translation>
-    </message>
-    <message id="libremac_sign_dest_not_a_file">
-        <source>Something other than a file already has that name. Choose another name.</source>
-        <translation>Something other than a file already has that name. Choose another name.</translation>
-    </message>
-    <message id="libremac_sign_replace_prompt">
-        <source>{name} already exists. Replace it?</source>
-        <translation>{name} already exists. Replace it?</translation>
-    </message>
-    <message id="libremac_sign_replace_after_discard">
-        <source>{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again.</source>
-        <translation>{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again.</translation>
-    </message>
-    <message id="libremac_sign_replace">
-        <source>Replace</source>
-        <translation>Replace</translation>
-    </message>
     <message id="libremac_sign_no_artifact">
         <source>The signature completed but no signed file was returned.</source>
         <translation>The signature completed but no signed file was returned.</translation>

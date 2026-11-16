@@ -72,12 +72,12 @@ versioning follows [Semantic Versioning](https://semver.org/).
   location is not permitted and to use Browse…, instead of failing with an
   unreadable-file error. Both files are opened before the card is asked, so a
   destination that cannot be written is reported before you confirm a
-  signature, not after. An existing file is never overwritten silently: the
-  suggested name skips names already taken (`name.pdf.p7s`, `name.pdf (2).p7s`, …), a typed name
-  that exists asks to be replaced first, and the file being signed can never
-  be the destination. The signed file is written beside the destination and
-  moved into place only when complete, so a failed sign leaves an existing
-  file as it was.
+  signature, not after. An existing file is never replaced: the suggested
+  name skips names already taken (`name.pdf.p7s`, `name.pdf (2).p7s`, …), and a
+  typed name that exists, or that another process takes while the card is busy,
+  gets the first free numbered sibling instead; the window reports the name
+  actually written. The name is claimed by an exclusive create and the finished
+  file is moved onto it, so a failed sign leaves every existing file as it was.
 
 - The Trust settings now show the country-signing anchors the agent actually
   holds: how many there are, how many issuing countries they cover, when the

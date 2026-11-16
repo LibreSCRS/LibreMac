@@ -218,26 +218,6 @@
         <source>Insert a card with a signing certificate to sign.</source>
         <translation>Убаците картицу са сертификатом за потписивање.</translation>
     </message>
-    <message id="libremac_sign_dest_is_input">
-        <source>The signed file cannot replace the file being signed. Choose another name.</source>
-        <translation>Потписана датотека не може да замени датотеку која се потписује. Изаберите друго име.</translation>
-    </message>
-    <message id="libremac_sign_dest_not_a_file">
-        <source>Something other than a file already has that name. Choose another name.</source>
-        <translation>Нешто што није датотека већ има то име. Изаберите друго име.</translation>
-    </message>
-    <message id="libremac_sign_replace_prompt">
-        <source>{name} already exists. Replace it?</source>
-        <translation>Датотека {name} већ постоји. Да ли да је замените?</translation>
-    </message>
-    <message id="libremac_sign_replace_after_discard">
-        <source>{name} appeared while signing, so the signature was not saved. Replace it? You will be asked for the card again.</source>
-        <translation>Датотека {name} се појавила током потписивања, па потпис није сачуван. Да ли да је замените? Картица ће поново бити затражена.</translation>
-    </message>
-    <message id="libremac_sign_replace">
-        <source>Replace</source>
-        <translation>Замени</translation>
-    </message>
     <message id="libremac_sign_no_artifact">
         <source>The signature completed but no signed file was returned.</source>
         <translation>Потписивање је завршено али потписана датотека није враћена.</translation>
