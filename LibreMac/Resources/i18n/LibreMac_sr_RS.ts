@@ -218,6 +218,14 @@
         <source>Insert a card with a signing certificate to sign.</source>
         <translation>Убаците картицу са сертификатом за потписивање.</translation>
     </message>
+    <message id="libremac_sign_dest_is_folder">
+        <source>A folder already has that name. Choose another name.</source>
+        <translation>Фасцикла већ има то име. Изаберите друго име.</translation>
+    </message>
+    <message id="libremac_sign_done_renamed">
+        <source>{requested} already existed; saved as {name}</source>
+        <translation>{requested} већ постоји; сачувано као {name}</translation>
+    </message>
     <message id="libremac_sign_no_artifact">
         <source>The signature completed but no signed file was returned.</source>
         <translation>Потписивање је завршено али потписана датотека није враћена.</translation>

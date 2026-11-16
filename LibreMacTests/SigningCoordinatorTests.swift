@@ -78,9 +78,11 @@ func makeTempFile(_ contents: String = "payload") -> URL {
 /// a real, readable temp file: `claimResultFileHandle` returns `nil` for an
 /// empty fd table, which would misroute this into `.failed`.
 @MainActor
-func makeCompletedSignOperation(meta: SignMeta) -> AgentOperation {
+func makeCompletedSignOperation(
+    meta: SignMeta, artifact: String = "SIGNED-ARTIFACT-BYTES"
+) -> AgentOperation {
     let operation = AgentOperation(id: 0, kind: .sign, cancelHandler: {})
-    let artifactURL = makeTempFile("SIGNED-ARTIFACT-BYTES")
+    let artifactURL = makeTempFile(artifact)
     let artifactFd = open(artifactURL.path, O_RDONLY)
     #expect(artifactFd >= 0)
     operation.publishResult(.sign(SignResult(artifact: 0, meta: meta)), fds: [artifactFd])
@@ -537,6 +539,96 @@ struct SigningCoordinatorTypedPathTests {
                 == ["contract.txt", "contract.p7s", "contract (2).p7s", "contract (3).p7s"])
     }
 
+    @Test("a name without an extension is numbered without a trailing dot")
+    func extensionlessNameIsNumberedWithoutADot() async throws {
+        let env = SandboxedHome()
+        let sandbox = FakeSandbox(granting: [env.downloads])
+        _ = env.file("Downloads/contract.txt")
+        let existing = env.file("Downloads/Work", "OLD")
+        let operation = makeCompletedSignOperation(
+            meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true))
+        let coordinator = env.coordinator(
+            client: MockSigningClient(.returnOperation(operation)), sandbox: sandbox)
+
+        await coordinator.sign(
+            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
+            destinationPath: "~/Downloads/Work")
+
+        guard case let .done(destination, _) = coordinator.stage else {
+            Issue.record("expected .done, got \(coordinator.stage)"); return
+        }
+        #expect(destination.lastPathComponent == "Work (2)")
+        #expect(try String(contentsOf: existing, encoding: .utf8) == "OLD")
+    }
+
+    @Test("a typed path that is an existing folder is refused before the card is asked")
+    func existingFolderAtDestinationIsRefused() async throws {
+        let env = SandboxedHome()
+        let sandbox = FakeSandbox(granting: [env.downloads])
+        _ = env.file("Downloads/contract.txt")
+        let folder = env.downloads.appendingPathComponent("Work")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let client = MockSigningClient(.throwError(.notConnected))
+        let coordinator = env.coordinator(client: client, sandbox: sandbox)
+
+        await coordinator.sign(
+            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
+            destinationPath: "~/Downloads/Work")
+
+        #expect(coordinator.stage == .failed(message: AppLocalization.shared.loc(
+            "libremac_sign_dest_is_folder",
+            "A folder already has that name. Choose another name.")))
+        #expect(client.signCallCount == 0)
+        #expect(env.contents(of: env.downloads) == ["contract.txt", "Work"])
+    }
+
+    @Test("an empty artifact is a write failure and leaves nothing behind")
+    func emptyArtifactIsRefused() async {
+        let env = SandboxedHome()
+        let sandbox = FakeSandbox(granting: [env.downloads])
+        _ = env.file("Downloads/contract.txt")
+        let operation = makeCompletedSignOperation(
+            meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true),
+            artifact: "")
+        let coordinator = env.coordinator(
+            client: MockSigningClient(.returnOperation(operation)), sandbox: sandbox)
+
+        await coordinator.sign(
+            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
+            destinationPath: "~/Downloads/contract.p7s")
+
+        #expect(coordinator.stage == .failed(message: SigningCoordinator.writeFailedMessage))
+        #expect(env.contents(of: env.downloads) == ["contract.txt"])
+    }
+
+    @Test("the window says so when the chosen name was taken and a sibling was written")
+    func takenNameIsReportedAsRequested() async throws {
+        let env = SandboxedHome()
+        let sandbox = FakeSandbox(granting: [env.downloads])
+        _ = env.file("Downloads/contract.txt")
+        _ = env.file("Downloads/contract.p7s", "OLD")
+        let coordinator = env.coordinator(
+            client: MockSigningClient(.returnOperation(makeCompletedSignOperation(
+                meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true)))),
+            sandbox: sandbox)
+
+        await coordinator.sign(
+            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
+            destinationPath: "~/Downloads/contract.p7s")
+        #expect(coordinator.requestedNameThatWasTaken == "contract.p7s")
+
+        // A free name is written as typed and says nothing.
+        coordinator.reset()
+        let again = env.coordinator(
+            client: MockSigningClient(.returnOperation(makeCompletedSignOperation(
+                meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true)))),
+            sandbox: sandbox)
+        await again.sign(
+            card: "c", certId: "id", inputPath: "~/Downloads/contract.txt",
+            destinationPath: "~/Downloads/fresh.p7s")
+        #expect(again.requestedNameThatWasTaken == nil)
+    }
+
     @Test("the proposal never names an existing file")
     func proposalPicksAUniqueName() {
         let env = SandboxedHome()
@@ -657,18 +749,16 @@ struct SigningCoordinatorTypedPathTests {
                 == ["contract.txt", "contract.p7s", "contract (2).p7s"])
     }
 
-    @Test("a folder or a symlink at the name is left alone; the signature goes to a sibling")
-    func folderOrSymlinkAtTheNameIsNotReplaced() async throws {
+    @Test("a symlink at the name is left alone; the signature goes to a sibling")
+    func symlinkAtTheNameIsNotReplaced() async throws {
         let env = SandboxedHome()
         let sandbox = FakeSandbox(granting: [env.downloads])
         _ = env.file("Downloads/contract.txt")
         let target = env.file("Downloads/real.p7s", "REAL")
-        let folder = env.downloads.appendingPathComponent("a.p7s")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let link = env.downloads.appendingPathComponent("b.p7s")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
 
-        for (typed, sibling) in [("a.p7s", "a (2).p7s"), ("b.p7s", "b (2).p7s")] {
+        for (typed, sibling) in [("b.p7s", "b (2).p7s")] {
             let operation = makeCompletedSignOperation(
                 meta: SignMeta(format: "cades", level: "b-b", tsaUsed: false, chainComplete: true))
             let coordinator = env.coordinator(
@@ -681,9 +771,6 @@ struct SigningCoordinatorTypedPathTests {
             }
             #expect(destination.lastPathComponent == sibling)
         }
-        var isDirectory: ObjCBool = false
-        #expect(FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory)
-                && isDirectory.boolValue)
         #expect(try String(contentsOf: target, encoding: .utf8) == "REAL")
         #expect((try? FileManager.default.destinationOfSymbolicLink(atPath: link.path)) != nil)
     }

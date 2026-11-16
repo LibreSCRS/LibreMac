@@ -58,6 +58,9 @@ public final class SigningCoordinator {
     }
 
     public private(set) var stage: Stage = .idle
+    /// Set with `.done` when the name asked for was taken and a numbered
+    /// sibling was written instead: the name that was asked for.
+    public private(set) var requestedNameThatWasTaken: String?
 
     private let client: AgentSigningClient
     private let defaults: UserDefaults
@@ -159,6 +162,7 @@ public final class SigningCoordinator {
     ) async {
         if isInFlight { return }
         stage = .preparing
+        requestedNameThatWasTaken = nil
 
         // Start each scope the two paths need once, and stop exactly those
         // that started — on every exit, including the early ones.
@@ -181,6 +185,19 @@ public final class SigningCoordinator {
             return
         }
         defer { try? input.close() }
+
+        // A folder at the typed name is not something a sibling is written
+        // beside by surprise: said now, not after the card has signed. (Any
+        // other existing name just gets a numbered sibling.)
+        var destinationInfo = stat()
+        if stat(destinationURL.path, &destinationInfo) == 0,
+           (destinationInfo.st_mode & S_IFMT) == S_IFDIR
+        {
+            stage = .failed(message: Self.localized(
+                "libremac_sign_dest_is_folder",
+                "A folder already has that name. Choose another name."))
+            return
+        }
 
         // Written beside the destination, inside the same scope, and renamed
         // onto its claimed name only once complete; removed on every failure.
@@ -267,6 +284,9 @@ public final class SigningCoordinator {
         }
         renamed = true
 
+        if claim.lastPathComponent != destinationURL.lastPathComponent {
+            requestedNameThatWasTaken = destinationURL.lastPathComponent
+        }
         stage = .done(destination: claim, meta: meta)
         // User-chosen document names are PII — .private per the logging
         // privacy convention (LibreMacShared/Logger+Categories.swift).
@@ -489,7 +509,7 @@ public final class SigningCoordinator {
             "LibreMac is not allowed to use that location. Typed paths work inside Downloads and the folders you have chosen; use Browse… for others.")
     }
 
-    private static var writeFailedMessage: String {
+    static var writeFailedMessage: String {
         localized(
             "libremac_sign_write_failed",
             "The signed file could not be written to the chosen location.")
@@ -534,12 +554,19 @@ public final class SigningCoordinator {
     /// temporary file), rewinding first — the agent may hand the fd back
     /// positioned at EOF — with a bounded read loop rather than slurping the
     /// whole file at once.
-    private static func copyArtifact(from handle: FileHandle, to output: FileHandle) throws {
-        _ = lseek(handle.fileDescriptor, 0, SEEK_SET)
+    /// The checks of the Qt client's `writeSignedFile`: a failed rewind
+    /// (except on a pipe) and an artifact with no bytes are failures.
+    static func copyArtifact(from handle: FileHandle, to output: FileHandle) throws {
+        if lseek(handle.fileDescriptor, 0, SEEK_SET) == -1, errno != ESPIPE {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
         let chunkSize = 64 * 1024
+        var total = 0
         while let chunk = try handle.read(upToCount: chunkSize), !chunk.isEmpty {
             try output.write(contentsOf: chunk)
+            total += chunk.count
         }
+        if total == 0 { throw POSIXError(.EIO) }
     }
 
     // MARK: - Error copy

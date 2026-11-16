@@ -2649,6 +2649,23 @@
         }
       }
     },
+    "libremac_sign_dest_is_folder" : {
+      "comment" : "libremac_sign_dest_is_folder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A folder already has that name. Choose another name."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фасцикла већ има то име. Изаберите друго име."
+          }
+        }
+      }
+    },
     "libremac_sign_done" : {
       "comment" : "libremac_sign_done",
       "localizations" : {
@@ -2679,6 +2696,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Потписано на нивоу {level}."
+          }
+        }
+      }
+    },
+    "libremac_sign_done_renamed" : {
+      "comment" : "libremac_sign_done_renamed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{requested} already existed; saved as {name}"
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "{requested} већ постоји; сачувано као {name}"
           }
         }
       }

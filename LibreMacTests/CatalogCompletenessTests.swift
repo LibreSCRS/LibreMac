@@ -458,6 +458,8 @@ struct CatalogCompletenessTests {
         "libremac_settings_action_cancel",
         "libremac_sign_input_unreadable",
         "libremac_sign_write_failed",
+        "libremac_sign_dest_is_folder",
+        "libremac_sign_done_renamed",
         "libremac_sign_no_artifact",
         "libremac_sign_cancelled",
         "libremac_sign_pick_input",

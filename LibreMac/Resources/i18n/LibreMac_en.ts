@@ -218,6 +218,14 @@
         <source>Insert a card with a signing certificate to sign.</source>
         <translation>Insert a card with a signing certificate to sign.</translation>
     </message>
+    <message id="libremac_sign_dest_is_folder">
+        <source>A folder already has that name. Choose another name.</source>
+        <translation>A folder already has that name. Choose another name.</translation>
+    </message>
+    <message id="libremac_sign_done_renamed">
+        <source>{requested} already existed; saved as {name}</source>
+        <translation>{requested} already existed; saved as {name}</translation>
+    </message>
     <message id="libremac_sign_no_artifact">
         <source>The signature completed but no signed file was returned.</source>
         <translation>The signature completed but no signed file was returned.</translation>

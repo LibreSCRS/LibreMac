@@ -187,7 +187,12 @@ struct SignView: View {
     }
 
     private func doneSummary(_ destination: URL) -> String {
-        localization.loc(
+        if let requested = coordinator.requestedNameThatWasTaken {
+            return localization.loc(
+                "libremac_sign_done_renamed", "{requested} already existed; saved as {name}",
+                placeholders: ["requested": requested, "name": destination.lastPathComponent])
+        }
+        return localization.loc(
             "libremac_sign_done", "Signed — saved to {name}",
             placeholders: ["name": destination.lastPathComponent])
     }

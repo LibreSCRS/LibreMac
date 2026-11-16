@@ -83,8 +83,10 @@ public enum SignedOutputName {
         let first = folder.appendingPathComponent(name)
         if !isTaken(first) { return first }
         let (base, suffix) = split(name)
+        // A typed name may have no extension at all: then no dot is added.
+        let dot = name.contains(".") ? "." : ""
         for counter in 2...maxSiblings {
-            let candidate = folder.appendingPathComponent("\(base) (\(counter)).\(suffix)")
+            let candidate = folder.appendingPathComponent("\(base) (\(counter))\(dot)\(suffix)")
             if !isTaken(candidate) { return candidate }
         }
         return nil
