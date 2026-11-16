@@ -30,6 +30,13 @@ versioning follows [Semantic Versioning](https://semver.org/).
   attestation (`gh attestation verify LibreSCRS-5.0.0-macos.dmg --repo
   LibreSCRS/LibreMac`).
 
+### Known limitations
+
+- Card access numbers (CAN) and PINs can be entered, but a machine-readable
+  zone (MRZ) cannot yet: the secure entry prompt on macOS has a single masked
+  field, and an MRZ needs its three lines. Entering an MRZ is not available on
+  macOS in 5.0.
+
 ### Added
 
 - **Open in LibreCelik** in the menu while a card is in the reader, as in
