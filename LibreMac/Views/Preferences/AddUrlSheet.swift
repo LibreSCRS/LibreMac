@@ -9,16 +9,15 @@
 import LibreMacAgentClient
 import SwiftUI
 
-/// Accepts a URL this build can make sense of. Deliberately narrow: http(s)
-/// with a host. Anything else is a typo far more often than it is a scheme
-/// the agent secretly supports, and the agent gets the final say regardless.
+/// Accepts exactly what the agent keeps for a timestamp, trusted-list or
+/// anchor source: the scheme `https`, written in lower case, then a non-empty
+/// authority that does not start with `/`. The agent is still the authority
+/// and may refuse more; this only spares the user a refusal after typing.
 func isUsableTrustUrl(_ text: String) -> Bool {
-    guard let url = URL(string: text.trimmingCharacters(in: .whitespaces)),
-        let scheme = url.scheme?.lowercased(),
-        scheme == "http" || scheme == "https",
-        let host = url.host, !host.isEmpty
-    else { return false }
-    return true
+    let trimmed = text.trimmingCharacters(in: .whitespaces)
+    guard trimmed.hasPrefix("https://") else { return false }
+    let authority = trimmed.dropFirst("https://".count)
+    return !authority.isEmpty && authority.first != "/"
 }
 
 struct AddUrlSheet: View {
@@ -38,7 +37,7 @@ struct AddUrlSheet: View {
             if !text.isEmpty && !isUsableTrustUrl(text) {
                 Label(
                     localization.loc(
-                        "libremac_settings_invalid_url", "Enter a full http or https address."),
+                        "libremac_settings_invalid_url", "Enter a full https address."),
                     systemImage: "exclamationmark.triangle.fill"
                 )
                 .font(.caption)
@@ -80,7 +79,7 @@ struct AddSourceSheet: View {
             if !text.isEmpty && !isUsableTrustUrl(text) {
                 Label(
                     localization.loc(
-                        "libremac_settings_invalid_url", "Enter a full http or https address."),
+                        "libremac_settings_invalid_url", "Enter a full https address."),
                     systemImage: "exclamationmark.triangle.fill"
                 )
                 .font(.caption)

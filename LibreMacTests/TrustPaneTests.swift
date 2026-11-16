@@ -13,13 +13,24 @@ import Testing
 @Suite("Trust pane")
 struct TrustPaneTests {
 
+    /// The agent keeps only `https` addresses (lower-case scheme, a host after
+    /// it) for timestamp, trusted-list and anchor sources; offering `http`
+    /// would refuse the user only after they typed it.
+    @Test("only an https address is offered, as the agent accepts only that")
+    func addressCheckFollowsTheAgentsRule() {
+        #expect(!isUsableTrustUrl("http://tsa.example"))
+        #expect(!isUsableTrustUrl("  http://tsa.example/  "))
+        #expect(!isUsableTrustUrl("HTTPS://tsa.example"), "the agent compares the scheme as written")
+        #expect(!isUsableTrustUrl("https:///path"), "an empty host")
+        #expect(isUsableTrustUrl("https://tsa.example"))
+    }
+
     /// The check exists to catch a typo before it becomes a request, not to
     /// decide policy — the agent does that, and may still refuse what passes
     /// here.
     @Test("an address without a host or a web scheme is not offered to the agent")
     func addressCheckRejectsTheUnusable() {
         #expect(isUsableTrustUrl("https://tsa.example/tsa"))
-        #expect(isUsableTrustUrl("http://tsa.example"))
         #expect(isUsableTrustUrl("  https://tsa.example/  "), "surrounding space is a paste artefact")
 
         #expect(!isUsableTrustUrl(""))

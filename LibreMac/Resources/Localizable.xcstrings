@@ -1805,13 +1805,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter a full http or https address."
+            "value" : "Enter a full https address."
           }
         },
         "sr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Унесите пуну http или https адресу."
+            "value" : "Унесите пуну https адресу."
           }
         }
       }

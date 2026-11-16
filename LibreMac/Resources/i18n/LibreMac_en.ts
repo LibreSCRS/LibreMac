@@ -592,8 +592,8 @@
         <translation>List of lists</translation>
     </message>
     <message id="libremac_settings_invalid_url">
-        <source>Enter a full http or https address.</source>
-        <translation>Enter a full http or https address.</translation>
+        <source>Enter a full https address.</source>
+        <translation>Enter a full https address.</translation>
     </message>
     <message id="libremac_settings_tab_advanced">
         <source>Advanced</source>
