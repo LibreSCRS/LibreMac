@@ -271,6 +271,13 @@ public final class SigningCoordinator {
         phaseTask.cancel()
 
         guard status == .ok else {
+            // The person closed the prompt: the agent's English fallback is
+            // not copy for them, in any language.
+            if status == .cancelled {
+                stage = .failed(message: Self.localized(
+                    "libremac_sign_cancelled", "The signature was cancelled."))
+                return
+            }
             stage = .failed(message: ErrorCopy.message(for: code, msgFallback: msgFallback))
             return
         }

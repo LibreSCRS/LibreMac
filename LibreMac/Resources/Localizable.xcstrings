@@ -2581,6 +2581,23 @@
         }
       }
     },
+    "libremac_sign_cancelled" : {
+      "comment" : "libremac_sign_cancelled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The signature was cancelled."
+          }
+        },
+        "sr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Потписивање је отказано."
+          }
+        }
+      }
+    },
     "libremac_sign_chain_incomplete" : {
       "comment" : "libremac_sign_chain_incomplete",
       "localizations" : {

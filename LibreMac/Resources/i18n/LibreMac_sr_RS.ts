@@ -242,6 +242,10 @@
         <source>The signature completed but no signed file was returned.</source>
         <translation>Потписивање је завршено али потписана датотека није враћена.</translation>
     </message>
+    <message id="libremac_sign_cancelled">
+        <source>The signature was cancelled.</source>
+        <translation>Потписивање је отказано.</translation>
+    </message>
     <message id="libremac_sign_pick_input">
         <source>Choose file to sign</source>
         <translation>Изаберите датотеку за потписивање</translation>

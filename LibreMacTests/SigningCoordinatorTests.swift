@@ -159,6 +159,23 @@ struct SigningCoordinatorTests {
         #expect(client.lastRequestedOptions?.level == .auto)
     }
 
+    @Test("a cancelled prompt shows localized copy, not the agent's English fallback")
+    func cancelledPromptIsNotTheAgentFallback() async {
+        let operation = AgentOperation(id: 0, kind: .sign, cancelHandler: {})
+        operation.resolveFinished((.cancelled, .none, "op.cancelled", "Operation cancelled"))
+        let coordinator = SigningCoordinator(client: MockSigningClient(.returnOperation(operation)))
+        let destination = makeTempFile()
+        await coordinator.sign(card: "c", certId: "id",
+                               inputURL: makeTempFile(), destinationURL: destination,
+                               replacing: destination)
+        guard case let .failed(message) = coordinator.stage else {
+            Issue.record("expected .failed, got \(coordinator.stage)"); return
+        }
+        #expect(message != "Operation cancelled")
+        #expect(message == AppLocalization.shared.loc(
+            "libremac_sign_cancelled", "The signature was cancelled."))
+    }
+
     @Test @MainActor func theDoneStageCarriesWhatTheAgentActuallyProduced() async {
         let operation = makeCompletedSignOperation(
             meta: SignMeta(format: "cades", level: "b-t", tsaUsed: true, chainComplete: true))

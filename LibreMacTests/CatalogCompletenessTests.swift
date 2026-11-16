@@ -464,6 +464,7 @@ struct CatalogCompletenessTests {
         "libremac_sign_input_unreadable",
         "libremac_sign_write_failed",
         "libremac_sign_no_artifact",
+        "libremac_sign_cancelled",
         "libremac_sign_pick_input",
         "libremac_sign_pick_output",
         "libremac_sign_preparing",

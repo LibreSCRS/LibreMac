@@ -242,6 +242,10 @@
         <source>The signature completed but no signed file was returned.</source>
         <translation>The signature completed but no signed file was returned.</translation>
     </message>
+    <message id="libremac_sign_cancelled">
+        <source>The signature was cancelled.</source>
+        <translation>The signature was cancelled.</translation>
+    </message>
     <message id="libremac_sign_pick_input">
         <source>Choose file to sign</source>
         <translation>Choose file to sign</translation>
