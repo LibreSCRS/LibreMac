@@ -528,7 +528,7 @@ public final class SigningCoordinator {
             break
         }
         switch phase {
-        case .created, .connecting, .reading:
+        case .created, .queued, .connecting, .reading:
             stage = .preparing
         case .awaitingConsent, .authenticating:
             stage = .awaitingConsent

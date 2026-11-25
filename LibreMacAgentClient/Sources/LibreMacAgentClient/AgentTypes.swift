@@ -266,7 +266,7 @@ public enum PublicKey: Sendable, Equatable {
 /// `LibreSCRS::Agent::Operations::OperationPhase` (LibreAgent) and CDDL
 /// `op-phase` (`librescrs-agent.cddl`). Append-only.
 ///
-/// Wire tolerance: like `ErrorCode` above, a value past `done` is a FUTURE
+/// Wire tolerance: like `ErrorCode` above, a value past `queued` is a FUTURE
 /// phase, not a malformed one — carried through as `.unknown(UInt32)`
 /// rather than failing decode. Degradation is a STATEFUL-layer concern,
 /// never this type's or the codec's: `SigningCoordinator.applyPhase` leaves
@@ -282,6 +282,9 @@ public enum OperationPhase: Sendable, Equatable {
     case signing
     case timestamping
     case done
+    /// Waiting behind another operation on the same reader; the agent has
+    /// not started it yet.
+    case queued
     /// A phase this build does not have a name for yet — carries the raw
     /// wire value verbatim (see the type doc comment).
     case unknown(UInt32)
@@ -299,6 +302,7 @@ extension OperationPhase {
         case 5: self = .signing
         case 6: self = .timestamping
         case 7: self = .done
+        case 8: self = .queued
         default: self = .unknown(wireValue)
         }
     }
@@ -315,6 +319,7 @@ extension OperationPhase {
         case .signing: return 5
         case .timestamping: return 6
         case .done: return 7
+        case .queued: return 8
         case .unknown(let v): return v
         }
     }
@@ -337,6 +342,7 @@ extension OperationPhase {
         case .signing: return "Signing"
         case .timestamping: return "Timestamping"
         case .done: return "Done"
+        case .queued: return "Queued"
         case .unknown(let raw): return "unknown(\(raw))"
         }
     }

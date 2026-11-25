@@ -39,6 +39,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The agent client knows the `queued` phase the agent reports for an
+  operation waiting behind another one on the same reader; signing shows it as
+  preparing.
 - **Open in LibreCelik** in the menu while a card is in the reader, as in
   the KDE widget. It opens LibreCelik from an Applications folder, or brings
   it to the front when it is already running.

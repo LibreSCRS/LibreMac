@@ -88,6 +88,37 @@ struct SigningCoordinatorPhaseTests {
         await signTask.value
     }
 
+    @Test("an operation queued behind another renders as preparing, then follows the next phase")
+    func queuedRendersAsPreparing() async {
+        let operation = AgentOperation(id: 4, kind: .sign, cancelHandler: {})
+        let client = MockSigningClient(.returnOperation(operation))
+        let coordinator = SigningCoordinator(client: client)
+        let input = makeTempFile()
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("out-\(UUID().uuidString)")
+
+        let signTask = Task {
+            await coordinator.sign(
+                card: "card:0", certId: "cert:0", inputURL: input, destinationURL: output)
+        }
+
+        #expect(await waitUntil { client.signCallCount == 1 })
+        operation.publishPhase(.awaitingConsent)
+        #expect(await waitUntil { coordinator.stage == .awaitingConsent })
+        // Queued is a known phase: it moves the stage (unlike an unknown one).
+        operation.publishPhase(.queued)
+        #expect(await waitUntil { coordinator.stage == .preparing })
+        operation.publishPhase(.awaitingConsent)
+        #expect(await waitUntil { coordinator.stage == .awaitingConsent })
+
+        operation.resolveFinished((.error, .authFailed, nil, "auth failed"))
+        #expect(await waitUntil {
+            if case .failed = coordinator.stage { return true }
+            return false
+        })
+        await signTask.value
+    }
+
     @Test("a successful sign copies the artifact fd to the destination")
     func successCopiesArtifact() async {
         let operation = AgentOperation(id: 2, kind: .sign, cancelHandler: {})
