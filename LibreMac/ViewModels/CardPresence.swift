@@ -74,6 +74,7 @@ public enum Presence: Sendable, Equatable {
     case card(CardUiState)
     /// The session is suspended (system sleep / screen lock / user switch /
     /// shutdown). Overrides the card surface so a stale "certificates ready"
-    /// UI never survives a lock; cleared on the next registry snapshot.
+    /// UI never survives a lock; cleared when the agent reports the end of
+    /// every quiesce it announced (`AgentResumed`).
     case quiesced(QuiesceReason)
 }

@@ -39,6 +39,10 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The agent client knows the agent's `AgentResumed` event: the end of a
+  sleep, screen lock or user switch. The menu-bar card surface leaves its
+  quiesced state as soon as that quiesce ends, and stays quiesced while any
+  other one (a lock that outlasts a wake) is still active.
 - The agent client knows the `queued` phase the agent reports for an
   operation waiting behind another one on the same reader; signing shows it as
   preparing.

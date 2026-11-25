@@ -113,7 +113,10 @@ public final class CardMonitor {
     // MARK: - Backing state
 
     private var available = false
-    private var quiescedReason: QuiesceReason?
+    /// Every quiesce the agent announced and has not yet ended: a lock that
+    /// outlasts a wake keeps the card surface quiesced until the unlock.
+    private var activeQuiesces = QuiesceSet()
+    private var quiescedReason: QuiesceReason? { activeQuiesces.first }
     private var currentCardHandle: String?
     private var readerLabelMap: [String: String] = [:]
     private var certReadTask: Task<Void, Never>?
@@ -143,6 +146,7 @@ public final class CardMonitor {
         let registryUpdates = client.registryUpdates
         let availability = client.availability
         let quiescence = client.quiescence
+        let resumption = client.resumption
 
         // These tasks are created in a `@MainActor` context and therefore
         // inherit MainActor isolation: the stream `await`s suspend without
@@ -181,6 +185,13 @@ public final class CardMonitor {
                     self.apply(quiesced: reason)
                 }
             })
+        taskHolder.add(
+            Task { [weak self] in
+                for await reason in resumption {
+                    guard let self else { return }
+                    self.apply(resumed: reason)
+                }
+            })
     }
 
     deinit {
@@ -190,15 +201,15 @@ public final class CardMonitor {
     }
 
     // MARK: - Stream handlers
+    //
+    // Internal rather than private so the tests drive the same folds the
+    // stream loops above do.
 
-    private func apply(snapshot: RegistrySnapshot) {
+    func apply(snapshot: RegistrySnapshot) {
         let readersChanged = snapshot.readers != readers
         readers = snapshot.readers
         cards = snapshot.cards
         if readersChanged { rebuildReaderLabels() }
-        // A registry snapshot is "the next presence event" that clears a
-        // pending quiesce (the agent emits no explicit un-quiesce).
-        quiescedReason = nil
         reconcileCertificateReading()
         recomputePresence()
     }
@@ -221,7 +232,7 @@ public final class CardMonitor {
         AppLocalization.shared.loc(key, fallback, placeholders: ["model": model])
     }
 
-    private func apply(available value: Bool, features: Set<String>) {
+    func apply(available value: Bool, features: Set<String>) {
         available = value
         agentFeatures = features
         if !value {
@@ -235,12 +246,19 @@ public final class CardMonitor {
             // pick so no stale reader handle lingers into a reconnect.
             selectedReader = nil
             readerLabelMap = [:]
+            // A restarted agent owes no end for the old one's quiesces.
+            activeQuiesces.clear()
         }
         recomputePresence()
     }
 
-    private func apply(quiesced reason: QuiesceReason) {
-        quiescedReason = reason
+    func apply(quiesced reason: QuiesceReason) {
+        activeQuiesces.begin(reason)
+        recomputePresence()
+    }
+
+    func apply(resumed reason: QuiesceReason) {
+        activeQuiesces.end(reason)
         recomputePresence()
     }
 

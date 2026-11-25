@@ -147,11 +147,15 @@ public actor AgentClient {
 
     /// Surfaces each `AgentQuiesced{reason}` event to consumers so a UI can
     /// render "present-but-quiesced" and never leave a stale card/certificate
-    /// surface up while the session is suspended. A consumer clears its own
-    /// quiesced latch on the next `registryUpdates` snapshot (the "next
-    /// presence event" — the agent does not emit an explicit un-quiesce).
+    /// surface up while the session is suspended. The end of that quiesce
+    /// arrives on `resumption` with the same reason.
     private let quiescenceContinuation: AsyncStream<QuiesceReason>.Continuation
     public nonisolated let quiescence: AsyncStream<QuiesceReason>
+
+    /// Surfaces each `AgentResumed{reason}` event: the quiesce of that reason
+    /// has ended, so a consumer drops its latch for it.
+    private let resumptionContinuation: AsyncStream<QuiesceReason>.Continuation
+    public nonisolated let resumption: AsyncStream<QuiesceReason>
 
     // MARK: - Configuration changes
 
@@ -213,6 +217,9 @@ public actor AgentClient {
         let (quiescenceStream, quiescenceContinuation) = AsyncStream<QuiesceReason>.makeStream()
         self.quiescence = quiescenceStream
         self.quiescenceContinuation = quiescenceContinuation
+        let (resumptionStream, resumptionContinuation) = AsyncStream<QuiesceReason>.makeStream()
+        self.resumption = resumptionStream
+        self.resumptionContinuation = resumptionContinuation
         let (configStream, configContinuation) = AsyncStream<String>.makeStream()
         self.configChanges = configStream
         self.configChangesContinuation = configContinuation
@@ -223,6 +230,7 @@ public actor AgentClient {
         registryContinuation.finish()
         availabilityContinuation.finish()
         quiescenceContinuation.finish()
+        resumptionContinuation.finish()
         configChangesContinuation.finish()
     }
 
@@ -414,7 +422,9 @@ public actor AgentClient {
         closeFds(frame.fds)
     }
 
-    private func handleEvent(_ event: AgentEvent, fds: [Int32]) {
+    /// Internal (not private) so tests drive the same event fold through
+    /// `@testable import`; production reaches it only from the frame reader.
+    func handleEvent(_ event: AgentEvent, fds: [Int32]) {
         switch event {
         case .readerAdded(let reader):
             closeFds(fds)
@@ -441,6 +451,9 @@ public actor AgentClient {
         case .agentQuiesced(let reason):
             closeFds(fds)
             quiescenceContinuation.yield(reason)
+        case .agentResumed(let reason):
+            closeFds(fds)
+            resumptionContinuation.yield(reason)
         case .opProgress(let op, let phase):
             closeFds(fds)
             liveOperations[op]?.publishPhase(phase)

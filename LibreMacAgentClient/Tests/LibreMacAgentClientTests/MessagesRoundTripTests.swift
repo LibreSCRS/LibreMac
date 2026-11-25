@@ -617,6 +617,17 @@ struct MessagesEventDecodeTests {
         #expect(ev == .agentQuiesced(reason: .screenLocked))
     }
 
+    @Test("AgentResumed")
+    func agentResumed() throws {
+        // {t:"AgentResumed", reason:0} — canonical: "t" before "reason".
+        let bytes = Data([
+            0xA2, 0x61, 0x74, 0x6C, 0x41, 0x67, 0x65, 0x6E, 0x74, 0x52, 0x65, 0x73, 0x75, 0x6D, 0x65, 0x64,
+            0x66, 0x72, 0x65, 0x61, 0x73, 0x6F, 0x6E, 0x00,
+        ])
+        let ev = try AgentMessages.decodeEvent(bytes)
+        #expect(ev == .agentResumed(reason: .systemSleep))
+    }
+
     @Test("unknown t is rejected with .unknownMessage")
     func unknownTagRejected() {
         let bytes = Data([0xA1, 0x61, 0x74, 0x65, 0x42, 0x6F, 0x67, 0x75, 0x73]) // {t:"Bogus"}

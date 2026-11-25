@@ -243,6 +243,8 @@ func encodeEvent(_ event: AgentEvent) -> Data {
         ]
     case .agentQuiesced(let reason):
         pairs = [("t", .text("AgentQuiesced")), ("reason", .uint(UInt64(reason.wireValue)))]
+    case .agentResumed(let reason):
+        pairs = [("t", .text("AgentResumed")), ("reason", .uint(UInt64(reason.wireValue)))]
     }
     return mwMap(pairs).encode()
 }

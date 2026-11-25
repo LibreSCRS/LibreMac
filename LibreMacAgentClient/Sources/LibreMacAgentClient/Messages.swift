@@ -326,6 +326,9 @@ public enum AgentEvent: Sendable, Equatable {
     case opResultReady(op: UInt64, result: OpResult)
     case opFinished(op: UInt64, status: OperationStatus, code: ErrorCode, msgKey: String, msgFallback: String)
     case agentQuiesced(reason: QuiesceReason)
+    /// The quiesce of `reason` has ended (wake, unlock, session active
+    /// again); sent only for a quiesce the agent announced.
+    case agentResumed(reason: QuiesceReason)
 }
 
 // MARK: - Decode entry points
@@ -487,6 +490,10 @@ public enum AgentMessages {
             // bounds at `requireWireEnumValue8`, not `...32`.
             let reason = QuiesceReason(wireValue: try requireWireEnumValue8(m, "reason"))
             return .agentQuiesced(reason: reason)
+        case "AgentResumed":
+            // Same reason field, same tolerance as `AgentQuiesced` above.
+            let reason = QuiesceReason(wireValue: try requireWireEnumValue8(m, "reason"))
+            return .agentResumed(reason: reason)
         default:
             throw .unknownMessage
         }

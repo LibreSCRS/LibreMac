@@ -400,6 +400,12 @@ struct CrossImplementationFixtureTests {
         #expect(ev == .agentQuiesced(reason: .screenLocked))
     }
 
+    @Test("AgentResumed.cbor")
+    func agentResumed() throws {
+        let ev = try AgentMessages.decodeEvent(try fixture("AgentResumed"))
+        #expect(ev == .agentResumed(reason: .screenLocked))
+    }
+
     // ---- coverage guard: every fixture file gets a decode attempt above ----
 
     @Test("every checked-in fixture file is exercised by name above")
@@ -415,7 +421,7 @@ struct CrossImplementationFixtureTests {
             "ReaderAdded", "ReaderRemoved", "CardAdded", "CardRemoved", "PropertyChanged",
             "ConfigChanged", "OpProgress", "OpResultReadyIdentity", "OpResultReadyPhoto",
             "OpResultReadyCertificates", "OpResultReadySign", "OpResultReadyCredentialsList",
-            "OpResultReadyCredentialsFailed", "OpFinished", "AgentQuiesced",
+            "OpResultReadyCredentialsFailed", "OpFinished", "AgentQuiesced", "AgentResumed",
             // Unknown-arm/unknown-event/unknown-nested-kind tolerance
             // fixtures: each has its OWN dedicated test above (asserting the
             // specific decode error), not a decoded-value assertion like

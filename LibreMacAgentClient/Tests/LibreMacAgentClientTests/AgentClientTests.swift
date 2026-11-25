@@ -5,6 +5,24 @@ import Foundation
 import Testing
 @testable import LibreMacAgentClient
 
+/// The first reason `stream` yields, or nil when none arrives within two
+/// seconds: a missing event fails the test instead of hanging it.
+private func firstReason(of stream: AsyncStream<QuiesceReason>) async -> QuiesceReason? {
+    await withTaskGroup(of: QuiesceReason?.self) { group in
+        group.addTask {
+            var iterator = stream.makeAsyncIterator()
+            return await iterator.next()
+        }
+        group.addTask {
+            try? await Task.sleep(for: .seconds(2))
+            return nil
+        }
+        let first = await group.next() ?? nil
+        group.cancelAll()
+        return first
+    }
+}
+
 @Suite("AgentClient")
 struct AgentClientTests {
 
@@ -87,6 +105,25 @@ struct AgentClientTests {
         // so they have already landed, with no waiting of any kind.
         let readers = await client.readers()
         #expect(Set(readers.map(\.handle)) == Set(["r1", "r2"]))
+
+        await client.stop()
+    }
+
+    // MARK: - Quiesce and its end
+
+    @Test("AgentResumed reaches `resumption` with its reason, apart from `quiescence`")
+    func agentResumedReachesResumption() async throws {
+        let mock = MockAgentServer()
+        let client = makeTestClient(mock: mock)
+        _ = await startAndHandshake(mock, client)
+
+        mock.sendEvent(.agentQuiesced(reason: .systemSleep))
+        mock.sendEvent(.agentResumed(reason: .screenLocked))
+
+        #expect(await firstReason(of: client.resumption) == .screenLocked)
+        // The end did not ride the quiesce stream: the first thing it holds is
+        // the quiesce that was sent, not the resume.
+        #expect(await firstReason(of: client.quiescence) == .systemSleep)
 
         await client.stop()
     }
